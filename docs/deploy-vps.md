@@ -78,12 +78,22 @@ Script [`deploy/deploy.sh`](../deploy/deploy.sh): `git pull` → Postgres → `n
 ## 5. Nginx + SSL
 
 ```bash
+# Tắt trang "Welcome to nginx" mặc định
+sudo rm -f /etc/nginx/sites-enabled/default
+
 sudo cp /var/www/thuemayanhlongkhanh/deploy/nginx-thuemayanhlongkhanh.com.conf \
   /etc/nginx/sites-available/thuemayanhlongkhanh.com
 sudo ln -sf /etc/nginx/sites-available/thuemayanhlongkhanh.com \
   /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d thuemayanhlongkhanh.com
+```
+
+Mở http://thuemayanhlongkhanh.com — phải thấy app (không còn trang nginx mặc định).
+
+HTTPS:
+
+```bash
+sudo certbot --nginx -d thuemayanhlongkhanh.com -d www.thuemayanhlongkhanh.com
 ```
 
 Nếu dùng `www`:
