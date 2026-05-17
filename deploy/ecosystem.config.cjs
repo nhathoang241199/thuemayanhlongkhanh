@@ -8,7 +8,7 @@ module.exports = {
     {
       name: "thue-may-api",
       cwd: path.join(root, "backend"),
-      script: "dist/main.js",
+      script: "dist/src/main.js",
       instances: 1,
       autorestart: true,
       max_memory_restart: "500M",

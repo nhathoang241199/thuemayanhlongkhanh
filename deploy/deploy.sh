@@ -34,6 +34,7 @@ log "Backend: install, migrate, build..."
   npx prisma migrate deploy
   npm run build
 )
+[[ -f backend/dist/src/main.js ]] || die "Backend build thất bại: thiếu backend/dist/src/main.js"
 
 log "Frontend: install, build..."
 (
