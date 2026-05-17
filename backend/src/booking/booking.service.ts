@@ -1,0 +1,693 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  BookingSlot,
+  BookingStatus,
+  CustomerTag,
+  PaymentRecordStatus,
+  PaymentStatus,
+} from '../../generated/prisma/enums';
+import { Prisma } from '../../generated/prisma/client';
+import { AvailabilityService } from '../availability/availability.service';
+import {
+  dayCountInclusive,
+  deliveryFeeVnd,
+  slotWindow,
+} from '../common/booking-schedule';
+import { normalizePhone } from '../common/normalize-phone';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  parsePendingChange,
+  type PendingChangePayload,
+} from './booking-pending-change';
+import { CancelCustomerBookingDto } from './dto/cancel-customer-booking.dto';
+import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateCustomerBookingDto } from './dto/create-customer-booking.dto';
+import { RequestChangeCustomerBookingDto } from './dto/request-change-customer-booking.dto';
+import { UpdateBookingDto } from './dto/update-booking.dto';
+
+const bookingInclude = {
+  customer: { select: { id: true, name: true, phone: true } },
+  camera: { select: { id: true, name: true, brand: true } },
+} as const;
+
+/** Đơn đã kết thúc — không hiển thị trong danh sách khách (GET /bookings/mine). */
+const CUSTOMER_LIST_HIDDEN_STATUSES: BookingStatus[] = [
+  BookingStatus.COMPLETED,
+  BookingStatus.CANCELLED,
+  BookingStatus.REFUNDED,
+];
+
+@Injectable()
+export class BookingService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly availability: AvailabilityService,
+  ) {}
+
+  private async generateBookingCode(): Promise<string> {
+    const now = new Date();
+    const vn = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const y = vn.getUTCFullYear();
+    const m = String(vn.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(vn.getUTCDate()).padStart(2, '0');
+    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `DH-${y}${m}${d}-${suffix}`;
+  }
+
+  /** RENTING quá endBookingDate → LATE_RETURN */
+  private async markLateReturns() {
+    await this.prisma.booking.updateMany({
+      where: {
+        status: BookingStatus.RENTING,
+        endBookingDate: { lt: new Date() },
+      },
+      data: { status: BookingStatus.LATE_RETURN },
+    });
+  }
+
+  async findAll() {
+    await this.markLateReturns();
+    return this.prisma.booking.findMany({
+      orderBy: { startBookingDate: 'desc' },
+      include: bookingInclude,
+    });
+  }
+
+  async findByCustomerPhone(phone: string) {
+    const normalized = normalizePhone(phone);
+    if (normalized.length < 9) {
+      return [];
+    }
+    await this.markLateReturns();
+    const customer = await this.prisma.customer.findUnique({
+      where: { phone: normalized },
+    });
+    if (!customer) {
+      return [];
+    }
+    return this.prisma.booking.findMany({
+      where: {
+        customerId: customer.id,
+        status: { notIn: CUSTOMER_LIST_HIDDEN_STATUSES },
+      },
+      orderBy: { startBookingDate: 'desc' },
+      include: bookingInclude,
+    });
+  }
+
+  async findOne(id: string) {
+    await this.markLateReturns();
+    const row = await this.prisma.booking.findUnique({
+      where: { id },
+      include: bookingInclude,
+    });
+    if (!row) {
+      throw new NotFoundException(`Booking ${id} not found`);
+    }
+    return row;
+  }
+
+  private formatCancelNote(
+    refundAmount: number,
+    bankAccountInfo: string,
+    existingNote: string | null,
+  ): string {
+    const vnd = new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    });
+    const at = new Intl.DateTimeFormat('vi-VN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date());
+    const block = [
+      `--- Yêu cầu hủy · hoàn 50% (${vnd.format(refundAmount)}) ---`,
+      `Thời gian: ${at}`,
+      'TK nhận hoàn:',
+      bankAccountInfo.trim(),
+    ].join('\n');
+    if (existingNote?.trim()) {
+      return `${existingNote.trim()}\n\n${block}`;
+    }
+    return block;
+  }
+
+  private formatChangeRefundNote(
+    refundAmount: number,
+    bankAccountInfo: string,
+    pending: PendingChangePayload,
+    existingNote: string | null,
+  ): string {
+    const vnd = new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    });
+    const at = new Intl.DateTimeFormat('vi-VN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date());
+    const block = [
+      `--- Yêu cầu thay đổi · hoàn chênh lệch (${vnd.format(refundAmount)}) ---`,
+      `Thời gian: ${at}`,
+      `Giá mới: ${vnd.format(pending.newAmount)}`,
+      'TK nhận hoàn:',
+      bankAccountInfo.trim(),
+    ].join('\n');
+    if (existingNote?.trim()) {
+      return `${existingNote.trim()}\n\n${block}`;
+    }
+    return block;
+  }
+
+  private formatChangeRequestNote(
+    pending: PendingChangePayload,
+    existingNote: string | null,
+  ): string {
+    const vnd = new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    });
+    const at = new Intl.DateTimeFormat('vi-VN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date());
+    const block = [
+      `--- Yêu cầu thay đổi lịch ---`,
+      `Thời gian: ${at}`,
+      `Giá mới: ${vnd.format(pending.newAmount)}`,
+      `Chênh lệch: ${vnd.format(pending.delta)}`,
+    ].join('\n');
+    if (existingNote?.trim()) {
+      return `${existingNote.trim()}\n\n${block}`;
+    }
+    return block;
+  }
+
+  async applyPendingChangeToBooking(bookingId: string): Promise<boolean> {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+    if (!booking) return false;
+
+    const pending = parsePendingChange(booking.pendingChange);
+    if (!pending) return false;
+
+    const { available } = await this.availability.isRangeAvailable(
+      pending.cameraId,
+      pending.startDate,
+      pending.endDate,
+      pending.slot,
+      booking.id,
+    );
+    if (!available) return false;
+
+    const { startBookingDate } = slotWindow(pending.startDate, pending.slot);
+    const { endBookingDate } = slotWindow(pending.endDate, pending.slot);
+
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        cameraId: pending.cameraId,
+        startBookingDate,
+        endBookingDate,
+        slot: pending.slot,
+        amount: pending.newAmount,
+        note: pending.note ?? booking.note,
+        shippingAddress: pending.shippingAddress ?? booking.shippingAddress,
+        pendingChange: Prisma.DbNull,
+      },
+    });
+    return true;
+  }
+
+  async cancelCustomerBooking(id: string, dto: CancelCustomerBookingDto) {
+    const phone = normalizePhone(dto.phone);
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: { customer: { select: { phone: true } } },
+    });
+    if (!booking) {
+      throw new NotFoundException('Không tìm thấy đơn');
+    }
+    if (normalizePhone(booking.customer.phone) !== phone) {
+      throw new ForbiddenException('Không có quyền hủy đơn này');
+    }
+    if (booking.status !== BookingStatus.CONFIRMED) {
+      throw new BadRequestException(
+        'Chỉ hủy được khi đơn đang chờ lấy máy',
+      );
+    }
+
+    const refundAmount = Math.floor(booking.amount / 2);
+    const note = this.formatCancelNote(
+      refundAmount,
+      dto.bankAccountInfo,
+      booking.note,
+    );
+
+    return this.prisma.booking.update({
+      where: { id },
+      data: {
+        status: BookingStatus.PENDING_REFUND_CANCEL,
+        pendingChange: Prisma.DbNull,
+        note,
+      },
+      include: bookingInclude,
+    });
+  }
+
+  private async computeBookingAmount(
+    cameraId: string,
+    startDate: string,
+    endDate: string,
+    slot: BookingSlot,
+    shippingAddress?: string | null,
+  ): Promise<number> {
+    const camera = await this.prisma.camera.findUnique({
+      where: { id: cameraId },
+    });
+    if (!camera) {
+      throw new NotFoundException('Máy ảnh không tồn tại');
+    }
+    const dayCount = dayCountInclusive(startDate, endDate);
+    const unitPrice =
+      slot === BookingSlot.FULL_DAY ? camera.dayPrice : camera.shiftPrice;
+    return unitPrice * dayCount + deliveryFeeVnd(shippingAddress);
+  }
+
+  private assertDeliveryAllowed(
+    customer: { isVerified: boolean },
+    shippingAddress?: string | null,
+  ) {
+    if (!shippingAddress?.trim()) return;
+    if (!customer.isVerified) {
+      throw new BadRequestException(
+        'Chỉ tài khoản đã xác minh mới được chọn giao máy tận nơi',
+      );
+    }
+  }
+
+  async requestChangeCustomerBooking(
+    id: string,
+    dto: RequestChangeCustomerBookingDto,
+  ) {
+    const phone = normalizePhone(dto.phone);
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: {
+        customer: { select: { phone: true, isVerified: true } },
+        payment: true,
+      },
+    });
+    if (!booking) {
+      throw new NotFoundException('Không tìm thấy đơn');
+    }
+    if (normalizePhone(booking.customer.phone) !== phone) {
+      throw new ForbiddenException('Không có quyền thay đổi đơn này');
+    }
+    if (booking.status !== BookingStatus.CONFIRMED) {
+      throw new BadRequestException(
+        'Chỉ thay đổi được khi đơn đang chờ lấy máy',
+      );
+    }
+
+    this.availability.validateDateRange(dto.startDate, dto.endDate);
+    this.availability.validateSlotForRange(
+      dto.startDate,
+      dto.endDate,
+      dto.slot,
+    );
+
+    const { available } = await this.availability.isRangeAvailable(
+      dto.cameraId,
+      dto.startDate,
+      dto.endDate,
+      dto.slot,
+      booking.id,
+    );
+    if (!available) {
+      throw new BadRequestException(
+        'Không còn chỗ trong một hoặc nhiều ngày đã chọn',
+      );
+    }
+
+    this.assertDeliveryAllowed(booking.customer, dto.shippingAddress);
+
+    const newAmount = await this.computeBookingAmount(
+      dto.cameraId,
+      dto.startDate,
+      dto.endDate,
+      dto.slot,
+      dto.shippingAddress,
+    );
+    const delta = newAmount - booking.amount;
+
+    const pending: PendingChangePayload = {
+      cameraId: dto.cameraId,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      slot: dto.slot,
+      newAmount,
+      delta,
+      note: dto.note,
+      shippingAddress: dto.shippingAddress,
+    };
+
+    if (delta > 0) {
+      const updated = await this.prisma.booking.update({
+        where: { id },
+        data: {
+          status: BookingStatus.PENDING_CHANGE_PAYMENT,
+          pendingChange: pending as object,
+          note: this.formatChangeRequestNote(pending, booking.note),
+        },
+        include: bookingInclude,
+      });
+
+      if (booking.payment) {
+        await this.prisma.payment.update({
+          where: { id: booking.payment.id },
+          data: {
+            amount: delta,
+            status: PaymentRecordStatus.PENDING,
+            providerTxnRef: booking.bookingCode,
+          },
+        });
+      } else {
+        await this.prisma.payment.create({
+          data: {
+            bookingId: booking.id,
+            provider: 'SEPAY',
+            amount: delta,
+            status: PaymentRecordStatus.PENDING,
+            providerTxnRef: booking.bookingCode,
+          },
+        });
+      }
+
+      return {
+        booking: updated,
+        delta,
+        newAmount,
+        needsPayment: true,
+      };
+    }
+
+    if (delta < 0) {
+      if (!dto.bankAccountInfo?.trim()) {
+        throw new BadRequestException(
+          'Vui lòng nhập tài khoản ngân hàng để nhận hoàn tiền',
+        );
+      }
+      const refundAmount = Math.abs(delta);
+      const updated = await this.prisma.booking.update({
+        where: { id },
+        data: {
+          status: BookingStatus.PENDING_REFUND_CHANGE,
+          pendingChange: pending as object,
+          note: this.formatChangeRefundNote(
+            refundAmount,
+            dto.bankAccountInfo,
+            pending,
+            booking.note,
+          ),
+        },
+        include: bookingInclude,
+      });
+      return {
+        booking: updated,
+        delta,
+        newAmount,
+        needsPayment: false,
+      };
+    }
+
+    // Giá không đổi — lưu pending rồi áp dụng ngay, không chuyển sang thanh toán
+    await this.prisma.booking.update({
+      where: { id },
+      data: { pendingChange: pending as object },
+    });
+    const applied = await this.applyPendingChangeToBooking(id);
+    if (!applied) {
+      throw new BadRequestException('Không thể áp dụng thay đổi, thử lại sau');
+    }
+    const updated = await this.prisma.booking.findUnique({
+      where: { id },
+      include: bookingInclude,
+    });
+    return {
+      booking: updated,
+      delta: 0,
+      newAmount,
+      needsPayment: false,
+    };
+  }
+
+  async confirmChangePayment(bookingId: string): Promise<boolean> {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { payment: true },
+    });
+    if (!booking || booking.status !== BookingStatus.PENDING_CHANGE_PAYMENT) {
+      return false;
+    }
+
+    const pending = parsePendingChange(booking.pendingChange);
+    if (!pending) return false;
+
+    const ok = await this.applyPendingChangeToBooking(bookingId);
+    if (!ok) return false;
+
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PAID,
+      },
+    });
+
+    if (booking.payment) {
+      await this.prisma.payment.update({
+        where: { id: booking.payment.id },
+        data: {
+          amount: pending.newAmount,
+          status: PaymentRecordStatus.SUCCESS,
+        },
+      });
+    }
+
+    return true;
+  }
+
+  async createCustomerBooking(dto: CreateCustomerBookingDto) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: dto.customerId },
+    });
+    if (!customer) {
+      throw new NotFoundException('Khách hàng không tồn tại');
+    }
+    if (customer.customerTag === CustomerTag.BLACKLISTED) {
+      throw new ForbiddenException('Không thể đặt lịch với tài khoản này');
+    }
+
+    const camera = await this.prisma.camera.findUnique({
+      where: { id: dto.cameraId },
+    });
+    if (!camera) {
+      throw new NotFoundException('Máy ảnh không tồn tại');
+    }
+
+    this.availability.validateDateRange(dto.startDate, dto.endDate);
+    this.availability.validateSlotForRange(
+      dto.startDate,
+      dto.endDate,
+      dto.slot,
+    );
+
+    const { available } = await this.availability.isRangeAvailable(
+      dto.cameraId,
+      dto.startDate,
+      dto.endDate,
+      dto.slot,
+    );
+    if (!available) {
+      throw new BadRequestException(
+        'Không còn chỗ trong một hoặc nhiều ngày đã chọn',
+      );
+    }
+
+    this.assertDeliveryAllowed(customer, dto.shippingAddress);
+
+    const amount = await this.computeBookingAmount(
+      dto.cameraId,
+      dto.startDate,
+      dto.endDate,
+      dto.slot,
+      dto.shippingAddress,
+    );
+
+    const { startBookingDate } = slotWindow(dto.startDate, dto.slot);
+    const { endBookingDate } = slotWindow(dto.endDate, dto.slot);
+
+    let bookingCode = await this.generateBookingCode();
+    for (let i = 0; i < 5; i++) {
+      const exists = await this.prisma.booking.findUnique({
+        where: { bookingCode },
+      });
+      if (!exists) break;
+      bookingCode = await this.generateBookingCode();
+    }
+
+    try {
+      return await this.prisma.booking.create({
+        data: {
+          bookingCode,
+          customerId: dto.customerId,
+          cameraId: dto.cameraId,
+          startBookingDate,
+          endBookingDate,
+          slot: dto.slot,
+          amount,
+          note: dto.note,
+          shippingAddress: dto.shippingAddress,
+          paymentStatus: PaymentStatus.PENDING,
+          status: BookingStatus.PENDING_PAYMENT,
+          payment: {
+            create: {
+              provider: 'SEPAY',
+              amount,
+              status: PaymentRecordStatus.PENDING,
+              providerTxnRef: bookingCode,
+            },
+          },
+        },
+        include: bookingInclude,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2002') {
+          throw new ConflictException('Mã booking đã tồn tại, thử lại.');
+        }
+      }
+      throw e;
+    }
+  }
+
+  async create(dto: CreateBookingDto) {
+    try {
+      return await this.prisma.booking.create({
+        data: {
+          bookingCode: dto.bookingCode,
+          customerId: dto.customerId,
+          cameraId: dto.cameraId,
+          startBookingDate: new Date(dto.startBookingDate),
+          endBookingDate: new Date(dto.endBookingDate),
+          slot: dto.slot,
+          amount: dto.amount,
+          note: dto.note,
+          shippingAddress: dto.shippingAddress,
+          paymentStatus: dto.paymentStatus,
+          status: dto.status,
+        },
+        include: bookingInclude,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2002') {
+          throw new ConflictException('Mã booking đã tồn tại.');
+        }
+        if (e.code === 'P2003') {
+          throw new ConflictException(
+            'customerId hoặc cameraId không hợp lệ (không tồn tại).',
+          );
+        }
+      }
+      throw e;
+    }
+  }
+
+  async update(id: string, dto: UpdateBookingDto) {
+    const existing = await this.prisma.booking.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Booking ${id} not found`);
+    }
+
+    if (
+      dto.status === BookingStatus.CONFIRMED &&
+      existing.pendingChange != null
+    ) {
+      const applied = await this.applyPendingChangeToBooking(id);
+      if (!applied) {
+        throw new BadRequestException(
+          'Không áp dụng được thay đổi đang chờ — kiểm tra chỗ trống',
+        );
+      }
+      return this.prisma.booking.update({
+        where: { id },
+        data: {
+          status: BookingStatus.CONFIRMED,
+          ...(dto.paymentStatus !== undefined
+            ? { paymentStatus: dto.paymentStatus }
+            : {}),
+        },
+        include: bookingInclude,
+      });
+    }
+
+    const { startBookingDate, endBookingDate, ...rest } = dto;
+    const data: Prisma.BookingUncheckedUpdateInput = {
+      ...rest,
+      ...(startBookingDate !== undefined
+        ? { startBookingDate: new Date(startBookingDate) }
+        : {}),
+      ...(endBookingDate !== undefined
+        ? { endBookingDate: new Date(endBookingDate) }
+        : {}),
+    };
+
+    try {
+      return await this.prisma.booking.update({
+        where: { id },
+        data,
+        include: bookingInclude,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2025') {
+          throw new NotFoundException(`Booking ${id} not found`);
+        }
+        if (e.code === 'P2002') {
+          throw new ConflictException('Mã booking đã tồn tại.');
+        }
+        if (e.code === 'P2003') {
+          throw new ConflictException(
+            'customerId hoặc cameraId không hợp lệ (không tồn tại).',
+          );
+        }
+      }
+      throw e;
+    }
+  }
+
+  async remove(id: string) {
+    try {
+      return await this.prisma.booking.delete({ where: { id } });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2025') {
+          throw new NotFoundException(`Booking ${id} not found`);
+        }
+      }
+      throw e;
+    }
+  }
+}

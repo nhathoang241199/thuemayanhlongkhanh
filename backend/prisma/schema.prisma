@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Camera {
+  id               String       @id @default(cuid())
+  brand            CameraBrand
+  name             String
+  quantity         Int
+  dayPrice         Int
+  shiftPrice       Int
+  imageUrl         String?
+  tutorialVideoUrl String?
+  createdAt        DateTime     @default(now())
+  bookings         Booking[]
+}
+
+enum CameraBrand {
+  FUJIFILM
+  CANON
+  DJI
+}
+
+model Customer {
+  id                    String       @id @default(cuid())
+  name                  String
+  phone                 String       @unique
+  facebookUrl           String?
+  verificationImageUrls String[]      @default([])
+  isVerified            Boolean      @default(false)
+  customerTag           CustomerTag  @default(NORMAL)
+  note                  String?
+  bookings              Booking[]
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+}
+
+enum CustomerTag {
+  NORMAL
+  FRIENDLY
+  VIP
+  UNFRIENDLY
+  BLACKLISTED
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  bookingCode   String        @unique
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  cameraId      String
+  camera        Camera        @relation(fields: [cameraId], references: [id])
+  startBookingDate DateTime
+  endBookingDate   DateTime
+  slot             BookingSlot
+  amount        Int
+  note          String?
+  shippingAddress String?
+  pendingChange Json?
+  paymentStatus PaymentStatus @default(PENDING)
+  status        BookingStatus @default(PENDING_PAYMENT)
+  payment       Payment?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([cameraId, startBookingDate])
+}
+
+model Payment {
+  id           String              @id @default(cuid())
+  bookingId    String              @unique
+  booking      Booking             @relation(fields: [bookingId], references: [id])
+  provider     String
+  amount       Int
+  status       PaymentRecordStatus @default(PENDING)
+  providerTxnRef  String              @unique
+  externalTransId String?
+  rawPayload   Json?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+enum PaymentRecordStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum BookingSlot {
+  FULL_DAY
+  MORNING
+  AFTERNOON
+  EVENING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  RENTING
+  LATE_RETURN
+  COMPLETED
+  PENDING_REFUND_CANCEL
+  PENDING_REFUND_CHANGE
+  PENDING_CHANGE_PAYMENT
+  CANCELLED
+  REFUNDED
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  title       String
+  amount      Int
+  note        String?
+  expenseDate DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([expenseDate])
+}

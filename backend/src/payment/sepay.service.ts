@@ -1,0 +1,273 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  BookingStatus,
+  PaymentRecordStatus,
+} from '../../generated/prisma/enums';
+import { normalizePhone } from '../common/normalize-phone';
+import { PrismaService } from '../prisma/prisma.service';
+import { PaymentService } from './payment.service';
+import {
+  buildTransferContent,
+  compactPaymentRef,
+  stripTransferPrefix,
+} from './sepay-transfer';
+
+export type SePayWebhookBody = {
+  id: number | string;
+  code?: string | null;
+  content?: string | null;
+  transferType?: string;
+  transferAmount?: number | string;
+  referenceCode?: string | null;
+  gateway?: string;
+  transactionDate?: string;
+  accountNumber?: string;
+};
+
+@Injectable()
+export class SepayService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly paymentService: PaymentService,
+  ) {}
+
+  private bankConfig() {
+    const bin = process.env.SEPAY_BANK_BIN;
+    const account = process.env.SEPAY_BANK_ACCOUNT;
+    const accountName = process.env.SEPAY_ACCOUNT_NAME ?? '';
+    const bankName = process.env.SEPAY_BANK_NAME ?? 'Ngân hàng';
+    if (!bin || !account) {
+      throw new BadRequestException(
+        'Chưa cấu hình SEPAY_BANK_BIN và SEPAY_BANK_ACCOUNT',
+      );
+    }
+    return { bin, account, accountName, bankName };
+  }
+
+  private verifyWebhookAuth(headers: Record<string, string | undefined>) {
+    const expected = process.env.SEPAY_WEBHOOK_API_KEY;
+    if (!expected?.trim()) {
+      return;
+    }
+    const auth = headers.authorization ?? headers.Authorization ?? '';
+    const apiKey = headers['x-api-key'] ?? headers['X-Api-Key'] ?? '';
+    const token = auth.replace(/^Apikey\s+/i, '').replace(/^Bearer\s+/i, '').trim();
+    const provided = token || apiKey;
+    if (provided !== expected) {
+      throw new UnauthorizedException('Webhook không hợp lệ');
+    }
+  }
+
+  buildQrImageUrl(amount: number, transferContent: string): string {
+    const { bin, account, accountName } = this.bankConfig();
+    const params = new URLSearchParams({
+      amount: String(amount),
+      addInfo: transferContent,
+    });
+    if (accountName) {
+      params.set('accountName', accountName);
+    }
+    return `https://img.vietqr.io/image/${bin}-${account}-compact2.png?${params.toString()}`;
+  }
+
+  async getPaymentInstructions(bookingId: string, phoneRaw: string) {
+    const phone = normalizePhone(phoneRaw);
+    if (phone.length < 9) {
+      throw new BadRequestException('Số điện thoại không hợp lệ');
+    }
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: { select: { phone: true } },
+        payment: true,
+        camera: { select: { id: true } },
+      },
+    });
+    if (!booking) {
+      throw new NotFoundException('Không tìm thấy đơn');
+    }
+    if (normalizePhone(booking.customer.phone) !== phone) {
+      throw new ForbiddenException('Không có quyền xem đơn này');
+    }
+    const payableStatuses: BookingStatus[] = [
+      BookingStatus.PENDING_PAYMENT,
+      BookingStatus.PENDING_CHANGE_PAYMENT,
+    ];
+    if (!payableStatuses.includes(booking.status)) {
+      return {
+        bookingId: booking.id,
+        bookingCode: booking.bookingCode,
+        cameraId: booking.camera.id,
+        amount: booking.amount,
+        status: booking.status,
+        alreadyPaid: true,
+      };
+    }
+
+    const { bin, account, accountName, bankName } = this.bankConfig();
+    const transferContent = buildTransferContent(booking.bookingCode);
+    const payAmount =
+      booking.status === BookingStatus.PENDING_CHANGE_PAYMENT
+        ? (booking.payment?.amount ?? 0)
+        : booking.amount;
+
+    let payment = booking.payment;
+    if (!payment) {
+      payment = await this.prisma.payment.create({
+        data: {
+          bookingId: booking.id,
+          provider: 'SEPAY',
+          amount: payAmount,
+          status: PaymentRecordStatus.PENDING,
+          providerTxnRef: booking.bookingCode,
+        },
+      });
+    } else if (
+      payment.amount !== payAmount ||
+      payment.status !== PaymentRecordStatus.PENDING
+    ) {
+      payment = await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          provider: 'SEPAY',
+          amount: payAmount,
+          providerTxnRef: booking.bookingCode,
+          status: PaymentRecordStatus.PENDING,
+        },
+      });
+    }
+
+    return {
+      bookingId: booking.id,
+      bookingCode: booking.bookingCode,
+      cameraId: booking.camera.id,
+      amount: payAmount,
+      status: booking.status,
+      alreadyPaid: false,
+      isChangeTopUp: booking.status === BookingStatus.PENDING_CHANGE_PAYMENT,
+      bankName,
+      accountNumber: account,
+      accountName,
+      bankBin: bin,
+      transferContent,
+      qrImageUrl: this.buildQrImageUrl(payAmount, transferContent),
+      paymentId: payment.id,
+    };
+  }
+
+  private parseAmount(value: number | string | undefined): number | null {
+    if (value === undefined || value === null) return null;
+    const n = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
+    return Number.isFinite(n) ? Math.round(n) : null;
+  }
+
+  private paymentMatchesText(
+    payment: { providerTxnRef: string; booking: { bookingCode: string } },
+    raw: string,
+  ): boolean {
+    const text = stripTransferPrefix(raw);
+    const compact = compactPaymentRef(text);
+    const refs = [payment.providerTxnRef, payment.booking.bookingCode];
+    return refs.some(
+      (ref) =>
+        text.includes(ref) ||
+        compact.includes(compactPaymentRef(ref)) ||
+        compactPaymentRef(ref).includes(compact),
+    );
+  }
+
+  private async findPaymentForWebhook(body: SePayWebhookBody) {
+    const code = body.code?.trim();
+    if (code) {
+      const byCode = await this.prisma.payment.findUnique({
+        where: { providerTxnRef: code },
+        include: { booking: true },
+      });
+      if (byCode) return byCode;
+
+      const pending = await this.prisma.payment.findMany({
+        where: { status: PaymentRecordStatus.PENDING, provider: 'SEPAY' },
+        include: { booking: true },
+        take: 50,
+        orderBy: { createdAt: 'desc' },
+      });
+      for (const p of pending) {
+        if (this.paymentMatchesText(p, code)) return p;
+      }
+    }
+
+    const content = body.content ?? '';
+    if (content) {
+      const pending = await this.prisma.payment.findMany({
+        where: { status: PaymentRecordStatus.PENDING, provider: 'SEPAY' },
+        include: { booking: true },
+        take: 50,
+        orderBy: { createdAt: 'desc' },
+      });
+      for (const p of pending) {
+        if (this.paymentMatchesText(p, content)) return p;
+      }
+    }
+
+    return null;
+  }
+
+  async handleWebhook(
+    body: SePayWebhookBody,
+    headers: Record<string, string | undefined>,
+  ) {
+    this.verifyWebhookAuth(headers);
+
+    if (body.transferType && body.transferType !== 'in') {
+      return { success: true };
+    }
+
+    const payment = await this.findPaymentForWebhook(body);
+    if (!payment) {
+      return { success: true };
+    }
+
+    const externalId = String(body.id);
+    if (
+      payment.status === PaymentRecordStatus.SUCCESS ||
+      payment.externalTransId === externalId
+    ) {
+      return { success: true };
+    }
+
+    const transferAmount = this.parseAmount(body.transferAmount);
+    if (transferAmount !== null && transferAmount !== payment.amount) {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentRecordStatus.FAILED,
+          rawPayload: body as object,
+          externalTransId: externalId,
+        },
+      });
+      return { success: true };
+    }
+
+    const ok = await this.paymentService.confirmBookingAfterPayment(
+      payment.bookingId,
+    );
+
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: ok ? PaymentRecordStatus.SUCCESS : PaymentRecordStatus.FAILED,
+        rawPayload: body as object,
+        externalTransId: externalId,
+      },
+    });
+
+    return { success: true };
+  }
+}

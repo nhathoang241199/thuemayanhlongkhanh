@@ -1,0 +1,35 @@
+# Tự deploy lên VPS khi push vào nhánh main.
+# Secrets (Settings → Secrets and variables → Actions):
+#   VPS_HOST, VPS_USER, VPS_SSH_KEY
+#   VPS_APP_DIR (tùy chọn, mặc định /var/www/thuemayanhlongkhanh)
+
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            APP_DIR="${{ secrets.VPS_APP_DIR }}"
+            if [ -z "$APP_DIR" ]; then
+              APP_DIR="/var/www/thuemayanhlongkhanh"
+            fi
+            cd "$APP_DIR"
+            chmod +x deploy/deploy.sh
+            ./deploy/deploy.sh
