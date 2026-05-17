@@ -10,7 +10,7 @@ services:
       - http
       - host.docker.internal:3000
     environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:?set NGROK_AUTHTOKEN in env or root .env}
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

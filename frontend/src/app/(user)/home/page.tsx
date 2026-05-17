@@ -199,7 +199,6 @@ export default function UserHomePage() {
                 {GUIDE_STATUSES.has(b.status) ? (
                   <Text
                     as="button"
-                    type="button"
                     fontSize="sm"
                     color="cerulean.700"
                     textDecoration="underline"
