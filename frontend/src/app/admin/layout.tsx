@@ -16,9 +16,10 @@ import {
   Stack,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Fragment } from "react";
 
+import { adminLogout } from "@/lib/admin-auth";
 import {
   ADMIN_COLOR_PALETTE,
   adminShellBg,
@@ -65,7 +66,21 @@ export default function AdminLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  if (pathname === "/admin/login" || pathname.startsWith("/admin/login/")) {
+    return <>{children}</>;
+  }
+
   const crumbs = adminBreadcrumbs(pathname);
+
+  const handleLogout = () => {
+    void (async () => {
+      await adminLogout();
+      router.replace("/admin/login");
+      router.refresh();
+    })();
+  };
 
   return (
     <Box
@@ -152,6 +167,16 @@ export default function AdminLayout({
                   size="sm"
                 >
                   <NextLink href="/admin/cameras">Máy ảnh</NextLink>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  colorPalette={ADMIN_COLOR_PALETTE}
+                  size="sm"
+                  ml="auto"
+                  onClick={handleLogout}
+                >
+                  Đăng xuất
                 </Button>
               </HStack>
             </CardBody>

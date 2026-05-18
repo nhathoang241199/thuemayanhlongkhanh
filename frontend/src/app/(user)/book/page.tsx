@@ -47,6 +47,7 @@ import {
   type MyBooking,
 } from "@/lib/api";
 import { DELIVERY_FEE_VND } from "@/lib/booking-status";
+import { rentalAmountVnd } from "@/lib/rental-pricing";
 import { getSession, setSession } from "@/lib/customer-session";
 import {
   APP_COLOR_PALETTE,
@@ -171,9 +172,12 @@ function BookPageContent() {
 
   const estimatedAmount = useMemo(() => {
     if (!camera || !effectiveSlot || dayCount < 1) return 0;
-    const unit =
-      effectiveSlot === "FULL_DAY" ? camera.dayPrice : camera.shiftPrice;
-    const rental = unit * dayCount;
+    const rental = rentalAmountVnd(
+      dayCount,
+      camera.dayPrice,
+      camera.shiftPrice,
+      effectiveSlot,
+    );
     const delivery = deliverySelected ? DELIVERY_FEE_VND : 0;
     return rental + delivery;
   }, [camera, effectiveSlot, dayCount, deliverySelected]);

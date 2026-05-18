@@ -26,6 +26,9 @@ docker compose up -d postgres
 [[ -f backend/.env ]] || die "Thiếu backend/.env — cp backend/.env.production.example backend/.env"
 [[ -f frontend/.env.production ]] || die "Thiếu frontend/.env.production — cp frontend/.env.production.example frontend/.env.production"
 
+log "Uploads directory..."
+mkdir -p backend/uploads/verification
+
 log "Backend: install, migrate, build..."
 (
   cd backend

@@ -1,11 +1,29 @@
 "use client";
 
-import { Box, Image, Link, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
+import {
+  Box,
+  IconButton,
+  Image,
+  Link,
+  SimpleGrid,
+  Spinner,
+  Text,
+} from "@chakra-ui/react";
 
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
 import { useEffect, useRef, useState } from "react";
 
-function VerificationImageTile({ url, index }: { url: string; index: number }) {
+function VerificationImageTile({
+  url,
+  index,
+  onDelete,
+  deleting,
+}: {
+  url: string;
+  index: number;
+  onDelete?: (url: string) => void;
+  deleting?: boolean;
+}) {
   const [displaySrc, setDisplaySrc] = useState<string | null>(null);
   const [imageReady, setImageReady] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -46,25 +64,47 @@ function VerificationImageTile({ url, index }: { url: string; index: number }) {
   }, [url]);
 
   return (
-    <Link
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      display="block"
-      borderRadius="md"
-      outline="none"
-      _focusVisible={{ shadow: "outline" }}
-    >
-      <Box
-        position="relative"
-        w="full"
-        aspectRatio={1}
+    <Box position="relative" w="full">
+      {onDelete ? (
+        <IconButton
+          type="button"
+          aria-label={`Xóa ảnh ${index + 1}`}
+          size="xs"
+          variant="solid"
+          colorPalette="red"
+          position="absolute"
+          top={1.5}
+          right={1.5}
+          zIndex={2}
+          loading={deleting}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete(url);
+          }}
+        >
+          ×
+        </IconButton>
+      ) : null}
+      <Link
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        display="block"
         borderRadius="md"
-        overflow="hidden"
-        borderWidth="1px"
-        borderColor="ocean.200"
-        bg="ocean.100"
+        outline="none"
+        _focusVisible={{ shadow: "outline" }}
       >
+        <Box
+          position="relative"
+          w="full"
+          aspectRatio={1}
+          borderRadius="md"
+          overflow="hidden"
+          borderWidth="1px"
+          borderColor="ocean.200"
+          bg="ocean.100"
+        >
         {displaySrc && !imageError ? (
           <Image
             src={displaySrc}
@@ -115,18 +155,33 @@ function VerificationImageTile({ url, index }: { url: string; index: number }) {
             </Text>
           </Box>
         ) : null}
-      </Box>
-    </Link>
+        </Box>
+      </Link>
+    </Box>
   );
 }
 
-export function VerificationImageGallery({ urls }: { urls: string[] }) {
+export function VerificationImageGallery({
+  urls,
+  onDeleteUrl,
+  deletingUrl,
+}: {
+  urls: string[];
+  onDeleteUrl?: (url: string) => void;
+  deletingUrl?: string | null;
+}) {
   if (urls.length === 0) return null;
 
   return (
     <SimpleGrid columns={{ base: 2, sm: 3, md: 4 }} gap={3}>
       {urls.map((url, i) => (
-        <VerificationImageTile key={`${url}-${i}`} url={url} index={i} />
+        <VerificationImageTile
+          key={`${url}-${i}`}
+          url={url}
+          index={i}
+          onDelete={onDeleteUrl}
+          deleting={deletingUrl === url}
+        />
       ))}
     </SimpleGrid>
   );

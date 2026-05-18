@@ -4,8 +4,20 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { mkdir, unlink, writeFile } from 'fs/promises';
+import { dirname } from 'path';
 import { Prisma } from '../../generated/prisma/client';
 import { normalizePhone } from '../common/normalize-phone';
+import {
+  ALLOWED_VERIFICATION_MIMES,
+  MAX_VERIFICATION_IMAGE_BYTES,
+  MAX_VERIFICATION_IMAGES,
+  parseVerificationUploadPath,
+  verificationImageExtension,
+  verificationUploadDiskPath,
+  verificationUploadPublicUrl,
+} from '../common/upload-config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { IdentifyCustomerDto } from './dto/identify-customer.dto';
@@ -105,6 +117,80 @@ export class CustomerService {
       }
       throw e;
     }
+  }
+
+  async addVerificationImage(id: string, file: Express.Multer.File) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Thiếu file ảnh.');
+    }
+    if (file.size > MAX_VERIFICATION_IMAGE_BYTES) {
+      throw new BadRequestException('Ảnh tối đa 5 MB.');
+    }
+    if (!ALLOWED_VERIFICATION_MIMES.has(file.mimetype)) {
+      throw new BadRequestException('Chỉ chấp nhận ảnh JPG, PNG hoặc WebP.');
+    }
+    const ext = verificationImageExtension(file.mimetype);
+    if (!ext) {
+      throw new BadRequestException('Định dạng ảnh không hỗ trợ.');
+    }
+
+    const customer = await this.prisma.customer.findUnique({ where: { id } });
+    if (!customer) {
+      throw new NotFoundException(`Customer ${id} not found`);
+    }
+    if (customer.verificationImageUrls.length >= MAX_VERIFICATION_IMAGES) {
+      throw new BadRequestException(
+        `Tối đa ${MAX_VERIFICATION_IMAGES} ảnh xác minh mỗi khách.`,
+      );
+    }
+
+    const filename = `${randomUUID()}${ext}`;
+    const diskPath = verificationUploadDiskPath(id, filename);
+    await mkdir(dirname(diskPath), { recursive: true });
+    await writeFile(diskPath, file.buffer);
+
+    const publicUrl = verificationUploadPublicUrl(id, filename);
+    return this.prisma.customer.update({
+      where: { id },
+      data: {
+        verificationImageUrls: {
+          push: publicUrl,
+        },
+      },
+    });
+  }
+
+  async removeVerificationImage(id: string, url: string) {
+    const trimmed = url?.trim();
+    if (!trimmed) {
+      throw new BadRequestException('url is required');
+    }
+
+    const customer = await this.prisma.customer.findUnique({ where: { id } });
+    if (!customer) {
+      throw new NotFoundException(`Customer ${id} not found`);
+    }
+    if (!customer.verificationImageUrls.includes(trimmed)) {
+      throw new BadRequestException('Ảnh không thuộc khách hàng này.');
+    }
+
+    const parsed = parseVerificationUploadPath(trimmed);
+    if (parsed && parsed.customerId === id) {
+      const diskPath = verificationUploadDiskPath(
+        parsed.customerId,
+        parsed.filename,
+      );
+      await unlink(diskPath).catch(() => undefined);
+    }
+
+    return this.prisma.customer.update({
+      where: { id },
+      data: {
+        verificationImageUrls: customer.verificationImageUrls.filter(
+          (u) => u !== trimmed,
+        ),
+      },
+    });
   }
 
   async update(id: string, dto: UpdateCustomerDto) {

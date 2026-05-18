@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BookingSlot, CameraBrand } from '../../generated/prisma/enums';
+import { Public } from '../auth/public.decorator';
 import { AvailabilityService } from './availability.service';
 
+@Public()
 @ApiTags('availability')
 @Controller('availability')
 export class AvailabilityController {

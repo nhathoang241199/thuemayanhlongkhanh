@@ -41,6 +41,7 @@ import NextLink from "next/link";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 import { toaster } from "@/lib/toaster";
 
@@ -74,10 +75,6 @@ type Booking = {
   customer: BookingCustomer;
   camera: BookingCamera;
 };
-
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-}
 
 const tableCellPad = { px: 4, py: 3 };
 
@@ -407,7 +404,7 @@ export default function AdminBookingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDateKey, setFilterDateKey] = useState(todayLocalDateKey);
   /** Bật = không lọc theo ngày, hiển thị mọi đơn (theo các bộ lọc khác). */
-  const [showAllDates, setShowAllDates] = useState(false);
+  const [showAllDates, setShowAllDates] = useState(true);
   const [paymentStatusFilter, setPaymentStatusFilter] =
     useState<PaymentStatusFilter>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -535,32 +532,34 @@ export default function AdminBookingsPage() {
     return filteredBookings.slice(start, start + pageSize);
   }, [filteredBookings, clampedPage, pageSize]);
 
+  const loadBookings = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${apiBase()}/api/bookings`, {
+        credentials: "include",
+        signal,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+      const json = (await res.json()) as Booking[];
+      if (!signal?.aborted) setBookings(json);
+    } catch (e) {
+      if (signal?.aborted) return;
+      setBookings(null);
+      setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const ac = new AbortController();
-    void (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`${apiBase()}/api/bookings`, {
-          credentials: "include",
-          signal: ac.signal,
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
-        const json = (await res.json()) as Booking[];
-        if (!ac.signal.aborted) setBookings(json);
-      } catch (e) {
-        if (ac.signal.aborted) return;
-        setBookings(null);
-        setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
-      } finally {
-        if (!ac.signal.aborted) setLoading(false);
-      }
-    })();
+    void loadBookings(ac.signal);
     return () => ac.abort();
-  }, []);
+  }, [loadBookings]);
 
   return (
     <Stack gap={6}>
@@ -573,7 +572,20 @@ export default function AdminBookingsPage() {
             flexWrap="wrap"
             rowGap={3}
           >
-            <CardTitle textStyle="2xl">Đơn thuê</CardTitle>
+            <HStack gap={3} align="center" flexWrap="wrap">
+              <CardTitle textStyle="2xl">Đơn thuê</CardTitle>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                colorPalette={APP_COLOR_PALETTE}
+                loading={loading}
+                onClick={() => void loadBookings()}
+                aria-label="Làm mới danh sách đơn thuê"
+              >
+                Làm mới
+              </Button>
+            </HStack>
             {bookings !== null ? (
               <HStack gap={2} flexWrap="wrap" justify="flex-end">
                 <Button

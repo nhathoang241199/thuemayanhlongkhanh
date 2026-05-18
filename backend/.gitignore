@@ -50,6 +50,9 @@ dev.db-journal
 .temp
 .tmp
 
+# Uploaded files (CCCD, etc.)
+/uploads
+
 # Runtime data
 pids
 *.pid

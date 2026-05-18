@@ -2,25 +2,37 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  ApiBody,
   ApiConflictResponse,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
+import { Public } from '../auth/public.decorator';
+import { MAX_VERIFICATION_IMAGE_BYTES } from '../common/upload-config';
 import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { IdentifyCustomerDto } from './dto/identify-customer.dto';
+import { RemoveVerificationImageDto } from './dto/remove-verification-image.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 @ApiTags('customers')
@@ -35,6 +47,7 @@ export class CustomerController {
     return this.customerService.findAll();
   }
 
+  @Public()
   @Post('identify')
   @ApiOperation({
     summary: 'Nhận diện khách theo SĐT (tạo mới hoặc cập nhật tên)',
@@ -46,6 +59,7 @@ export class CustomerController {
     return this.customerService.identify(dto);
   }
 
+  @Public()
   @Get('verification')
   @ApiOperation({
     summary: 'Đã xác minh tài khoản (public, theo SĐT)',
@@ -70,6 +84,52 @@ export class CustomerController {
   @ApiConflictResponse({ description: 'Trùng số điện thoại' })
   create(@Body() dto: CreateCustomerDto) {
     return this.customerService.create(dto);
+  }
+
+  @Post(':id/verification-images')
+  @ApiOperation({ summary: 'Upload ảnh CCCD / xác minh (admin)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOkResponse({ description: 'Customer đã cập nhật' })
+  @ApiNotFoundResponse()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_VERIFICATION_IMAGE_BYTES },
+    }),
+  )
+  uploadVerificationImage(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: MAX_VERIFICATION_IMAGE_BYTES }),
+          new FileTypeValidator({
+            fileType: /(image\/jpeg|image\/png|image\/webp)/,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    return this.customerService.addVerificationImage(id, file);
+  }
+
+  @Delete(':id/verification-images')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Xóa ảnh CCCD / xác minh (admin)' })
+  @ApiOkResponse({ description: 'Customer đã cập nhật' })
+  @ApiNotFoundResponse()
+  removeVerificationImage(
+    @Param('id') id: string,
+    @Body() dto: RemoveVerificationImageDto,
+  ) {
+    return this.customerService.removeVerificationImage(id, dto.url);
   }
 
   @Patch(':id')

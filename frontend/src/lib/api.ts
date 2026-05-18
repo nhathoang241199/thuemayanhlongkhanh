@@ -1,8 +1,8 @@
 import type { CustomerSession } from "./customer-session";
 
-export function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-}
+import { apiBase } from "./api-base";
+
+export { apiBase };
 
 export type IdentifyCustomerResponse = {
   customer: {

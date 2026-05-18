@@ -7,8 +7,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/public.decorator';
 import { SepayService, type SePayWebhookBody } from './sepay.service';
 
+@Public()
 @ApiTags('payments')
 @Controller('payments')
 export class PaymentController {

@@ -20,10 +20,11 @@ import NextLink from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
 import { CustomerTagBadge } from "../customer-tag-badge";
-import { VerificationImageGallery } from "../verification-image-gallery";
+import { VerificationImageManager } from "../verification-image-manager";
 
 type Customer = {
   id: string;
@@ -37,10 +38,6 @@ type Customer = {
   createdAt: string;
   updatedAt: string;
 };
-
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-}
 
 const createdAtFmt = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
@@ -262,21 +259,25 @@ export default function AdminCustomerDetailPage() {
             </CardBody>
           </CardRoot>
 
-          {customer.verificationImageUrls.length > 0 ? (
-            <CardRoot {...cardSurfaceProps}>
-              <CardHeader pb={0}>
-                <CardTitle textStyle="lg">Ảnh xác minh</CardTitle>
-                <CardDescription>
-                  {customer.verificationImageUrls.length} ảnh
-                </CardDescription>
-              </CardHeader>
-              <CardBody>
-                <VerificationImageGallery
-                  urls={customer.verificationImageUrls}
-                />
-              </CardBody>
-            </CardRoot>
-          ) : null}
+          <CardRoot {...cardSurfaceProps}>
+            <CardHeader pb={0}>
+              <CardTitle textStyle="lg">Ảnh CCCD / xác minh</CardTitle>
+              <CardDescription>
+                Upload ảnh căn cước để lưu hồ sơ khách
+              </CardDescription>
+            </CardHeader>
+            <CardBody>
+              <VerificationImageManager
+                customerId={customer.id}
+                urls={customer.verificationImageUrls}
+                onUpdated={(verificationImageUrls) =>
+                  setCustomer((c) =>
+                    c ? { ...c, verificationImageUrls } : c,
+                  )
+                }
+              />
+            </CardBody>
+          </CardRoot>
         </Stack>
       ) : null}
     </Stack>

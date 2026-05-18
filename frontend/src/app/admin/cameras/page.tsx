@@ -36,6 +36,7 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 
+import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
 type Camera = {
@@ -107,10 +108,6 @@ const vnd = new Intl.NumberFormat("vi-VN", {
   currency: "VND",
   maximumFractionDigits: 0,
 });
-
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-}
 
 /** Padding nội dung cho từng ô bảng máy ảnh */
 const tableCellPad = { px: 4, py: 4 };

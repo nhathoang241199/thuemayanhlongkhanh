@@ -8,6 +8,7 @@ import {
 import {
   dayCountInclusive,
   deliveryFeeVnd,
+  rentalAmountVnd,
   slotWindow,
 } from "../src/common/booking-schedule";
 
@@ -401,12 +402,16 @@ async function main() {
     const { startBookingDate } = slotWindow(md.startDate, md.slot);
     const { endBookingDate } = slotWindow(md.endDate, md.slot);
     const dayCount = dayCountInclusive(md.startDate, md.endDate);
-    const unitPrice =
-      md.slot === "FULL_DAY" ? md.camera.dayPrice : md.camera.shiftPrice;
     const shippingAddress = md.ship
       ? shipLines[0]!
       : null;
-    const amount = unitPrice * dayCount + deliveryFeeVnd(shippingAddress);
+    const amount =
+      rentalAmountVnd(
+        dayCount,
+        md.camera.dayPrice,
+        md.camera.shiftPrice,
+        md.slot,
+      ) + deliveryFeeVnd(shippingAddress);
     const [sy, sm, sd] = md.startDate.split("-").map(Number);
 
     await prisma.booking.create({

@@ -18,6 +18,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Public } from '../auth/public.decorator';
 import { CameraBrand } from '../../generated/prisma/enums';
 import { CameraService } from './camera.service';
 import { CreateCameraDto } from './dto/create-camera.dto';
@@ -35,6 +36,7 @@ export class CameraController {
     return this.cameraService.findAll();
   }
 
+  @Public()
   @Get('public')
   @ApiOperation({ summary: 'Danh sách máy (khách)' })
   @ApiOkResponse({ description: 'Máy theo hãng, field public' })
@@ -42,6 +44,7 @@ export class CameraController {
     return this.cameraService.findPublic(brand);
   }
 
+  @Public()
   @Get('public/:id')
   @ApiOperation({ summary: 'Chi tiết máy (khách)' })
   @ApiOkResponse({ description: 'Máy public kèm video hướng dẫn' })

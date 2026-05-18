@@ -58,10 +58,12 @@ Production: đổi mật khẩu Postgres trong `docker-compose.yml` và cập nh
 cd /var/www/thuemayanhlongkhanh
 cp backend/.env.production.example backend/.env
 cp frontend/.env.production.example frontend/.env.production
-nano backend/.env          # SEPAY_*, DATABASE_URL, ...
+nano backend/.env          # SEPAY_*, DATABASE_URL, ADMIN_*, ADMIN_JWT_SECRET, ...
 nano frontend/.env.production
 chmod +x deploy/deploy.sh
 ```
+
+**Admin:** đặt `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_JWT_SECRET` (≥16 ký tự) trong `backend/.env`. Truy cập `/admin` sẽ redirect `/admin/login`. Cookie `httpOnly` — API quản trị yêu cầu đăng nhập; flow khách (`/book`, webhook SePay) vẫn public.
 
 Tùy chọn dữ liệu demo (xóa toàn bộ data cũ): `cd backend && npm run db:seed`
 

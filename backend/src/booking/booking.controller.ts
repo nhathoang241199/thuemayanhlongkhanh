@@ -19,6 +19,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Public } from '../auth/public.decorator';
 import { BookingService } from './booking.service';
 import { CancelCustomerBookingDto } from './dto/cancel-customer-booking.dto';
 import { RequestChangeCustomerBookingDto } from './dto/request-change-customer-booking.dto';
@@ -38,6 +39,7 @@ export class BookingController {
     return this.bookingService.findAll();
   }
 
+  @Public()
   @Get('mine')
   @ApiOperation({
     summary: 'Đơn của khách theo SĐT',
@@ -52,6 +54,7 @@ export class BookingController {
     return this.bookingService.findByCustomerPhone(phone);
   }
 
+  @Public()
   @Post('customer')
   @ApiOperation({ summary: 'Khách tạo đơn (chờ thanh toán)' })
   @ApiCreatedResponse()
@@ -59,6 +62,7 @@ export class BookingController {
     return this.bookingService.createCustomerBooking(dto);
   }
 
+  @Public()
   @Post('customer/:id/cancel')
   @ApiOperation({ summary: 'Khách hủy đơn (chờ lấy máy) + TK hoàn 50%' })
   @ApiOkResponse()
@@ -70,6 +74,7 @@ export class BookingController {
     return this.bookingService.cancelCustomerBooking(id, dto);
   }
 
+  @Public()
   @Post('customer/:id/request-change')
   @ApiOperation({ summary: 'Khách yêu cầu thay đổi đơn (chờ lấy máy)' })
   @ApiOkResponse()

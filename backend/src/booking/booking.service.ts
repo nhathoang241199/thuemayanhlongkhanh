@@ -17,6 +17,7 @@ import { AvailabilityService } from '../availability/availability.service';
 import {
   dayCountInclusive,
   deliveryFeeVnd,
+  rentalAmountVnd,
   slotWindow,
 } from '../common/booking-schedule';
 import { normalizePhone } from '../common/normalize-phone';
@@ -279,9 +280,10 @@ export class BookingService {
       throw new NotFoundException('Máy ảnh không tồn tại');
     }
     const dayCount = dayCountInclusive(startDate, endDate);
-    const unitPrice =
-      slot === BookingSlot.FULL_DAY ? camera.dayPrice : camera.shiftPrice;
-    return unitPrice * dayCount + deliveryFeeVnd(shippingAddress);
+    return (
+      rentalAmountVnd(dayCount, camera.dayPrice, camera.shiftPrice, slot) +
+      deliveryFeeVnd(shippingAddress)
+    );
   }
 
   private assertDeliveryAllowed(

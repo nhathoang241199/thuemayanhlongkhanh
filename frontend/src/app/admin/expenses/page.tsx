@@ -48,6 +48,7 @@ import {
   cardSurfaceProps,
   fieldInputProps,
 } from "@/lib/app-theme";
+import { apiBase } from "@/lib/api-base";
 import { toaster } from "@/lib/toaster";
 
 const MONTH_LABELS_VI = [
@@ -91,10 +92,6 @@ const vnd = new Intl.NumberFormat("vi-VN", {
 const expenseDateFmt = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
 });
-
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-}
 
 const YEAR_MIN = 2000;
 const YEAR_MAX = 2100;

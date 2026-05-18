@@ -1,11 +1,17 @@
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
+import { join } from 'path';
 import { AppModule } from './app.module';
+import { getUploadDir } from './common/upload-config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.use(cookieParser());
+  app.useStaticAssets(join(getUploadDir()), { prefix: '/api/uploads/' });
   app.enableCors({
     origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:3001',
     credentials: true,

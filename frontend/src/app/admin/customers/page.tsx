@@ -21,6 +21,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
 import { CustomerTagBadge } from "./customer-tag-badge";
@@ -37,10 +38,6 @@ type Customer = {
   createdAt: string;
   updatedAt: string;
 };
-
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-}
 
 const tableCellPad = { px: 4, py: 3 };
 
