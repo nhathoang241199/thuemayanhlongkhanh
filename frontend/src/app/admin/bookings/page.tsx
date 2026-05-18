@@ -4,7 +4,9 @@ import {
   Badge,
   Box,
   Button,
+  createIcon,
   CardBody,
+  IconButton,
   CardDescription,
   CardHeader,
   CardRoot,
@@ -79,6 +81,30 @@ type Booking = {
 const tableCellPad = { px: 4, py: 3 };
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50] as const;
+
+const RefreshIcon = createIcon({
+  displayName: "RefreshIcon",
+  path: (
+    <>
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 12a9 9 0 1 1-2.64-6.36"
+      />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 3v6h-6"
+      />
+    </>
+  ),
+});
 
 const vnd = new Intl.NumberFormat("vi-VN", {
   style: "currency",
@@ -574,17 +600,17 @@ export default function AdminBookingsPage() {
           >
             <HStack gap={3} align="center" flexWrap="wrap">
               <CardTitle textStyle="2xl">Đơn thuê</CardTitle>
-              <Button
+              <IconButton
                 type="button"
                 size="sm"
-                variant="outline"
+                variant="solid"
                 colorPalette={APP_COLOR_PALETTE}
                 loading={loading}
                 onClick={() => void loadBookings()}
                 aria-label="Làm mới danh sách đơn thuê"
               >
-                Làm mới
-              </Button>
+                <RefreshIcon />
+              </IconButton>
             </HStack>
             {bookings !== null ? (
               <HStack gap={2} flexWrap="wrap" justify="flex-end">
