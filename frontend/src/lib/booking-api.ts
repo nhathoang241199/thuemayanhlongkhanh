@@ -215,5 +215,18 @@ export function dayCountInclusive(start: string, end: string): number {
 
 export function formatDateVi(dateStr: string): string {
   const [y, m, d] = dateStr.split("-");
-  return `${d}/${m}/${y}`;
+  return `${d}-${m}-${y}`;
+}
+
+/** Nhãn ngày trên UI đặt lịch: 1 ngày chỉ hiện một ngày; từ 2 ngày hiện khoảng + (N ngày). */
+export function formatBookingRangeLabel(
+  startDate: string,
+  endDate: string,
+  dayCount: number,
+): string {
+  if (!startDate || !endDate) return "—";
+  if (dayCount <= 1 || startDate === endDate) {
+    return formatDateVi(startDate);
+  }
+  return `${formatDateVi(startDate)} – ${formatDateVi(endDate)} (${dayCount} ngày)`;
 }

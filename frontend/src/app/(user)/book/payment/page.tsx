@@ -302,8 +302,8 @@ function PaymentContent() {
       </Text>
       <Text fontSize="sm" color="fg.muted">
         {instructions?.isChangeTopUp
-          ? "Chuyển thêm phần chênh lệch sau khi đổi lịch. Quét mã QR hoặc chuyển khoản đúng số tiền và nội dung (bắt đầu bằng SEVQR)."
-          : "Quét mã QR hoặc chuyển khoản đúng số tiền và nội dung bên dưới (bắt đầu bằng SEVQR). Hệ thống sẽ tự xác nhận trong vài phút."}
+          ? "Chuyển thêm phần chênh lệch sau khi đổi lịch. Quét mã QR hoặc chuyển khoản đúng số tiền và nội dung."
+          : "Quét mã QR hoặc chuyển khoản đúng số tiền và nội dung bên dưới."}
       </Text>
 
       {error ? (

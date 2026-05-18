@@ -34,7 +34,7 @@ import {
   fetchRangeAvailability,
   fetchRangeSlotsAnyAvailability,
   fetchRangeSlotsAvailability,
-  formatDateVi,
+  formatBookingRangeLabel,
   type BookingSlot,
   type CameraBrand,
   type CameraWithAvailability,
@@ -498,7 +498,7 @@ function BookPageContent() {
           Lưu ý:
         </Text>{" "}
         Khi thuê tối thiểu 1 ngày, bạn có thể lấy máy sớm từ đêm hôm trước ngày
-        thuê. Riêng Chủ nhật chỉ nhận máy từ tối muộn thứ 7 hoặc sáng chủ nhật.
+        thuê. Riêng chủ nhật vui lòng nhận máy từ tối muộn thứ 7 hoặc sáng chủ nhật.
       </Text>
     );
   }
@@ -582,13 +582,13 @@ function BookPageContent() {
           <Text>
             <strong>Ngày:</strong>{" "}
             {startDate && endDate
-              ? `${formatDateVi(startDate)} – ${formatDateVi(endDate)} (${dayCount} ngày)`
+              ? formatBookingRangeLabel(startDate, endDate, dayCount)
               : "—"}
           </Text>
           {effectiveSlot ? (
             <HStack gap={2} fontSize="sm" align="center">
               <Text flexShrink={0}>
-                <strong>Buổi:</strong>
+                <strong>Thời gian:</strong>
               </Text>
               <Box flex={1} minW={0}>
                 <SlotHoursLabel slot={effectiveSlot} variant="inline" />
@@ -596,7 +596,7 @@ function BookPageContent() {
             </HStack>
           ) : (
             <Text fontSize="sm">
-              <strong>Buổi:</strong> —
+              <strong>Thời gian:</strong> —
             </Text>
           )}
           {isChange ? (
@@ -666,7 +666,7 @@ function BookPageContent() {
           </CheckboxRoot>
           {!canRequestDelivery ? (
             <Text fontSize="xs" color="fg.muted">
-              Áp dụng với tài khoản đã xác minh. Liên hệ cửa hàng để xác minh.
+              Giao hàng chỉ áp dụng với tài khoản đã xác minh. Liên hệ fanpage để xác minh.
             </Text>
           ) : null}
         </Stack>
@@ -893,7 +893,7 @@ function BookPageContent() {
                 endDate={endDate}
                 onRangeChange={handleRangeChange}
               />
-              {startDate && endDate ? (
+              {startDate && endDate && dayCount >= 2 ? (
                 <Text fontSize="sm" textAlign="center">
                   {dayCount} ngày
                   {forceFullDay ? " · Cả ngày" : ""}
@@ -947,7 +947,7 @@ function BookPageContent() {
                 onRangeChange={handleRangeChange}
                 allowUnavailableDays
               />
-              {startDate && endDate ? (
+              {startDate && endDate && dayCount >= 2 ? (
                 <Text fontSize="sm" textAlign="center">
                   {dayCount} ngày
                 </Text>

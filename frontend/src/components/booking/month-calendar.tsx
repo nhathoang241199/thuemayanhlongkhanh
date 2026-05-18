@@ -3,7 +3,7 @@
 import { Box, Button, Grid, HStack, Text } from "@chakra-ui/react";
 import { useMemo, useState } from "react";
 
-import type { CalendarDay } from "@/lib/booking-api";
+import { formatDateVi, type CalendarDay } from "@/lib/booking-api";
 import { titleColor, userOutlineButtonProps } from "@/lib/user-theme";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -158,8 +158,8 @@ export function MonthCalendar({
       {startDate && endDate ? (
         <Text fontSize="sm" color="fg.muted" mt={2} textAlign="center">
           {startDate === endDate
-            ? `Đã chọn 1 ngày`
-            : `${startDate} → ${endDate}`}
+            ? formatDateVi(startDate)
+            : `${formatDateVi(startDate)} → ${formatDateVi(endDate)}`}
         </Text>
       ) : pickStart ? (
         <Text fontSize="sm" color="fg.muted" mt={2} textAlign="center">
