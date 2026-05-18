@@ -896,7 +896,6 @@ function BookPageContent() {
               {startDate && endDate && dayCount >= 2 ? (
                 <Text fontSize="sm" textAlign="center">
                   {dayCount} ngày
-                  {forceFullDay ? " · Cả ngày" : ""}
                 </Text>
               ) : null}
               {forceFullDay && slotsLoading ? (

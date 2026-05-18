@@ -106,6 +106,30 @@ const RefreshIcon = createIcon({
   ),
 });
 
+const TrashIcon = createIcon({
+  displayName: "TrashIcon",
+  path: (
+    <>
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 6h18"
+      />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+      />
+    </>
+  ),
+});
+
 const vnd = new Intl.NumberFormat("vi-VN", {
   style: "currency",
   currency: "VND",
@@ -426,6 +450,7 @@ export default function AdminBookingsPage() {
   const [patchError, setPatchError] = useState<string | null>(null);
   const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
   const [paymentSavingId, setPaymentSavingId] = useState<string | null>(null);
+  const [deleteSavingId, setDeleteSavingId] = useState<string | null>(null);
   const [searchField, setSearchField] = useState<SearchField>("phone");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDateKey, setFilterDateKey] = useState(todayLocalDateKey);
@@ -518,6 +543,41 @@ export default function AdminBookingsPage() {
     },
     [],
   );
+
+  const handleBookingDelete = useCallback((booking: Booking) => {
+    if (
+      !window.confirm(
+        `Xóa đơn ${booking.bookingCode}? Thao tác không hoàn tác.`,
+      )
+    ) {
+      return;
+    }
+    void (async () => {
+      setPatchError(null);
+      setDeleteSavingId(booking.id);
+      try {
+        const res = await fetch(
+          `${apiBase()}/api/bookings/${encodeURIComponent(booking.id)}`,
+          {
+            method: "DELETE",
+            credentials: "include",
+          },
+        );
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || res.statusText);
+        }
+        setBookings((prev) => prev?.filter((row) => row.id !== booking.id) ?? null);
+        toaster.success({ title: `Đã xóa đơn ${booking.bookingCode}` });
+      } catch (e) {
+        setPatchError(
+          e instanceof Error ? e.message : "Không xóa được đơn thuê.",
+        );
+      } finally {
+        setDeleteSavingId(null);
+      }
+    })();
+  }, []);
 
   const filteredBookings = useMemo(() => {
     if (!bookings) return [];
@@ -971,6 +1031,9 @@ export default function AdminBookingsPage() {
                     <TableColumnHeader maxW="12rem" {...tableCellPad}>
                       Ghi chú
                     </TableColumnHeader>
+                    <TableColumnHeader {...tableCellPad} w="4.5rem">
+                      Xóa
+                    </TableColumnHeader>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1085,7 +1148,8 @@ export default function AdminBookingsPage() {
                             booking={b}
                             saving={
                               paymentSavingId === b.id ||
-                              statusSavingId === b.id
+                              statusSavingId === b.id ||
+                              deleteSavingId === b.id
                             }
                             onChangePaymentStatus={handleBookingPaymentChange}
                             onMenuOpenChange={(open) => {
@@ -1098,7 +1162,8 @@ export default function AdminBookingsPage() {
                             booking={b}
                             saving={
                               statusSavingId === b.id ||
-                              paymentSavingId === b.id
+                              paymentSavingId === b.id ||
+                              deleteSavingId === b.id
                             }
                             onChangeStatus={handleBookingStatusChange}
                             onMenuOpenChange={(open) => {
@@ -1118,6 +1183,23 @@ export default function AdminBookingsPage() {
                           ) : (
                             <Text color="fg.muted">—</Text>
                           )}
+                        </TableCell>
+                        <TableCell {...tableCellPad}>
+                          <IconButton
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            colorPalette="red"
+                            aria-label={`Xóa đơn ${b.bookingCode}`}
+                            loading={deleteSavingId === b.id}
+                            disabled={
+                              deleteSavingId !== null &&
+                              deleteSavingId !== b.id
+                            }
+                            onClick={() => handleBookingDelete(b)}
+                          >
+                            <TrashIcon />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     );

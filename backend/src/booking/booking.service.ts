@@ -682,11 +682,19 @@ export class BookingService {
 
   async remove(id: string) {
     try {
-      return await this.prisma.booking.delete({ where: { id } });
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.payment.deleteMany({ where: { bookingId: id } });
+        return tx.booking.delete({ where: { id } });
+      });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2025') {
           throw new NotFoundException(`Booking ${id} not found`);
+        }
+        if (e.code === 'P2003') {
+          throw new ConflictException(
+            'Không thể xóa đơn do còn dữ liệu liên quan.',
+          );
         }
       }
       throw e;
