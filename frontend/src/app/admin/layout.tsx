@@ -89,7 +89,11 @@ export default function AdminLayout({
       colorPalette={ADMIN_COLOR_PALETTE}
       py={{ base: 8, md: 10 }}
     >
-      <Container maxW="container.lg">
+      <Container
+        maxW={
+          pathname === "/admin/bookings" ? "container.2xl" : "container.lg"
+        }
+      >
         <Stack gap={6}>
           <BreadcrumbRoot size="sm" colorPalette={ADMIN_COLOR_PALETTE}>
             <BreadcrumbList flexWrap="wrap">

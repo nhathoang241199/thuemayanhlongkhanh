@@ -922,6 +922,28 @@ export default function AdminBookingsPage() {
                   type="button"
                   size="sm"
                   variant={
+                    showAllDates &&
+                    statusFilter === "ALL" &&
+                    paymentStatusFilter === "ALL" &&
+                    searchQuery.trim() === ""
+                      ? "solid"
+                      : "outline"
+                  }
+                  colorPalette={APP_COLOR_PALETTE}
+                  onClick={() => {
+                    setShowAllDates(true);
+                    setStatusFilter("ALL");
+                    setPaymentStatusFilter("ALL");
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
+                >
+                  Tất cả đơn
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={
                     !showAllDates &&
                     filterByPickupTime &&
                     filterDateKey === todayLocalDateKey() &&
@@ -1451,7 +1473,7 @@ export default function AdminBookingsPage() {
                               type="button"
                               size="sm"
                               variant="outline"
-                              colorPalette={APP_COLOR_PALETTE}
+                              colorPalette="green"
                               aria-label="Chuyển tiếp trạng thái"
                               disabled={
                                 isRowSaving(b.id) ||
@@ -1466,7 +1488,7 @@ export default function AdminBookingsPage() {
                               type="button"
                               size="sm"
                               variant="outline"
-                              colorPalette={APP_COLOR_PALETTE}
+                              colorPalette="blue"
                               aria-label={`Sửa đơn ${b.bookingCode}`}
                               disabled={isRowSaving(b.id)}
                               onClick={() => openEditBooking(b)}
