@@ -263,7 +263,8 @@ export default function AdminCustomerDetailPage() {
             <CardHeader pb={0}>
               <CardTitle textStyle="lg">Ảnh CCCD / xác minh</CardTitle>
               <CardDescription>
-                Upload ảnh căn cước để lưu hồ sơ khách
+                Copy ảnh từ tin nhắn rồi dán (Ctrl+V) hoặc chọn file — không cần
+                tải về máy
               </CardDescription>
             </CardHeader>
             <CardBody>
