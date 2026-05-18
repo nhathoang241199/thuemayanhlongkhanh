@@ -54,11 +54,7 @@ import {
   getQuickAdvancePatch,
   quickAdvanceToastMessages,
 } from "@/lib/admin-booking-quick-advance";
-import {
-  datetimeLocalToIso,
-  formatPickupAtVi,
-  isoToDatetimeLocal,
-} from "@/lib/datetime-vn";
+import { datetimeLocalToIso, isoToDatetimeLocal } from "@/lib/datetime-vn";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -194,14 +190,33 @@ const vnd = new Intl.NumberFormat("vi-VN", {
   maximumFractionDigits: 0,
 });
 
+const vnDateTimeZone = "Asia/Ho_Chi_Minh";
+
 const bookingDateFmt = new Intl.DateTimeFormat("vi-VN", {
-  dateStyle: "medium",
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: vnDateTimeZone,
+});
+
+const pickupAtTableFmt = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: vnDateTimeZone,
 });
 
 function formatBookingDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return bookingDateFmt.format(d);
+}
+
+function formatPickupAtTable(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return pickupAtTableFmt.format(d);
 }
 
 function paymentBadgeProps(
@@ -1352,7 +1367,7 @@ export default function AdminBookingsPage() {
                         <TableCell whiteSpace="nowrap" {...tableCellPad}>
                           <Text fontSize="sm">
                             {b.pickupAt
-                              ? formatPickupAtVi(b.pickupAt)
+                              ? formatPickupAtTable(b.pickupAt)
                               : "—"}
                           </Text>
                         </TableCell>
@@ -1472,7 +1487,7 @@ export default function AdminBookingsPage() {
                             <IconButton
                               type="button"
                               size="sm"
-                              variant="outline"
+                              variant="solid"
                               colorPalette="green"
                               aria-label="Chuyển tiếp trạng thái"
                               disabled={
@@ -1487,7 +1502,7 @@ export default function AdminBookingsPage() {
                             <IconButton
                               type="button"
                               size="sm"
-                              variant="outline"
+                              variant="solid"
                               colorPalette="blue"
                               aria-label={`Sửa đơn ${b.bookingCode}`}
                               disabled={isRowSaving(b.id)}
