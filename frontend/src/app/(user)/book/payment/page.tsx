@@ -23,6 +23,7 @@ import {
   fetchSepayInstructions,
   type SepayInstructions,
 } from "@/lib/booking-api";
+import { BOOKING_DEPOSIT_VND } from "@/lib/booking-payment";
 import { getSession } from "@/lib/customer-session";
 import {
   APP_COLOR_PALETTE,
@@ -40,7 +41,6 @@ const vnd = new Intl.NumberFormat("vi-VN", {
 const POLL_MS = 4000;
 const MAX_POLL_MS = 180000;
 
-/** Kích thước cố định vùng QR (px) — skeleton và ảnh dùng chung để không giật layout. */
 const QR_IMAGE_SIZE = 280;
 const QR_BOX_PADDING = 12;
 const QR_BOX_MAX_W = QR_IMAGE_SIZE + QR_BOX_PADDING * 2;
@@ -123,10 +123,19 @@ function PaymentContent() {
     try {
       const data = await fetchSepayInstructions(bookingId, session.phone);
       setInstructions(data);
-      if (data.alreadyPaid || data.status === "CONFIRMED") {
+      if (data.alreadyPaid) {
         setPhase("already");
         return;
       }
+      if (data.paymentKind === "DEPOSIT_DONE") {
+        setPhase("already");
+        return;
+      }
+      if (data.paymentKind === "DEPOSIT" && data.qrImageUrl) {
+        setPhase("pay");
+        return;
+      }
+      setError("Đơn không ở trạng thái chờ thanh toán cọc.");
       setPhase("pay");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được thông tin CK");
@@ -175,7 +184,10 @@ function PaymentContent() {
       try {
         const list = await fetchMyBookings(session.phone);
         const found = list.find((b) => b.id === bookingId);
-        if (found?.status === "CONFIRMED") {
+        if (
+          found?.status === "CONFIRMED" &&
+          found.paymentStatus === "DEPOSITED"
+        ) {
           setPhase("success");
           return;
         }
@@ -223,19 +235,26 @@ function PaymentContent() {
   }
 
   if (phase === "success" || phase === "already") {
+    const balanceDue = instructions?.balanceDue ?? 0;
     return (
       <CardRoot {...userCardProps}>
         <CardBody>
           <Stack gap={4} py={4}>
             <Stack gap={2} textAlign="center">
               <Text textStyle="xl" fontWeight="bold" color={titleColor}>
-                {instructions?.isChangeTopUp
-                  ? "Thay đổi thành công"
+                {instructions?.paymentKind === "DEPOSIT_DONE"
+                  ? "Đơn đã được cọc"
                   : "Đặt lịch thành công"}
               </Text>
               <Text fontSize="sm" color="fg.muted">
-                Đơn {instructions?.bookingCode ?? ""} đã được cập nhật.
+                Đơn {instructions?.bookingCode ?? ""} — máy đã được giữ lịch.
               </Text>
+              {balanceDue > 0 ? (
+                <Text fontSize="sm" color={titleColor} fontWeight="medium">
+                  Còn lại khi nhận máy: {vnd.format(balanceDue)} (chuyển khoản
+                  hoặc tiền mặt).
+                </Text>
+              ) : null}
             </Stack>
             {tutorialVideoUrl ? (
               <Stack gap={2} w="full" textAlign="left">
@@ -268,11 +287,11 @@ function PaymentContent() {
         <CardBody>
           <Stack gap={4} textAlign="center" py={4}>
             <Text textStyle="lg" fontWeight="semibold" color={titleColor}>
-              Chưa nhận được thanh toán
+              Chưa nhận được thanh toán cọc
             </Text>
             <Text fontSize="sm" color="fg.muted">
-              Kiểm tra lại số tiền và nội dung chuyển khoản, hoặc liên hệ cửa
-              hàng nếu đã chuyển tiền.
+              Kiểm tra lại số tiền ({vnd.format(BOOKING_DEPOSIT_VND)}) và nội
+              dung chuyển khoản, hoặc liên hệ cửa hàng nếu đã chuyển tiền.
             </Text>
             <Button
               colorPalette={APP_COLOR_PALETTE}
@@ -293,17 +312,17 @@ function PaymentContent() {
     );
   }
 
+  const totalAmount = instructions?.totalAmount ?? 0;
+  const balanceDue = instructions?.balanceDue ?? 0;
+
   return (
     <Stack gap={4} pb={8}>
       <Text textStyle="xl" fontWeight="bold" color={titleColor}>
-        {instructions?.isChangeTopUp
-          ? "Thanh toán phần chênh lệch"
-          : "Thanh toán chuyển khoản"}
+        Thanh toán cọc giữ lịch
       </Text>
       <Text fontSize="sm" color="fg.muted">
-        {instructions?.isChangeTopUp
-          ? "Chuyển thêm phần chênh lệch sau khi đổi lịch. Quét mã QR hoặc chuyển khoản đúng số tiền và nội dung."
-          : "Quét mã QR hoặc chuyển khoản đúng số tiền và nội dung bên dưới."}
+        Chuyển khoản cọc {vnd.format(BOOKING_DEPOSIT_VND)} qua QR bên dưới.
+        Phần còn lại ({vnd.format(balanceDue)}) thanh toán khi nhận máy.
       </Text>
 
       {error ? (
@@ -320,11 +339,25 @@ function PaymentContent() {
         <CardBody>
           <Stack gap={3} fontSize="sm">
             <HStack justify="space-between">
-              <Text color="fg.muted">Số tiền</Text>
+              <Text color="fg.muted">Cọc giữ lịch</Text>
               <Text fontWeight="bold" color={titleColor}>
                 {instructions ? vnd.format(instructions.amount) : "—"}
               </Text>
             </HStack>
+            {totalAmount > 0 ? (
+              <HStack justify="space-between">
+                <Text color="fg.muted">Tổng tiền thuê</Text>
+                <Text>{vnd.format(totalAmount)}</Text>
+              </HStack>
+            ) : null}
+            {balanceDue > 0 ? (
+              <HStack justify="space-between">
+                <Text color="fg.muted">Còn lại khi lấy máy</Text>
+                <Text fontWeight="medium" color={titleColor}>
+                  {vnd.format(balanceDue)}
+                </Text>
+              </HStack>
+            ) : null}
             <HStack justify="space-between" align="flex-start">
               <Text color="fg.muted">Ngân hàng</Text>
               <Text textAlign="right">{instructions?.bankName ?? "—"}</Text>
@@ -367,7 +400,7 @@ function PaymentContent() {
       <HStack justify="center" gap={2}>
         <Spinner size="sm" color="cerulean.600" />
         <Text fontSize="sm" color="fg.muted">
-          Đang chờ xác nhận thanh toán…
+          Đang chờ xác nhận cọc…
         </Text>
       </HStack>
     </Stack>

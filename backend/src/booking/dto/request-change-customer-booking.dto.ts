@@ -46,9 +46,4 @@ export class RequestChangeCustomerBookingDto {
   @MaxLength(500)
   shippingAddress?: string;
 
-  @ApiPropertyOptional({ description: 'Bắt buộc khi đơn mới rẻ hơn' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000)
-  bankAccountInfo?: string;
 }

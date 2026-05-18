@@ -184,9 +184,14 @@ export type SepayInstructions = {
   bookingCode: string;
   cameraId?: string;
   amount: number;
+  totalAmount?: number;
+  depositAmount?: number;
+  balanceDue?: number;
   status: string;
+  paymentStatus?: string;
+  paymentKind?: "DEPOSIT" | "DEPOSIT_DONE";
   alreadyPaid: boolean;
-  isChangeTopUp?: boolean;
+  depositPaid?: boolean;
   bankName?: string;
   accountNumber?: string;
   accountName?: string;

@@ -60,9 +60,14 @@ export type MyBooking = {
 
 export type RequestChangeResult = {
   booking: MyBooking;
-  delta: number;
   newAmount: number;
-  needsPayment: boolean;
+  balanceDue: number;
+};
+
+export type CancelBookingResult = {
+  booking: MyBooking;
+  refundEligible: boolean;
+  refundAmount: number;
 };
 
 export async function fetchMyBookings(phone: string): Promise<MyBooking[]> {
@@ -85,7 +90,6 @@ export async function requestCustomerBookingChange(
     slot: string;
     note?: string;
     shippingAddress?: string;
-    bankAccountInfo?: string;
   },
 ): Promise<RequestChangeResult> {
   const res = await fetch(
@@ -106,8 +110,8 @@ export async function requestCustomerBookingChange(
 export async function cancelCustomerBooking(
   bookingId: string,
   phone: string,
-  bankAccountInfo: string,
-): Promise<MyBooking> {
+  bankAccountInfo?: string,
+): Promise<CancelBookingResult> {
   const res = await fetch(
     `${apiBase()}/api/bookings/customer/${bookingId}/cancel`,
     {
@@ -120,7 +124,7 @@ export async function cancelCustomerBooking(
     const text = await res.text();
     throw new Error(text || res.statusText);
   }
-  return (await res.json()) as MyBooking;
+  return (await res.json()) as CancelBookingResult;
 }
 
 export function sessionFromIdentify(

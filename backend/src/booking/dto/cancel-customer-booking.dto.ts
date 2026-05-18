@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CancelCustomerBookingDto {
   @ApiProperty({ description: 'SĐT khách (khớp đơn)' })
@@ -8,9 +8,11 @@ export class CancelCustomerBookingDto {
   @MaxLength(20)
   phone: string;
 
-  @ApiProperty({ description: 'Thông tin TK nhận hoàn 50%' })
+  @ApiPropertyOptional({
+    description: 'TK nhận hoàn 40k cọc (bắt buộc khi hủy trước lấy máy >24h)',
+  })
+  @IsOptional()
   @IsString()
-  @MinLength(5)
   @MaxLength(2000)
-  bankAccountInfo: string;
+  bankAccountInfo?: string;
 }

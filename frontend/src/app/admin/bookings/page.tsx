@@ -148,10 +148,15 @@ function formatBookingDate(iso: string): string {
 
 function paymentBadgeProps(
   s: string,
-): { label: string; colorPalette: "gray" | "green" | "red" | "orange" } {
+): {
+  label: string;
+  colorPalette: "gray" | "green" | "red" | "orange" | "ocean";
+} {
   switch (s) {
     case "PENDING":
       return { label: "Chưa thanh toán", colorPalette: "orange" };
+    case "DEPOSITED":
+      return { label: "Đã cọc", colorPalette: "ocean" };
     case "PAID":
       return { label: "Đã thanh toán", colorPalette: "green" };
     case "FAILED":
@@ -229,13 +234,19 @@ const BOOKING_STATUS_EDIT_OPTIONS = STATUS_FILTER_OPTIONS.filter(
   (o): o is { value: BookingStatusValue; label: string } => o.value !== "ALL",
 );
 
-type PaymentStatusValue = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+type PaymentStatusValue =
+  | "PENDING"
+  | "DEPOSITED"
+  | "PAID"
+  | "FAILED"
+  | "REFUNDED";
 
 const BOOKING_PAYMENT_EDIT_OPTIONS: {
   value: PaymentStatusValue;
   label: string;
 }[] = [
   { value: "PENDING", label: "Chưa thanh toán" },
+  { value: "DEPOSITED", label: "Đã cọc" },
   { value: "PAID", label: "Đã thanh toán" },
   { value: "FAILED", label: "Thất bại" },
   { value: "REFUNDED", label: "Hoàn tiền" },
@@ -1141,7 +1152,15 @@ export default function AdminBookingsPage() {
                           <Text fontWeight="medium">{b.camera.name}</Text>
                         </TableCell>
                         <TableCell {...tableCellPad} textAlign="end">
-                          {vnd.format(b.amount)}
+                          <Text fontSize="sm">{vnd.format(b.amount)}</Text>
+                          {b.paymentStatus === "DEPOSITED" ? (
+                            <Text fontSize="xs" color="fg.muted">
+                              Còn lại:{" "}
+                              {vnd.format(
+                                Math.max(0, b.amount - 50_000),
+                              )}
+                            </Text>
+                          ) : null}
                         </TableCell>
                         <TableCell {...tableCellPad}>
                           <BookingPaymentMenuCell
@@ -1188,7 +1207,7 @@ export default function AdminBookingsPage() {
                           <IconButton
                             type="button"
                             size="sm"
-                            variant="outline"
+                            variant="solid"
                             colorPalette="red"
                             aria-label={`Xóa đơn ${b.bookingCode}`}
                             loading={deleteSavingId === b.id}

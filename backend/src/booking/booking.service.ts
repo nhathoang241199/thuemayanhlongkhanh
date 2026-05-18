@@ -20,6 +20,12 @@ import {
   rentalAmountVnd,
   slotWindow,
 } from '../common/booking-schedule';
+import {
+  BOOKING_CANCEL_REFUND_VND,
+  BOOKING_DEPOSIT_VND,
+  balanceDueVnd,
+  isCancelRefundEligible,
+} from '../common/booking-payment';
 import { normalizePhone } from '../common/normalize-phone';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -114,8 +120,7 @@ export class BookingService {
     return row;
   }
 
-  private formatCancelNote(
-    refundAmount: number,
+  private formatCancelRefundNote(
     bankAccountInfo: string,
     existingNote: string | null,
   ): string {
@@ -129,7 +134,7 @@ export class BookingService {
       timeStyle: 'short',
     }).format(new Date());
     const block = [
-      `--- Yêu cầu hủy · hoàn 50% (${vnd.format(refundAmount)}) ---`,
+      `--- Yêu cầu hủy · hoàn cọc (${vnd.format(BOOKING_CANCEL_REFUND_VND)}) ---`,
       `Thời gian: ${at}`,
       'TK nhận hoàn:',
       bankAccountInfo.trim(),
@@ -140,10 +145,23 @@ export class BookingService {
     return block;
   }
 
-  private formatChangeRefundNote(
-    refundAmount: number,
-    bankAccountInfo: string,
-    pending: PendingChangePayload,
+  private formatCancelNoRefundNote(existingNote: string | null): string {
+    const at = new Intl.DateTimeFormat('vi-VN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date());
+    const block = [
+      '--- Hủy đặt lịch (không hoàn cọc — trong vòng 24h trước lấy máy) ---',
+      `Thời gian: ${at}`,
+    ].join('\n');
+    if (existingNote?.trim()) {
+      return `${existingNote.trim()}\n\n${block}`;
+    }
+    return block;
+  }
+
+  private formatChangeAppliedNote(
+    newAmount: number,
     existingNote: string | null,
   ): string {
     const vnd = new Intl.NumberFormat('vi-VN', {
@@ -156,11 +174,10 @@ export class BookingService {
       timeStyle: 'short',
     }).format(new Date());
     const block = [
-      `--- Yêu cầu thay đổi · hoàn chênh lệch (${vnd.format(refundAmount)}) ---`,
+      '--- Đã thay đổi lịch ---',
       `Thời gian: ${at}`,
-      `Giá mới: ${vnd.format(pending.newAmount)}`,
-      'TK nhận hoàn:',
-      bankAccountInfo.trim(),
+      `Tổng tiền thuê: ${vnd.format(newAmount)}`,
+      `Còn lại khi lấy máy: ${vnd.format(balanceDueVnd(newAmount))}`,
     ].join('\n');
     if (existingNote?.trim()) {
       return `${existingNote.trim()}\n\n${block}`;
@@ -168,29 +185,23 @@ export class BookingService {
     return block;
   }
 
-  private formatChangeRequestNote(
-    pending: PendingChangePayload,
-    existingNote: string | null,
-  ): string {
-    const vnd = new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-      maximumFractionDigits: 0,
-    });
-    const at = new Intl.DateTimeFormat('vi-VN', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date());
-    const block = [
-      `--- Yêu cầu thay đổi lịch ---`,
-      `Thời gian: ${at}`,
-      `Giá mới: ${vnd.format(pending.newAmount)}`,
-      `Chênh lệch: ${vnd.format(pending.delta)}`,
-    ].join('\n');
-    if (existingNote?.trim()) {
-      return `${existingNote.trim()}\n\n${block}`;
+  private assertCustomerCanModifyDepositedBooking(booking: {
+    status: BookingStatus;
+    paymentStatus: PaymentStatus;
+  }) {
+    if (booking.status !== BookingStatus.CONFIRMED) {
+      throw new BadRequestException(
+        'Chỉ thao tác được khi đơn đang chờ lấy máy',
+      );
     }
-    return block;
+    if (booking.paymentStatus === PaymentStatus.PAID) {
+      throw new BadRequestException(
+        'Đơn đã thanh toán đủ — không thể hủy hoặc đổi lịch',
+      );
+    }
+    if (booking.paymentStatus !== PaymentStatus.DEPOSITED) {
+      throw new BadRequestException('Đơn chưa hoàn tất cọc giữ lịch');
+    }
   }
 
   async applyPendingChangeToBooking(bookingId: string): Promise<boolean> {
@@ -242,28 +253,47 @@ export class BookingService {
     if (normalizePhone(booking.customer.phone) !== phone) {
       throw new ForbiddenException('Không có quyền hủy đơn này');
     }
-    if (booking.status !== BookingStatus.CONFIRMED) {
-      throw new BadRequestException(
-        'Chỉ hủy được khi đơn đang chờ lấy máy',
-      );
+    this.assertCustomerCanModifyDepositedBooking(booking);
+
+    const refundEligible = isCancelRefundEligible(booking.startBookingDate);
+
+    if (refundEligible) {
+      const bank = dto.bankAccountInfo?.trim();
+      if (!bank) {
+        throw new BadRequestException(
+          'Vui lòng nhập tài khoản ngân hàng để nhận hoàn cọc',
+        );
+      }
+      const updated = await this.prisma.booking.update({
+        where: { id },
+        data: {
+          status: BookingStatus.PENDING_REFUND_CANCEL,
+          pendingChange: Prisma.DbNull,
+          note: this.formatCancelRefundNote(bank, booking.note),
+        },
+        include: bookingInclude,
+      });
+      return {
+        booking: updated,
+        refundEligible: true,
+        refundAmount: BOOKING_CANCEL_REFUND_VND,
+      };
     }
 
-    const refundAmount = Math.floor(booking.amount / 2);
-    const note = this.formatCancelNote(
-      refundAmount,
-      dto.bankAccountInfo,
-      booking.note,
-    );
-
-    return this.prisma.booking.update({
+    const updated = await this.prisma.booking.update({
       where: { id },
       data: {
-        status: BookingStatus.PENDING_REFUND_CANCEL,
+        status: BookingStatus.CANCELLED,
         pendingChange: Prisma.DbNull,
-        note,
+        note: this.formatCancelNoRefundNote(booking.note),
       },
       include: bookingInclude,
     });
+    return {
+      booking: updated,
+      refundEligible: false,
+      refundAmount: 0,
+    };
   }
 
   private async computeBookingAmount(
@@ -307,7 +337,6 @@ export class BookingService {
       where: { id },
       include: {
         customer: { select: { phone: true, isVerified: true } },
-        payment: true,
       },
     });
     if (!booking) {
@@ -316,11 +345,7 @@ export class BookingService {
     if (normalizePhone(booking.customer.phone) !== phone) {
       throw new ForbiddenException('Không có quyền thay đổi đơn này');
     }
-    if (booking.status !== BookingStatus.CONFIRMED) {
-      throw new BadRequestException(
-        'Chỉ thay đổi được khi đơn đang chờ lấy máy',
-      );
-    }
+    this.assertCustomerCanModifyDepositedBooking(booking);
 
     this.availability.validateDateRange(dto.startDate, dto.endDate);
     this.availability.validateSlotForRange(
@@ -351,113 +376,45 @@ export class BookingService {
       dto.slot,
       dto.shippingAddress,
     );
-    const delta = newAmount - booking.amount;
 
-    const pending: PendingChangePayload = {
-      cameraId: dto.cameraId,
-      startDate: dto.startDate,
-      endDate: dto.endDate,
-      slot: dto.slot,
-      newAmount,
-      delta,
-      note: dto.note,
-      shippingAddress: dto.shippingAddress,
-    };
+    const { startBookingDate } = slotWindow(dto.startDate, dto.slot);
+    const { endBookingDate } = slotWindow(dto.endDate, dto.slot);
 
-    if (delta > 0) {
-      const updated = await this.prisma.booking.update({
-        where: { id },
-        data: {
-          status: BookingStatus.PENDING_CHANGE_PAYMENT,
-          pendingChange: pending as object,
-          note: this.formatChangeRequestNote(pending, booking.note),
-        },
-        include: bookingInclude,
-      });
-
-      if (booking.payment) {
-        await this.prisma.payment.update({
-          where: { id: booking.payment.id },
-          data: {
-            amount: delta,
-            status: PaymentRecordStatus.PENDING,
-            providerTxnRef: booking.bookingCode,
-          },
-        });
-      } else {
-        await this.prisma.payment.create({
-          data: {
-            bookingId: booking.id,
-            provider: 'SEPAY',
-            amount: delta,
-            status: PaymentRecordStatus.PENDING,
-            providerTxnRef: booking.bookingCode,
-          },
-        });
-      }
-
-      return {
-        booking: updated,
-        delta,
-        newAmount,
-        needsPayment: true,
-      };
-    }
-
-    if (delta < 0) {
-      if (!dto.bankAccountInfo?.trim()) {
-        throw new BadRequestException(
-          'Vui lòng nhập tài khoản ngân hàng để nhận hoàn tiền',
-        );
-      }
-      const refundAmount = Math.abs(delta);
-      const updated = await this.prisma.booking.update({
-        where: { id },
-        data: {
-          status: BookingStatus.PENDING_REFUND_CHANGE,
-          pendingChange: pending as object,
-          note: this.formatChangeRefundNote(
-            refundAmount,
-            dto.bankAccountInfo,
-            pending,
-            booking.note,
-          ),
-        },
-        include: bookingInclude,
-      });
-      return {
-        booking: updated,
-        delta,
-        newAmount,
-        needsPayment: false,
-      };
-    }
-
-    // Giá không đổi — lưu pending rồi áp dụng ngay, không chuyển sang thanh toán
-    await this.prisma.booking.update({
+    const updated = await this.prisma.booking.update({
       where: { id },
-      data: { pendingChange: pending as object },
-    });
-    const applied = await this.applyPendingChangeToBooking(id);
-    if (!applied) {
-      throw new BadRequestException('Không thể áp dụng thay đổi, thử lại sau');
-    }
-    const updated = await this.prisma.booking.findUnique({
-      where: { id },
+      data: {
+        cameraId: dto.cameraId,
+        startBookingDate,
+        endBookingDate,
+        slot: dto.slot,
+        amount: newAmount,
+        note: this.formatChangeAppliedNote(
+          newAmount,
+          dto.note?.trim()
+            ? booking.note?.trim()
+              ? `${booking.note.trim()}\n${dto.note.trim()}`
+              : dto.note.trim()
+            : booking.note,
+        ),
+        shippingAddress: dto.shippingAddress ?? booking.shippingAddress,
+        pendingChange: Prisma.DbNull,
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.DEPOSITED,
+      },
       include: bookingInclude,
     });
+
     return {
       booking: updated,
-      delta: 0,
       newAmount,
-      needsPayment: false,
+      balanceDue: balanceDueVnd(newAmount),
     };
   }
 
+  /** Đơn cũ PENDING_CHANGE_PAYMENT — admin xác nhận sau khi thu chênh lệch offline. */
   async confirmChangePayment(bookingId: string): Promise<boolean> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { payment: true },
     });
     if (!booking || booking.status !== BookingStatus.PENDING_CHANGE_PAYMENT) {
       return false;
@@ -473,19 +430,9 @@ export class BookingService {
       where: { id: bookingId },
       data: {
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.PAID,
+        paymentStatus: PaymentStatus.DEPOSITED,
       },
     });
-
-    if (booking.payment) {
-      await this.prisma.payment.update({
-        where: { id: booking.payment.id },
-        data: {
-          amount: pending.newAmount,
-          status: PaymentRecordStatus.SUCCESS,
-        },
-      });
-    }
 
     return true;
   }
@@ -566,7 +513,7 @@ export class BookingService {
           payment: {
             create: {
               provider: 'SEPAY',
-              amount,
+              amount: BOOKING_DEPOSIT_VND,
               status: PaymentRecordStatus.PENDING,
               providerTxnRef: bookingCode,
             },

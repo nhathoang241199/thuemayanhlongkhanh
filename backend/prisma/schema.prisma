@@ -106,6 +106,7 @@ enum BookingSlot {
 
 enum PaymentStatus {
   PENDING
+  DEPOSITED
   PAID
   FAILED
   REFUNDED

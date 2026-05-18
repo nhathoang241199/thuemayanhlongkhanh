@@ -22,7 +22,7 @@ import {
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CameraTutorialDialog } from "@/components/camera/camera-tutorial-dialog";
 import {
@@ -38,6 +38,11 @@ import {
   slotTimeRangeLabel,
 } from "@/lib/booking-status";
 import type { CameraBrand } from "@/lib/booking-api";
+import {
+  BOOKING_CANCEL_REFUND_VND,
+  balanceDueVnd,
+  isCancelRefundEligible,
+} from "@/lib/booking-payment";
 import { BRAND_LABEL } from "@/lib/camera-brands";
 import { getSession, type CustomerSession } from "@/lib/customer-session";
 import {
@@ -62,7 +67,6 @@ const vnd = new Intl.NumberFormat("vi-VN", {
   maximumFractionDigits: 0,
 });
 
-/** Solid như nút Thanh toán, đỏ nhạt hơn palette red mặc định */
 const cancelButtonProps = {
   bg: "red.400",
   color: "white",
@@ -83,6 +87,11 @@ export default function UserHomePage() {
     id: string;
     name: string;
   } | null>(null);
+
+  const cancelRefundEligible = useMemo(() => {
+    if (!cancelTarget) return false;
+    return isCancelRefundEligible(cancelTarget.startBookingDate);
+  }, [cancelTarget]);
 
   const loadBookings = useCallback(async (phone: string) => {
     setError(null);
@@ -113,15 +122,21 @@ export default function UserHomePage() {
 
   const handleCancelSubmit = async () => {
     if (!session || !cancelTarget) return;
-    const info = bankAccountInfo.trim();
-    if (!info) {
-      setCancelError("Vui lòng nhập thông tin tài khoản ngân hàng.");
-      return;
+    if (cancelRefundEligible) {
+      const info = bankAccountInfo.trim();
+      if (!info) {
+        setCancelError("Vui lòng nhập thông tin tài khoản ngân hàng.");
+        return;
+      }
     }
     setCancelSubmitting(true);
     setCancelError(null);
     try {
-      await cancelCustomerBooking(cancelTarget.id, session.phone, info);
+      await cancelCustomerBooking(
+        cancelTarget.id,
+        session.phone,
+        cancelRefundEligible ? bankAccountInfo.trim() : undefined,
+      );
       closeCancelModal();
       await loadBookings(session.phone);
     } catch (e) {
@@ -179,109 +194,113 @@ export default function UserHomePage() {
         </CardRoot>
       ) : null}
 
-      {bookings?.map((b) => (
-        <CardRoot key={b.id} {...userBookingCardProps}>
-          <CardBody>
-            <Stack gap={2}>
-              <HStack justify="space-between" align="flex-start" gap={2}>
-                <Text fontWeight="semibold">{b.bookingCode}</Text>
-                <Badge
-                  colorPalette={bookingStatusColor(b.status)}
-                  variant="subtle"
-                >
-                  {bookingStatusLabel(b.status)}
-                </Badge>
-              </HStack>
-              <HStack justify="space-between" align="baseline" gap={2} w="full">
-                <Text fontSize="sm" flex="1" minW={0}>
-                  {cameraDisplayName(b.camera.brand, b.camera.name)}
-                </Text>
-                {GUIDE_STATUSES.has(b.status) ? (
-                  <Text
-                    as="button"
-                    fontSize="sm"
-                    color="cerulean.700"
-                    textDecoration="underline"
-                    flexShrink={0}
-                    cursor="pointer"
-                    onClick={() =>
-                      setGuideCamera({
-                        id: b.camera.id,
-                        name: cameraDisplayName(
-                          b.camera.brand,
-                          b.camera.name,
-                        ),
-                      })
-                    }
+      {bookings?.map((b) => {
+        const canModify =
+          b.status === "CONFIRMED" && b.paymentStatus === "DEPOSITED";
+        const balanceDue =
+          b.paymentStatus === "DEPOSITED" ? balanceDueVnd(b.amount) : 0;
+
+        return (
+          <CardRoot key={b.id} {...userBookingCardProps}>
+            <CardBody>
+              <Stack gap={2}>
+                <HStack justify="space-between" align="flex-start" gap={2}>
+                  <Text fontWeight="semibold">{b.bookingCode}</Text>
+                  <Badge
+                    colorPalette={bookingStatusColor(b.status)}
+                    variant="subtle"
                   >
-                    Hướng dẫn sử dụng
+                    {bookingStatusLabel(b.status)}
+                  </Badge>
+                </HStack>
+                <HStack justify="space-between" align="baseline" gap={2} w="full">
+                  <Text fontSize="sm" flex="1" minW={0}>
+                    {cameraDisplayName(b.camera.brand, b.camera.name)}
+                  </Text>
+                  {GUIDE_STATUSES.has(b.status) ? (
+                    <Text
+                      as="button"
+                      fontSize="sm"
+                      color="cerulean.700"
+                      textDecoration="underline"
+                      flexShrink={0}
+                      cursor="pointer"
+                      onClick={() =>
+                        setGuideCamera({
+                          id: b.camera.id,
+                          name: cameraDisplayName(
+                            b.camera.brand,
+                            b.camera.name,
+                          ),
+                        })
+                      }
+                    >
+                      Hướng dẫn sử dụng
+                    </Text>
+                  ) : null}
+                </HStack>
+                <Text fontSize="sm" color="fg.muted">
+                  {formatBookingRange(b.startBookingDate, b.endBookingDate)}
+                </Text>
+                <HStack justify="space-between" fontSize="sm" w="full">
+                  <Text>Buổi: {slotLabelVi(b.slot)}</Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    {slotTimeRangeLabel(b.slot)}
+                  </Text>
+                </HStack>
+                <Text fontSize="sm" fontWeight="medium">
+                  Tổng: {vnd.format(b.amount)}
+                </Text>
+                {balanceDue > 0 ? (
+                  <Text fontSize="sm" color="fg.muted">
+                    Còn lại khi lấy máy:{" "}
+                    <Text as="span" fontWeight="semibold" color={titleColor}>
+                      {vnd.format(balanceDue)}
+                    </Text>
                   </Text>
                 ) : null}
-              </HStack>
-              <Text fontSize="sm" color="fg.muted">
-                {formatBookingRange(b.startBookingDate, b.endBookingDate)}
-              </Text>
-              <HStack justify="space-between" fontSize="sm" w="full">
-                <Text>Buổi: {slotLabelVi(b.slot)}</Text>
-                <Text fontSize="xs" color="fg.muted">
-                  {slotTimeRangeLabel(b.slot)}
-                </Text>
-              </HStack>
-              <Text fontSize="sm" fontWeight="medium">
-                {vnd.format(b.amount)}
-              </Text>
-              {b.status === "PENDING_PAYMENT" ? (
-                <Button
-                  asChild
-                  size="sm"
-                  colorPalette={APP_COLOR_PALETTE}
-                >
-                  <NextLink href={`/book/payment?bookingId=${b.id}`}>
-                    Thanh toán
-                  </NextLink>
-                </Button>
-              ) : null}
-              {b.status === "CONFIRMED" ? (
-                <HStack gap={2} w="full">
+                {b.status === "PENDING_PAYMENT" ? (
                   <Button
-                    flex={1}
+                    asChild
                     size="sm"
                     colorPalette={APP_COLOR_PALETTE}
-                    onClick={() =>
-                      router.push(`/book?changeBookingId=${b.id}`)
-                    }
                   >
-                    Thay đổi
+                    <NextLink href={`/book/payment?bookingId=${b.id}`}>
+                      Thanh toán cọc
+                    </NextLink>
                   </Button>
-                  <Button
-                    flex={1}
-                    size="sm"
-                    {...cancelButtonProps}
-                    onClick={() => {
-                      setCancelTarget(b);
-                      setBankAccountInfo("");
-                      setCancelError(null);
-                    }}
-                  >
-                    Huỷ
-                  </Button>
-                </HStack>
-              ) : null}
-              {b.status === "PENDING_CHANGE_PAYMENT" ? (
-                <Button
-                  asChild
-                  size="sm"
-                  colorPalette={APP_COLOR_PALETTE}
-                >
-                  <NextLink href={`/book/payment?bookingId=${b.id}`}>
-                    Thanh toán phần chênh lệch
-                  </NextLink>
-                </Button>
-              ) : null}
-            </Stack>
-          </CardBody>
-        </CardRoot>
-      ))}
+                ) : null}
+                {canModify ? (
+                  <HStack gap={2} w="full">
+                    <Button
+                      flex={1}
+                      size="sm"
+                      colorPalette={APP_COLOR_PALETTE}
+                      onClick={() =>
+                        router.push(`/book?changeBookingId=${b.id}`)
+                      }
+                    >
+                      Thay đổi
+                    </Button>
+                    <Button
+                      flex={1}
+                      size="sm"
+                      {...cancelButtonProps}
+                      onClick={() => {
+                        setCancelTarget(b);
+                        setBankAccountInfo("");
+                        setCancelError(null);
+                      }}
+                    >
+                      Huỷ
+                    </Button>
+                  </HStack>
+                ) : null}
+              </Stack>
+            </CardBody>
+          </CardRoot>
+        );
+      })}
 
       <CameraTutorialDialog
         cameraId={guideCamera?.id ?? null}
@@ -312,13 +331,26 @@ export default function UserHomePage() {
                     <Text as="span" fontWeight="semibold" color="fg">
                       {cancelTarget.bookingCode}
                     </Text>
-                    . Khi hủy, bạn sẽ được hoàn{" "}
-                    <Text as="span" fontWeight="bold" color={titleColor}>
-                      50%
-                    </Text>{" "}
-                    số tiền (
-                    {vnd.format(Math.floor(cancelTarget.amount / 2))}). Cửa
-                    hàng sẽ chuyển khoản trong thời gian sớm nhất.
+                    .{" "}
+                    {cancelRefundEligible ? (
+                      <>
+                        Hủy trước hơn 24 giờ so với giờ lấy máy — bạn được
+                        hoàn{" "}
+                        <Text as="span" fontWeight="bold" color={titleColor}>
+                          {vnd.format(BOOKING_CANCEL_REFUND_VND)}
+                        </Text>{" "}
+                        cọc (trừ phí giao dịch). Cửa hàng sẽ chuyển khoản sớm
+                        nhất.
+                      </>
+                    ) : (
+                      <>
+                        Hủy trong vòng 24 giờ trước lấy máy —{" "}
+                        <Text as="span" fontWeight="semibold" color="fg">
+                          không hoàn cọc
+                        </Text>
+                        .
+                      </>
+                    )}
                   </Text>
                 ) : null}
                 {cancelError ? (
@@ -326,18 +358,20 @@ export default function UserHomePage() {
                     {cancelError}
                   </Text>
                 ) : null}
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={1}>
-                    Tài khoản ngân hàng nhận hoàn tiền
-                  </Text>
-                  <Textarea
-                    placeholder="Số TK, ngân hàng, tên chủ TK…"
-                    value={bankAccountInfo}
-                    rows={4}
-                    onChange={(e) => setBankAccountInfo(e.target.value)}
-                    {...userFieldInputProps}
-                  />
-                </Box>
+                {cancelRefundEligible ? (
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Tài khoản ngân hàng nhận hoàn cọc
+                    </Text>
+                    <Textarea
+                      placeholder="Số TK, ngân hàng, tên chủ TK…"
+                      value={bankAccountInfo}
+                      rows={4}
+                      onChange={(e) => setBankAccountInfo(e.target.value)}
+                      {...userFieldInputProps}
+                    />
+                  </Box>
+                ) : null}
               </Stack>
             </DialogBody>
             <DialogFooter gap={2}>
@@ -347,7 +381,7 @@ export default function UserHomePage() {
               <Button
                 {...cancelButtonProps}
                 loading={cancelSubmitting}
-                disabled={!bankAccountInfo.trim()}
+                disabled={cancelRefundEligible && !bankAccountInfo.trim()}
                 onClick={() => void handleCancelSubmit()}
               >
                 Xác nhận hủy

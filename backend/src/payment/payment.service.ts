@@ -4,7 +4,6 @@ import {
   PaymentStatus,
 } from '../../generated/prisma/enums';
 import { AvailabilityService } from '../availability/availability.service';
-import { BookingService } from '../booking/booking.service';
 import { toCalendarDayVN } from '../common/booking-schedule';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -13,17 +12,15 @@ export class PaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly availability: AvailabilityService,
-    private readonly bookingService: BookingService,
   ) {}
 
+  /** Xác nhận cọc 50k SePay → giữ lịch, chưa thu phần còn lại. */
   async confirmBookingAfterPayment(bookingId: string): Promise<boolean> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
     });
-    if (!booking) return false;
-
-    if (booking.status === BookingStatus.PENDING_CHANGE_PAYMENT) {
-      return this.bookingService.confirmChangePayment(bookingId);
+    if (!booking || booking.status !== BookingStatus.PENDING_PAYMENT) {
+      return false;
     }
 
     const startDate = toCalendarDayVN(booking.startBookingDate);
@@ -42,7 +39,7 @@ export class PaymentService {
     await this.prisma.booking.update({
       where: { id: bookingId },
       data: {
-        paymentStatus: PaymentStatus.PAID,
+        paymentStatus: PaymentStatus.DEPOSITED,
         status: BookingStatus.CONFIRMED,
       },
     });

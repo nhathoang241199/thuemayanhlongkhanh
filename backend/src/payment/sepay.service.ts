@@ -8,7 +8,9 @@ import {
 import {
   BookingStatus,
   PaymentRecordStatus,
+  PaymentStatus,
 } from '../../generated/prisma/enums';
+import { BOOKING_DEPOSIT_VND, balanceDueVnd } from '../common/booking-payment';
 import { normalizePhone } from '../common/normalize-phone';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentService } from './payment.service';
@@ -96,27 +98,50 @@ export class SepayService {
     if (normalizePhone(booking.customer.phone) !== phone) {
       throw new ForbiddenException('Không có quyền xem đơn này');
     }
-    const payableStatuses: BookingStatus[] = [
-      BookingStatus.PENDING_PAYMENT,
-      BookingStatus.PENDING_CHANGE_PAYMENT,
-    ];
-    if (!payableStatuses.includes(booking.status)) {
+
+    if (booking.paymentStatus === PaymentStatus.PAID) {
       return {
         bookingId: booking.id,
         bookingCode: booking.bookingCode,
         cameraId: booking.camera.id,
-        amount: booking.amount,
+        amount: 0,
+        totalAmount: booking.amount,
+        depositAmount: BOOKING_DEPOSIT_VND,
+        balanceDue: 0,
         status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        paymentKind: 'DEPOSIT' as const,
         alreadyPaid: true,
       };
     }
 
+    if (booking.status === BookingStatus.CONFIRMED) {
+      const balanceDue = balanceDueVnd(booking.amount);
+      return {
+        bookingId: booking.id,
+        bookingCode: booking.bookingCode,
+        cameraId: booking.camera.id,
+        amount: balanceDue,
+        totalAmount: booking.amount,
+        depositAmount: BOOKING_DEPOSIT_VND,
+        balanceDue,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        paymentKind: 'DEPOSIT_DONE' as const,
+        alreadyPaid: false,
+        depositPaid: true,
+      };
+    }
+
+    if (booking.status !== BookingStatus.PENDING_PAYMENT) {
+      throw new BadRequestException(
+        'Đơn không ở trạng thái chờ thanh toán cọc',
+      );
+    }
+
     const { bin, account, accountName, bankName } = this.bankConfig();
     const transferContent = buildTransferContent(booking.bookingCode);
-    const payAmount =
-      booking.status === BookingStatus.PENDING_CHANGE_PAYMENT
-        ? (booking.payment?.amount ?? 0)
-        : booking.amount;
+    const payAmount = BOOKING_DEPOSIT_VND;
 
     let payment = booking.payment;
     if (!payment) {
@@ -149,9 +174,13 @@ export class SepayService {
       bookingCode: booking.bookingCode,
       cameraId: booking.camera.id,
       amount: payAmount,
+      totalAmount: booking.amount,
+      depositAmount: BOOKING_DEPOSIT_VND,
+      balanceDue: balanceDueVnd(booking.amount),
       status: booking.status,
+      paymentStatus: booking.paymentStatus,
+      paymentKind: 'DEPOSIT' as const,
       alreadyPaid: false,
-      isChangeTopUp: booking.status === BookingStatus.PENDING_CHANGE_PAYMENT,
       bankName,
       accountNumber: account,
       accountName,

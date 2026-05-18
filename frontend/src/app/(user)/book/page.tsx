@@ -40,6 +40,7 @@ import {
   type CameraWithAvailability,
   type PublicCamera,
 } from "@/lib/booking-api";
+import { balanceDueVnd } from "@/lib/booking-payment";
 import {
   fetchCustomerVerification,
   fetchMyBookings,
@@ -89,7 +90,6 @@ function BookPageContent() {
   const preselectCameraId = searchParams.get("cameraId");
   const [changeSource, setChangeSource] = useState<MyBooking | null>(null);
   const [changeLoading, setChangeLoading] = useState(!!changeBookingId);
-  const [changeBankInfo, setChangeBankInfo] = useState("");
   const [mode, setMode] = useState<Mode>(null);
   const [step, setStep] = useState(0);
   const [brand, setBrand] = useState<CameraBrand | null>(null);
@@ -207,7 +207,10 @@ function BookPageContent() {
       try {
         const list = await fetchMyBookings(session.phone);
         const b = list.find(
-          (x) => x.id === changeBookingId && x.status === "CONFIRMED",
+          (x) =>
+            x.id === changeBookingId &&
+            x.status === "CONFIRMED" &&
+            x.paymentStatus === "DEPOSITED",
         );
         if (!b) {
           router.replace("/home");
@@ -384,10 +387,10 @@ function BookPageContent() {
     if (dayCountInclusive(s, e) >= 2) setSlot("FULL_DAY");
   }
 
-  const changeDelta = useMemo(() => {
-    if (!changeSource) return 0;
-    return estimatedAmount - changeSource.amount;
-  }, [changeSource, estimatedAmount]);
+  const changeBalanceDue = useMemo(
+    () => balanceDueVnd(estimatedAmount),
+    [estimatedAmount],
+  );
 
   async function handleChangeSubmit() {
     const session = getSession();
@@ -405,14 +408,10 @@ function BookPageContent() {
       setError("Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại.");
       return;
     }
-    if (changeDelta < 0 && !changeBankInfo.trim()) {
-      setError("Vui lòng nhập tài khoản ngân hàng để nhận hoàn chênh lệch.");
-      return;
-    }
     setPaying(true);
     setError(null);
     try {
-      const result = await requestCustomerBookingChange(changeSource.id, {
+      await requestCustomerBookingChange(changeSource.id, {
         phone: session.phone,
         cameraId: camera.id,
         startDate,
@@ -423,13 +422,7 @@ function BookPageContent() {
           canRequestDelivery && wantDelivery && shippingAddress.trim()
             ? shippingAddress.trim()
             : undefined,
-        bankAccountInfo:
-          changeDelta < 0 ? changeBankInfo.trim() : undefined,
       });
-      if (result.needsPayment) {
-        router.push(`/book/payment?bookingId=${changeSource.id}`);
-        return;
-      }
       router.push("/home");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không thay đổi được đơn");
@@ -568,12 +561,8 @@ function BookPageContent() {
       <Stack gap={4}>
         <Text color="fg.muted" fontSize="sm">
           {isChange
-            ? changeDelta > 0
-              ? "Xác nhận thay đổi lịch. Bạn chuyển thêm phần chênh lệch qua SePay."
-              : changeDelta < 0
-                ? "Xác nhận thay đổi. Cửa hàng sẽ hoàn phần chênh lệch theo tài khoản bạn nhập."
-                : "Xác nhận thay đổi. Giá không đổi — không cần thanh toán thêm."
-            : "Máy được giữ sau khi thanh toán thành công."}
+            ? "Xác nhận thay đổi lịch. Phần còn lại thanh toán khi nhận máy (chuyển khoản hoặc tiền mặt)."
+            : "Cọc 50.000đ qua chuyển khoản để giữ lịch. Phần còn lại thanh toán khi nhận máy."}
         </Text>
         <Stack gap={1} fontSize="sm">
           <Text>
@@ -601,17 +590,11 @@ function BookPageContent() {
           )}
           {isChange ? (
             <>
-              <Text>
-                <strong>Giá hiện tại:</strong>{" "}
-                {vnd.format(changeSource.amount)}
+              <Text fontWeight="bold" fontSize="md" color={titleColor}>
+                Tổng tiền thuê mới: {vnd.format(estimatedAmount)}
               </Text>
-              <Text>
-                <strong>Giá mới:</strong> {vnd.format(estimatedAmount)}
-              </Text>
-              <Text fontWeight="bold" color={titleColor}>
-                Chênh lệch:{" "}
-                {changeDelta >= 0 ? "+" : ""}
-                {vnd.format(changeDelta)}
+              <Text fontSize="sm" color="fg.muted">
+                Còn lại khi lấy máy: {vnd.format(changeBalanceDue)}
               </Text>
             </>
           ) : (
@@ -624,6 +607,10 @@ function BookPageContent() {
               ) : null}
               <Text fontWeight="bold" fontSize="md" color={titleColor}>
                 Tổng: {vnd.format(estimatedAmount)}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                Cọc online: {vnd.format(50_000)} · Còn lại khi lấy máy:{" "}
+                {vnd.format(balanceDueVnd(estimatedAmount))}
               </Text>
             </>
           )}
@@ -678,20 +665,6 @@ function BookPageContent() {
           opacity={!canRequestDelivery || !wantDelivery ? 0.55 : 1}
           {...userFieldInputProps}
         />
-        {isChange && changeDelta < 0 ? (
-          <Box>
-            <Text fontSize="sm" fontWeight="medium" mb={1}>
-              Tài khoản nhận hoàn chênh lệch
-            </Text>
-            <Textarea
-              placeholder="Số TK, ngân hàng, tên chủ TK…"
-              value={changeBankInfo}
-              rows={3}
-              onChange={(e) => setChangeBankInfo(e.target.value)}
-              {...userFieldInputProps}
-            />
-          </Box>
-        ) : null}
         <Button
           colorPalette={APP_COLOR_PALETTE}
           size="lg"
@@ -702,11 +675,7 @@ function BookPageContent() {
             void (isChange ? handleChangeSubmit() : handlePay())
           }
         >
-          {isChange
-            ? changeDelta > 0
-              ? "Xác nhận & thanh toán chênh lệch"
-              : "Xác nhận thay đổi"
-            : "Xác nhận & thanh toán"}
+          {isChange ? "Xác nhận thay đổi" : "Xác nhận & thanh toán cọc"}
         </Button>
       </Stack>
     );
