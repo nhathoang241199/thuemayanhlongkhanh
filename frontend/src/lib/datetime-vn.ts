@@ -11,8 +11,18 @@ const SLOT_TIME_WINDOWS: Record<
   EVENING: { startHour: 18, endHour: 23 },
 };
 
+/** Ca cả ngày — đồng bộ backend. */
+const FULL_DAY_EARLY_PICKUP_START_HOUR = 12;
+const FULL_DAY_EARLY_PICKUP_END_HOUR = 23;
+
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
+}
+
+function addDaysYmd(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 
 /** datetime-local value (VN wall clock) từ YYYY-MM-DD + giờ. */
@@ -29,6 +39,18 @@ export function slotPickupBounds(
   slot: BookingSlot,
 ): { minLocal: string; maxLocal: string; defaultLocal: string } {
   const w = SLOT_TIME_WINDOWS[slot];
+  if (slot === "FULL_DAY") {
+    const prevDay = addDaysYmd(startDate, -1);
+    return {
+      minLocal: toDatetimeLocalValue(
+        prevDay,
+        FULL_DAY_EARLY_PICKUP_START_HOUR,
+        0,
+      ),
+      maxLocal: toDatetimeLocalValue(startDate, w.endHour, 0),
+      defaultLocal: toDatetimeLocalValue(startDate, w.startHour, 0),
+    };
+  }
   return {
     minLocal: toDatetimeLocalValue(startDate, w.startHour, 0),
     maxLocal: toDatetimeLocalValue(startDate, w.endHour, 0),
@@ -36,16 +58,71 @@ export function slotPickupBounds(
   };
 }
 
-/** Coi chuỗi datetime-local là giờ VN (UTC+7) → ISO UTC. */
-export function datetimeLocalToIso(local: string): string {
+function pickupLocalParts(local: string): {
+  datePart: string;
+  totalMinutes: number;
+} {
   const [datePart, timePart] = local.split("T");
   if (!datePart || !timePart) {
     throw new Error("Thời gian nhận máy không hợp lệ");
   }
-  const [y, m, d] = datePart.split("-").map(Number);
   const [hour, minute] = timePart.split(":").map(Number);
+  return { datePart, totalMinutes: hour * 60 + (minute ?? 0) };
+}
+
+/** Kiểm tra trước submit — trả về thông báo lỗi hoặc null nếu hợp lệ. */
+export function validatePickupAtLocal(
+  startDate: string,
+  slot: BookingSlot,
+  local: string,
+): string | null {
+  try {
+    const { datePart, totalMinutes } = pickupLocalParts(local);
+    const w = SLOT_TIME_WINDOWS[slot];
+
+    if (slot === "FULL_DAY") {
+      const prevDay = addDaysYmd(startDate, -1);
+      if (datePart === prevDay) {
+        const min = FULL_DAY_EARLY_PICKUP_START_HOUR * 60;
+        const max = FULL_DAY_EARLY_PICKUP_END_HOUR * 60 + 59;
+        if (totalMinutes < min || totalMinutes > max) {
+          return "Thời gian nhận máy hôm trước phải từ 12h trưa đến 12h đêm";
+        }
+        return null;
+      }
+      if (datePart === startDate) {
+        const startMinutes = w.startHour * 60;
+        const endMinutes = w.endHour * 60;
+        if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
+          return `Thời gian nhận máy trong ngày thuê phải từ ${w.startHour}h đến ${w.endHour}h`;
+        }
+        return null;
+      }
+      return "Thời gian nhận máy phải trong ngày thuê hoặc từ 12h trưa hôm trước (ca cả ngày)";
+    }
+
+    if (datePart !== startDate) {
+      return "Thời gian nhận máy phải trong ngày bắt đầu thuê";
+    }
+    const startMinutes = w.startHour * 60;
+    const endMinutes = w.endHour * 60;
+    if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
+      return `Thời gian nhận máy phải từ ${w.startHour}h đến ${w.endHour}h`;
+    }
+    return null;
+  } catch {
+    return "Thời gian nhận máy không hợp lệ";
+  }
+}
+
+/** Coi chuỗi datetime-local là giờ VN (UTC+7) → ISO UTC. */
+export function datetimeLocalToIso(local: string): string {
+  const { datePart, totalMinutes } = pickupLocalParts(local);
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const [y, m, d] = datePart.split("-").map(Number);
   return new Date(
-    Date.UTC(y, m - 1, d, hour - 7, minute ?? 0, 0, 0),
+    Date.UTC(y, m - 1, d, hour - 7, minute, 0, 0),
   ).toISOString();
 }
 

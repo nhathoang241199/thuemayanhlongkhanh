@@ -53,6 +53,7 @@ import {
   datetimeLocalToIso,
   isSundayYmd,
   slotPickupBounds,
+  validatePickupAtLocal,
 } from "@/lib/datetime-vn";
 import { rentalAmountVnd } from "@/lib/rental-pricing";
 import { getSession, setSession } from "@/lib/customer-session";
@@ -430,6 +431,15 @@ function BookPageContent() {
       setError("Vui lòng chọn thời gian nhận máy.");
       return;
     }
+    const pickupErr = validatePickupAtLocal(
+      startDate,
+      effectiveSlot,
+      pickupAtLocal,
+    );
+    if (pickupErr) {
+      setError(pickupErr);
+      return;
+    }
     let pickupAt: string;
     try {
       pickupAt = datetimeLocalToIso(pickupAtLocal);
@@ -477,6 +487,15 @@ function BookPageContent() {
     }
     if (!pickupAtLocal.trim()) {
       setError("Vui lòng chọn thời gian nhận máy.");
+      return;
+    }
+    const pickupErr = validatePickupAtLocal(
+      startDate,
+      effectiveSlot,
+      pickupAtLocal,
+    );
+    if (pickupErr) {
+      setError(pickupErr);
       return;
     }
     let pickupAt: string;
@@ -601,11 +620,6 @@ function BookPageContent() {
     const isChange = !!changeSource;
     return (
       <Stack gap={4}>
-        <Text color="fg.muted" fontSize="sm">
-          {isChange
-            ? "Xác nhận thay đổi lịch. Phần còn lại thanh toán khi nhận máy (chuyển khoản hoặc tiền mặt)."
-            : "Cọc 50.000đ qua chuyển khoản để giữ lịch. Phần còn lại thanh toán khi nhận máy."}
-        </Text>
         <Stack gap={1} fontSize="sm">
           <Text>
             <strong>Máy:</strong> {camera?.name}
@@ -675,6 +689,12 @@ function BookPageContent() {
             onChange={(e) => setPickupAtLocal(e.target.value)}
             {...userFieldInputProps}
           />
+          {effectiveSlot === "FULL_DAY" ? (
+            <Text fontSize="xs" color="fg.muted" lineHeight="tall">
+              Ca cả ngày: có thể lấy máy từ 12h trưa hôm trước đến 12h đêm, hoặc
+              trong ngày thuê (7h–23h).
+            </Text>
+          ) : null}
           {startDate && isSundayYmd(startDate) ? (
             <Text fontSize="xs" color="fg.muted" lineHeight="tall">
               Lưu ý: Nếu thuê Chủ nhật, không nên lấy máy quá sớm vì cần chờ

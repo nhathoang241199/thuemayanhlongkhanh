@@ -100,6 +100,10 @@ export function defaultPickupAt(
   return vnDateTimeToUtc(startDate, w.startHour, 0);
 }
 
+/** Ca cả ngày: lấy máy sớm từ 12h trưa hôm trước đến hết ngày (24h). */
+export const FULL_DAY_EARLY_PICKUP_START_HOUR = 12;
+export const FULL_DAY_EARLY_PICKUP_END_HOUR = 23;
+
 export function assertPickupAtValid(
   startDate: string,
   slot: BookingSlotValue | BookingSlot,
@@ -113,11 +117,41 @@ export function assertPickupAtValid(
   if (Number.isNaN(pickupAt.getTime())) {
     throw new Error('Thời gian nhận máy không hợp lệ');
   }
-  if (toCalendarDayVN(pickupAt) !== startDate) {
-    throw new Error('Thời gian nhận máy phải trong ngày bắt đầu thuê');
-  }
+
+  const pickupDay = toCalendarDayVN(pickupAt);
   const vn = new Date(pickupAt.getTime() + 7 * 60 * 60 * 1000);
   const totalMinutes = vn.getUTCHours() * 60 + vn.getUTCMinutes();
+
+  if (slot === 'FULL_DAY') {
+    const prevDay = addDaysDateStr(startDate, -1);
+    if (pickupDay === prevDay) {
+      const min = FULL_DAY_EARLY_PICKUP_START_HOUR * 60;
+      const max = FULL_DAY_EARLY_PICKUP_END_HOUR * 60 + 59;
+      if (totalMinutes < min || totalMinutes > max) {
+        throw new Error(
+          'Thời gian nhận máy hôm trước phải từ 12h trưa đến 12h đêm',
+        );
+      }
+      return;
+    }
+    if (pickupDay === startDate) {
+      const startMinutes = w.startHour * 60;
+      const endMinutes = w.endHour * 60;
+      if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
+        throw new Error(
+          `Thời gian nhận máy trong ngày thuê phải trong khung ${slotTimeRangeLabel(slot)}`,
+        );
+      }
+      return;
+    }
+    throw new Error(
+      'Thời gian nhận máy phải trong ngày thuê hoặc từ 12h trưa hôm trước (ca cả ngày)',
+    );
+  }
+
+  if (pickupDay !== startDate) {
+    throw new Error('Thời gian nhận máy phải trong ngày bắt đầu thuê');
+  }
   const startMinutes = w.startHour * 60;
   const endMinutes = w.endHour * 60;
   if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
