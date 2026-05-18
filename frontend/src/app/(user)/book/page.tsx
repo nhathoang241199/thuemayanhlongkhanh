@@ -12,6 +12,7 @@ import {
   CheckboxRoot,
   HStack,
   Input,
+  Skeleton,
   Stack,
   Text,
   Textarea,
@@ -557,6 +558,18 @@ function BookPageContent() {
     );
   }
 
+  const showSlotSkeleton = slotsLoading || slotAvailability === null;
+
+  function renderSlotSkeletons() {
+    return (
+      <Stack gap={2} w="full" aria-busy="true" aria-label="Đang kiểm tra buổi">
+        {SLOTS.map((s) => (
+          <Skeleton key={s} w="full" h="12" borderRadius="md" />
+        ))}
+      </Stack>
+    );
+  }
+
   function renderSlotPicker() {
     if (forceFullDay) {
       return (
@@ -577,36 +590,31 @@ function BookPageContent() {
         </Stack>
       );
     }
+    if (showSlotSkeleton) {
+      return renderSlotSkeletons();
+    }
     return (
       <Stack gap={2}>
-        {slotsLoading ? (
-          <Text fontSize="sm" color="fg.muted">
-            Đang kiểm tra buổi…
-          </Text>
-        ) : null}
-        <Stack gap={2}>
-          {SLOTS.map((s) => {
-            const unavailable =
-              slotsLoading || slotAvailability?.[s] === false;
-            return (
-              <Button
-                key={s}
-                w="full"
-                size="lg"
-                position="relative"
-                {...(slot === s
-                  ? { variant: "solid" as const, colorPalette: APP_COLOR_PALETTE }
-                  : userOutlineButtonProps)}
-                disabled={unavailable}
-                opacity={unavailable ? 0.5 : 1}
-                onClick={() => setSlot(s)}
-              >
-                <SlotHoursLabel slot={s} />
-                {slotAvailability?.[s] === false ? " (Hết chỗ)" : ""}
-              </Button>
-            );
-          })}
-        </Stack>
+        {SLOTS.map((s) => {
+          const unavailable = slotAvailability?.[s] === false;
+          return (
+            <Button
+              key={s}
+              w="full"
+              size="lg"
+              position="relative"
+              {...(slot === s
+                ? { variant: "solid" as const, colorPalette: APP_COLOR_PALETTE }
+                : userOutlineButtonProps)}
+              disabled={unavailable}
+              opacity={unavailable ? 0.5 : 1}
+              onClick={() => setSlot(s)}
+            >
+              <SlotHoursLabel slot={s} />
+              {unavailable ? " (Hết chỗ)" : ""}
+            </Button>
+          );
+        })}
       </Stack>
     );
   }
@@ -691,8 +699,7 @@ function BookPageContent() {
           />
           {effectiveSlot === "FULL_DAY" ? (
             <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-              Ca cả ngày: có thể lấy máy từ 12h trưa hôm trước đến 12h đêm, hoặc
-              trong ngày thuê (7h–23h).
+              Khi thuê tối thiểu 1 ngày, bạn có thể nhận máy sớm từ tối đêm trước ngày thuê. Lưu ý nếu nhận vào tối thứ 7 thì nhận sau 21h.
             </Text>
           ) : null}
           {startDate && isSundayYmd(startDate) ? (
