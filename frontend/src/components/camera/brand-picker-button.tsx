@@ -16,6 +16,7 @@ export function BrandPickerButton({ brand, onClick }: BrandPickerButtonProps) {
       h="5.75rem"
       py={3}
       {...userOutlineButtonProps}
+      bg="white"
       onClick={onClick}
       aria-label={brand.label}
     >
