@@ -47,7 +47,6 @@ const bookingInclude = {
 const CUSTOMER_LIST_HIDDEN_STATUSES: BookingStatus[] = [
   BookingStatus.COMPLETED,
   BookingStatus.CANCELLED,
-  BookingStatus.REFUNDED,
 ];
 
 @Injectable()
@@ -253,6 +252,24 @@ export class BookingService {
     if (normalizePhone(booking.customer.phone) !== phone) {
       throw new ForbiddenException('Không có quyền hủy đơn này');
     }
+
+    if (booking.status === BookingStatus.PENDING_PAYMENT) {
+      const updated = await this.prisma.booking.update({
+        where: { id },
+        data: {
+          status: BookingStatus.CANCELLED,
+          pendingChange: Prisma.DbNull,
+          note: this.formatCancelNoRefundNote(booking.note),
+        },
+        include: bookingInclude,
+      });
+      return {
+        booking: updated,
+        refundEligible: false,
+        refundAmount: 0,
+      };
+    }
+
     this.assertCustomerCanModifyDepositedBooking(booking);
 
     const refundEligible = isCancelRefundEligible(booking.startBookingDate);
@@ -409,32 +426,6 @@ export class BookingService {
       newAmount,
       balanceDue: balanceDueVnd(newAmount),
     };
-  }
-
-  /** Đơn cũ PENDING_CHANGE_PAYMENT — admin xác nhận sau khi thu chênh lệch offline. */
-  async confirmChangePayment(bookingId: string): Promise<boolean> {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-    });
-    if (!booking || booking.status !== BookingStatus.PENDING_CHANGE_PAYMENT) {
-      return false;
-    }
-
-    const pending = parsePendingChange(booking.pendingChange);
-    if (!pending) return false;
-
-    const ok = await this.applyPendingChangeToBooking(bookingId);
-    if (!ok) return false;
-
-    await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.DEPOSITED,
-      },
-    });
-
-    return true;
   }
 
   async createCustomerBooking(dto: CreateCustomerBookingDto) {

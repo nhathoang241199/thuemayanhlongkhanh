@@ -1,7 +1,7 @@
 export function bookingStatusLabel(status: string): string {
   switch (status) {
     case "PENDING_PAYMENT":
-      return "Chờ thanh toán";
+      return "Chờ cọc";
     case "CONFIRMED":
       return "Chờ lấy máy";
     case "RENTING":
@@ -11,15 +11,9 @@ export function bookingStatusLabel(status: string): string {
     case "COMPLETED":
       return "Hoàn tất";
     case "PENDING_REFUND_CANCEL":
-      return "Chờ hoàn tiền hủy lịch";
-    case "PENDING_REFUND_CHANGE":
-      return "Chờ hoàn tiền thay đổi";
-    case "PENDING_CHANGE_PAYMENT":
-      return "Chờ chuyển thêm";
+      return "Chờ hoàn tiền";
     case "CANCELLED":
       return "Đã hủy";
-    case "REFUNDED":
-      return "Đã hoàn tiền";
     default:
       return status;
   }
@@ -40,14 +34,9 @@ export function bookingStatusColor(
     case "COMPLETED":
       return "green";
     case "PENDING_REFUND_CANCEL":
-    case "PENDING_REFUND_CHANGE":
       return "orange";
-    case "PENDING_CHANGE_PAYMENT":
-      return "purple";
     case "CANCELLED":
       return "red";
-    case "REFUNDED":
-      return "green";
     default:
       return "gray";
   }
@@ -92,10 +81,21 @@ export function slotLabelWithHoursVi(slot: string): string {
   return hours ? `${name} ${hours}` : name;
 }
 
-const dateFmt = new Intl.DateTimeFormat("vi-VN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+/** Lịch ngày VN (yyyy-mm-dd) từ instant UTC — đồng bộ backend toCalendarDayVN. */
+function toCalendarDayVN(d: Date): string {
+  const vn = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+  const y = vn.getUTCFullYear();
+  const m = String(vn.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(vn.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** dd-mm (không năm, không giờ) cho card đơn khách. */
+function formatCalendarDayShort(ymd: string): string {
+  const [y, m, d] = ymd.split("-");
+  if (!y || !m || !d) return ymd;
+  return `${d}-${m}`;
+}
 
 export function formatBookingRange(startIso: string, endIso: string): string {
   const start = new Date(startIso);
@@ -103,5 +103,11 @@ export function formatBookingRange(startIso: string, endIso: string): string {
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     return startIso;
   }
-  return `${dateFmt.format(start)} → ${dateFmt.format(end)}`;
+  const startDay = toCalendarDayVN(start);
+  const endDay = toCalendarDayVN(end);
+  const startLabel = formatCalendarDayShort(startDay);
+  if (startDay === endDay) {
+    return startLabel;
+  }
+  return `${startLabel} – ${formatCalendarDayShort(endDay)}`;
 }

@@ -154,7 +154,7 @@ function paymentBadgeProps(
 } {
   switch (s) {
     case "PENDING":
-      return { label: "Chưa thanh toán", colorPalette: "orange" };
+      return { label: "Chưa cọc", colorPalette: "orange" };
     case "DEPOSITED":
       return { label: "Đã cọc", colorPalette: "ocean" };
     case "PAID":
@@ -176,7 +176,7 @@ function statusBadgeProps(
 } {
   switch (s) {
     case "PENDING_PAYMENT":
-      return { label: "Chờ thanh toán", colorPalette: "orange" };
+      return { label: "Chờ cọc", colorPalette: "orange" };
     case "CONFIRMED":
       return { label: "Chờ lấy máy", colorPalette: "purple" };
     case "RENTING":
@@ -186,15 +186,9 @@ function statusBadgeProps(
     case "COMPLETED":
       return { label: "Hoàn tất", colorPalette: "green" };
     case "PENDING_REFUND_CANCEL":
-      return { label: "Chờ hoàn tiền hủy lịch", colorPalette: "orange" };
-    case "PENDING_REFUND_CHANGE":
-      return { label: "Chờ hoàn tiền thay đổi", colorPalette: "orange" };
-    case "PENDING_CHANGE_PAYMENT":
-      return { label: "Chờ chuyển thêm", colorPalette: "purple" };
+      return { label: "Chờ hoàn tiền", colorPalette: "orange" };
     case "CANCELLED":
       return { label: "Đã hủy", colorPalette: "red" };
-    case "REFUNDED":
-      return { label: "Đã hoàn tiền", colorPalette: "green" };
     default:
       return { label: s, colorPalette: "gray" };
   }
@@ -209,23 +203,17 @@ type StatusFilter =
   | "LATE_RETURN"
   | "COMPLETED"
   | "PENDING_REFUND_CANCEL"
-  | "PENDING_REFUND_CHANGE"
-  | "PENDING_CHANGE_PAYMENT"
-  | "CANCELLED"
-  | "REFUNDED";
+  | "CANCELLED";
 
 const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ALL", label: "Tất cả" },
-  { value: "PENDING_PAYMENT", label: "Chờ thanh toán" },
+  { value: "PENDING_PAYMENT", label: "Chờ cọc" },
   { value: "CONFIRMED", label: "Chờ lấy máy" },
   { value: "RENTING", label: "Đang thuê" },
   { value: "LATE_RETURN", label: "Trả trễ" },
   { value: "COMPLETED", label: "Hoàn tất" },
-  { value: "PENDING_REFUND_CANCEL", label: "Chờ hoàn tiền hủy lịch" },
-  { value: "PENDING_REFUND_CHANGE", label: "Chờ hoàn tiền thay đổi" },
-  { value: "PENDING_CHANGE_PAYMENT", label: "Chờ chuyển thêm" },
+  { value: "PENDING_REFUND_CANCEL", label: "Chờ hoàn tiền" },
   { value: "CANCELLED", label: "Đã hủy" },
-  { value: "REFUNDED", label: "Đã hoàn tiền" },
 ];
 
 type BookingStatusValue = Exclude<StatusFilter, "ALL">;
@@ -245,7 +233,7 @@ const BOOKING_PAYMENT_EDIT_OPTIONS: {
   value: PaymentStatusValue;
   label: string;
 }[] = [
-  { value: "PENDING", label: "Chưa thanh toán" },
+  { value: "PENDING", label: "Chưa cọc" },
   { value: "DEPOSITED", label: "Đã cọc" },
   { value: "PAID", label: "Đã thanh toán" },
   { value: "FAILED", label: "Thất bại" },
@@ -736,8 +724,8 @@ export default function AdminBookingsPage() {
                   size="sm"
                   variant={
                     showAllDates &&
-                    statusFilter === "ALL" &&
-                    paymentStatusFilter === "PENDING" &&
+                    statusFilter === "PENDING_PAYMENT" &&
+                    paymentStatusFilter === "ALL" &&
                     searchQuery.trim() === ""
                       ? "solid"
                       : "outline"
@@ -745,13 +733,13 @@ export default function AdminBookingsPage() {
                   colorPalette={APP_COLOR_PALETTE}
                   onClick={() => {
                     setShowAllDates(true);
-                    setStatusFilter("ALL");
-                    setPaymentStatusFilter("PENDING");
+                    setStatusFilter("PENDING_PAYMENT");
+                    setPaymentStatusFilter("ALL");
                     setSearchQuery("");
                     setPage(1);
                   }}
                 >
-                  Đơn thuê chưa thanh toán
+                  Đơn chờ cọc
                 </Button>
               </HStack>
             ) : null}

@@ -135,7 +135,7 @@ export class SepayService {
 
     if (booking.status !== BookingStatus.PENDING_PAYMENT) {
       throw new BadRequestException(
-        'Đơn không ở trạng thái chờ thanh toán cọc',
+        'Đơn không ở trạng thái chờ cọc',
       );
     }
 

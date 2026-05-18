@@ -44,7 +44,7 @@ export class BookingController {
   @ApiOperation({
     summary: 'Đơn của khách theo SĐT',
     description:
-      'Public v1: lọc theo query phone (chuẩn hóa chữ số). Không trả đơn đã kết thúc (COMPLETED, CANCELLED, REFUNDED).',
+      'Public v1: lọc theo query phone (chuẩn hóa chữ số). Không trả đơn đã kết thúc (COMPLETED, CANCELLED).',
   })
   @ApiOkResponse({ description: 'Mảng booking của khách; rỗng nếu chưa có SĐT' })
   findMine(@Query('phone') phone: string | undefined) {
@@ -56,7 +56,7 @@ export class BookingController {
 
   @Public()
   @Post('customer')
-  @ApiOperation({ summary: 'Khách tạo đơn (chờ thanh toán)' })
+  @ApiOperation({ summary: 'Khách tạo đơn (chờ cọc)' })
   @ApiCreatedResponse()
   createCustomer(@Body() dto: CreateCustomerBookingDto) {
     return this.bookingService.createCustomerBooking(dto);
@@ -64,7 +64,9 @@ export class BookingController {
 
   @Public()
   @Post('customer/:id/cancel')
-  @ApiOperation({ summary: 'Khách hủy đơn (chờ lấy máy) + TK hoàn 50%' })
+  @ApiOperation({
+    summary: 'Khách hủy đơn (chờ cọc hoặc chờ lấy máy) + TK hoàn cọc',
+  })
   @ApiOkResponse()
   @ApiNotFoundResponse()
   cancelCustomer(

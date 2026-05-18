@@ -135,7 +135,7 @@ function PaymentContent() {
         setPhase("pay");
         return;
       }
-      setError("Đơn không ở trạng thái chờ thanh toán cọc.");
+      setError("Đơn không ở trạng thái chờ cọc.");
       setPhase("pay");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được thông tin CK");

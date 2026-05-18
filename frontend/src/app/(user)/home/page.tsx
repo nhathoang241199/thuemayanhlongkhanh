@@ -6,6 +6,7 @@ import {
   Button,
   CardBody,
   CardRoot,
+  createIcon,
   DialogBackdrop,
   DialogBody,
   DialogCloseTrigger,
@@ -16,6 +17,7 @@ import {
   DialogRoot,
   DialogTitle,
   HStack,
+  IconButton,
   Link,
   Stack,
   Text,
@@ -84,6 +86,30 @@ const cancelButtonProps = {
   _active: { bg: "red.500" },
 };
 
+const TrashIcon = createIcon({
+  displayName: "TrashIcon",
+  path: (
+    <>
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 6h18"
+      />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+      />
+    </>
+  ),
+});
+
 export default function UserHomePage() {
   const router = useRouter();
   const [session, setSessionState] = useState<CustomerSession | null>(null);
@@ -93,6 +119,7 @@ export default function UserHomePage() {
   const [bankAccountInfo, setBankAccountInfo] = useState("");
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [deletePendingId, setDeletePendingId] = useState<string | null>(null);
   const [guideCamera, setGuideCamera] = useState<{
     id: string;
     name: string;
@@ -153,6 +180,21 @@ export default function UserHomePage() {
       setCancelError(e instanceof Error ? e.message : "Không hủy được đơn.");
     } finally {
       setCancelSubmitting(false);
+    }
+  };
+
+  const handleDeletePending = async (b: MyBooking) => {
+    if (!session) return;
+    if (!window.confirm("Bạn có chắc muốn huỷ đơn này?")) return;
+    setDeletePendingId(b.id);
+    setError(null);
+    try {
+      await cancelCustomerBooking(b.id, session.phone);
+      await loadBookings(session.phone);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không huỷ được đơn.");
+    } finally {
+      setDeletePendingId(null);
     }
   };
 
@@ -250,7 +292,7 @@ export default function UserHomePage() {
                   {formatBookingRange(b.startBookingDate, b.endBookingDate)}
                 </Text>
                 <HStack justify="space-between" fontSize="sm" w="full">
-                  <Text>Buổi: {slotLabelVi(b.slot)}</Text>
+                  <Text>Thời gian: {slotLabelVi(b.slot)}</Text>
                   <Text fontSize="xs" color="fg.muted">
                     {slotTimeRangeLabel(b.slot)}
                   </Text>
@@ -277,18 +319,49 @@ export default function UserHomePage() {
                   </Stack>
                 ) : null}
                 {b.status === "PENDING_PAYMENT" ? (
-                  <Button
-                    asChild
-                    size="sm"
-                    colorPalette={APP_COLOR_PALETTE}
-                  >
-                    <NextLink href={`/book/payment?bookingId=${b.id}`}>
-                      Thanh toán cọc
-                    </NextLink>
-                  </Button>
+                  <HStack gap={2} w="full">
+                    <IconButton
+                      type="button"
+                      size="sm"
+                      variant="solid"
+                      aria-label="Huỷ đơn"
+                      {...cancelButtonProps}
+                      loading={deletePendingId === b.id}
+                      disabled={
+                        deletePendingId !== null && deletePendingId !== b.id
+                      }
+                      onClick={() => void handleDeletePending(b)}
+                    >
+                      <TrashIcon />
+                    </IconButton>
+                    <Button
+                      asChild
+                      flex={1}
+                      size="sm"
+                      colorPalette={APP_COLOR_PALETTE}
+                    >
+                      <NextLink href={`/book/payment?bookingId=${b.id}`}>
+                        Thanh toán cọc
+                      </NextLink>
+                    </Button>
+                  </HStack>
                 ) : null}
                 {canModify ? (
                   <HStack gap={2} w="full">
+                    <IconButton
+                      type="button"
+                      size="sm"
+                      variant="solid"
+                      aria-label="Huỷ đơn"
+                      {...cancelButtonProps}
+                      onClick={() => {
+                        setCancelTarget(b);
+                        setBankAccountInfo("");
+                        setCancelError(null);
+                      }}
+                    >
+                      <TrashIcon />
+                    </IconButton>
                     <Button
                       flex={1}
                       size="sm"
@@ -297,19 +370,7 @@ export default function UserHomePage() {
                         router.push(`/book?changeBookingId=${b.id}`)
                       }
                     >
-                      Thay đổi
-                    </Button>
-                    <Button
-                      flex={1}
-                      size="sm"
-                      {...cancelButtonProps}
-                      onClick={() => {
-                        setCancelTarget(b);
-                        setBankAccountInfo("");
-                        setCancelError(null);
-                      }}
-                    >
-                      Huỷ
+                      Đổi lịch
                     </Button>
                   </HStack>
                 ) : null}
