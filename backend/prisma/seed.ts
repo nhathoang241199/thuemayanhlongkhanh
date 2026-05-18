@@ -165,7 +165,7 @@ async function main() {
 
   const scenarios: Array<{
     slot: "FULL_DAY" | "MORNING" | "AFTERNOON" | "EVENING";
-    paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+    paymentStatus: "PENDING" | "PAID" | "REFUNDED";
     status:
       | "PENDING_PAYMENT"
       | "CONFIRMED"
@@ -206,9 +206,9 @@ async function main() {
     },
     {
       slot: "FULL_DAY",
-      paymentStatus: "FAILED",
+      paymentStatus: "PENDING",
       status: "PENDING_PAYMENT",
-      note: "Thanh toán online lỗi — gọi lại",
+      note: "Chờ khách chuyển khoản cọc",
       ship: false,
     },
     {
@@ -336,7 +336,7 @@ async function main() {
     startDate: string;
     endDate: string;
     slot: BookingSlotValue;
-    paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+    paymentStatus: "PENDING" | "PAID" | "REFUNDED";
     status:
       | "PENDING_PAYMENT"
       | "CONFIRMED"

@@ -15,6 +15,15 @@ import {
   CheckboxHiddenInput,
   CheckboxLabel,
   CheckboxRoot,
+  DialogBackdrop,
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogPositioner,
+  DialogRoot,
+  DialogTitle,
   HStack,
   Input,
   Link,
@@ -38,14 +47,23 @@ import {
   TableRow,
   TableScrollArea,
   Text,
+  Textarea,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
-import { formatPickupAtVi } from "@/lib/datetime-vn";
+import {
+  getQuickAdvancePatch,
+  quickAdvanceToastMessages,
+} from "@/lib/admin-booking-quick-advance";
+import {
+  datetimeLocalToIso,
+  formatPickupAtVi,
+  isoToDatetimeLocal,
+} from "@/lib/datetime-vn";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiBase } from "@/lib/api-base";
-import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
+import { APP_COLOR_PALETTE, cardSurfaceProps, fieldInputProps } from "@/lib/app-theme";
 import { toaster } from "@/lib/toaster";
 
 type BookingCustomer = {
@@ -132,6 +150,44 @@ const TrashIcon = createIcon({
   ),
 });
 
+const PencilIcon = createIcon({
+  displayName: "PencilIcon",
+  path: (
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+    />
+  ),
+});
+
+const ChevronRightIcon = createIcon({
+  displayName: "ChevronRightIcon",
+  path: (
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M9 18l6-6-6-6"
+    />
+  ),
+});
+
+type AdminCustomerOption = { id: string; name: string; phone: string };
+type AdminCameraOption = { id: string; brand: string; name: string };
+
+const BOOKING_SLOT_OPTIONS = [
+  "FULL_DAY",
+  "MORNING",
+  "AFTERNOON",
+  "EVENING",
+] as const;
+
 const vnd = new Intl.NumberFormat("vi-VN", {
   style: "currency",
   currency: "VND",
@@ -152,19 +208,17 @@ function paymentBadgeProps(
   s: string,
 ): {
   label: string;
-  colorPalette: "gray" | "green" | "red" | "orange" | "ocean";
+  colorPalette: "gray" | "green" | "red" | "orange" | "ocean" | "cerulean";
 } {
   switch (s) {
     case "PENDING":
       return { label: "Chưa cọc", colorPalette: "orange" };
     case "DEPOSITED":
-      return { label: "Đã cọc", colorPalette: "ocean" };
+      return { label: "Đã cọc", colorPalette: "cerulean" };
     case "PAID":
       return { label: "Đã thanh toán", colorPalette: "green" };
-    case "FAILED":
-      return { label: "Thất bại", colorPalette: "red" };
     case "REFUNDED":
-      return { label: "Hoàn tiền", colorPalette: "gray" };
+      return { label: "Đã hoàn tiền", colorPalette: "gray" };
     default:
       return { label: s, colorPalette: "gray" };
   }
@@ -174,7 +228,14 @@ function statusBadgeProps(
   s: string,
 ): {
   label: string;
-  colorPalette: "gray" | "green" | "red" | "orange" | "ocean" | "purple";
+  colorPalette:
+    | "gray"
+    | "green"
+    | "red"
+    | "orange"
+    | "ocean"
+    | "cerulean"
+    | "purple";
 } {
   switch (s) {
     case "PENDING_PAYMENT":
@@ -182,7 +243,7 @@ function statusBadgeProps(
     case "CONFIRMED":
       return { label: "Chờ lấy máy", colorPalette: "purple" };
     case "RENTING":
-      return { label: "Đang thuê", colorPalette: "ocean" };
+      return { label: "Đang thuê", colorPalette: "cerulean" };
     case "LATE_RETURN":
       return { label: "Trả trễ", colorPalette: "red" };
     case "COMPLETED":
@@ -228,7 +289,6 @@ type PaymentStatusValue =
   | "PENDING"
   | "DEPOSITED"
   | "PAID"
-  | "FAILED"
   | "REFUNDED";
 
 const BOOKING_PAYMENT_EDIT_OPTIONS: {
@@ -238,9 +298,40 @@ const BOOKING_PAYMENT_EDIT_OPTIONS: {
   { value: "PENDING", label: "Chưa cọc" },
   { value: "DEPOSITED", label: "Đã cọc" },
   { value: "PAID", label: "Đã thanh toán" },
-  { value: "FAILED", label: "Thất bại" },
-  { value: "REFUNDED", label: "Hoàn tiền" },
+  { value: "REFUNDED", label: "Đã hoàn tiền" },
 ];
+
+type BookingEditForm = {
+  bookingCode: string;
+  customerId: string;
+  cameraId: string;
+  startBookingDateLocal: string;
+  endBookingDateLocal: string;
+  slot: string;
+  pickupAtLocal: string;
+  amount: string;
+  note: string;
+  shippingAddress: string;
+  paymentStatus: PaymentStatusValue;
+  status: BookingStatusValue;
+};
+
+function bookingToEditForm(b: Booking): BookingEditForm {
+  return {
+    bookingCode: b.bookingCode,
+    customerId: b.customerId,
+    cameraId: b.cameraId,
+    startBookingDateLocal: isoToDatetimeLocal(b.startBookingDate),
+    endBookingDateLocal: isoToDatetimeLocal(b.endBookingDate),
+    slot: b.slot,
+    pickupAtLocal: b.pickupAt ? isoToDatetimeLocal(b.pickupAt) : "",
+    amount: String(b.amount),
+    note: b.note ?? "",
+    shippingAddress: b.shippingAddress ?? "",
+    paymentStatus: b.paymentStatus as PaymentStatusValue,
+    status: b.status as BookingStatusValue,
+  };
+}
 
 /** Lọc theo `paymentStatus` từ API */
 type PaymentStatusFilter = "ALL" | PaymentStatusValue;
@@ -452,6 +543,16 @@ export default function AdminBookingsPage() {
   const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
   const [paymentSavingId, setPaymentSavingId] = useState<string | null>(null);
   const [deleteSavingId, setDeleteSavingId] = useState<string | null>(null);
+  const [quickAdvanceSavingId, setQuickAdvanceSavingId] = useState<string | null>(
+    null,
+  );
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [editForm, setEditForm] = useState<BookingEditForm | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editCustomers, setEditCustomers] = useState<AdminCustomerOption[]>([]);
+  const [editCameras, setEditCameras] = useState<AdminCameraOption[]>([]);
+  const [editOptionsLoading, setEditOptionsLoading] = useState(false);
   const [searchField, setSearchField] = useState<SearchField>("phone");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDateKey, setFilterDateKey] = useState(todayLocalDateKey);
@@ -463,6 +564,47 @@ export default function AdminBookingsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(30);
+
+  const isRowSaving = useCallback(
+    (id: string) =>
+      statusSavingId === id ||
+      paymentSavingId === id ||
+      deleteSavingId === id ||
+      quickAdvanceSavingId === id ||
+      (editSaving && editingBooking?.id === id),
+    [
+      statusSavingId,
+      paymentSavingId,
+      deleteSavingId,
+      quickAdvanceSavingId,
+      editSaving,
+      editingBooking?.id,
+    ],
+  );
+
+  const patchBooking = useCallback(
+    async (id: string, body: Record<string, unknown>) => {
+      const res = await fetch(
+        `${apiBase()}/api/bookings/${encodeURIComponent(id)}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || res.statusText);
+      }
+      const updated = (await res.json()) as Booking;
+      setBookings((prev) =>
+        prev?.map((row) => (row.id === id ? updated : row)) ?? null,
+      );
+      return updated;
+    },
+    [],
+  );
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
@@ -481,23 +623,7 @@ export default function AdminBookingsPage() {
       setPatchError(null);
       setStatusSavingId(id);
       try {
-        const res = await fetch(
-          `${apiBase()}/api/bookings/${encodeURIComponent(id)}`,
-          {
-            method: "PATCH",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status }),
-          },
-        );
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || res.statusText);
-        }
-        const updated = (await res.json()) as Booking;
-        setBookings((prev) =>
-          prev?.map((row) => (row.id === id ? updated : row)) ?? null,
-        );
+        await patchBooking(id, { status });
       } catch (e) {
         setPatchError(
           e instanceof Error
@@ -508,7 +634,7 @@ export default function AdminBookingsPage() {
         setStatusSavingId(null);
       }
     },
-    [],
+    [patchBooking],
   );
 
   const handleBookingPaymentChange = useCallback(
@@ -516,23 +642,7 @@ export default function AdminBookingsPage() {
       setPatchError(null);
       setPaymentSavingId(id);
       try {
-        const res = await fetch(
-          `${apiBase()}/api/bookings/${encodeURIComponent(id)}`,
-          {
-            method: "PATCH",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentStatus }),
-          },
-        );
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || res.statusText);
-        }
-        const updated = (await res.json()) as Booking;
-        setBookings((prev) =>
-          prev?.map((row) => (row.id === id ? updated : row)) ?? null,
-        );
+        await patchBooking(id, { paymentStatus });
       } catch (e) {
         setPatchError(
           e instanceof Error
@@ -543,8 +653,131 @@ export default function AdminBookingsPage() {
         setPaymentSavingId(null);
       }
     },
-    [],
+    [patchBooking],
   );
+
+  const handleQuickAdvance = useCallback(
+    (booking: Booking) => {
+      const patch = getQuickAdvancePatch(booking);
+      if (!patch) return;
+      void (async () => {
+        setPatchError(null);
+        setQuickAdvanceSavingId(booking.id);
+        try {
+          await patchBooking(booking.id, patch);
+          for (const msg of quickAdvanceToastMessages(patch)) {
+            toaster.success({ title: msg });
+          }
+        } catch (e) {
+          setPatchError(
+            e instanceof Error ? e.message : "Không cập nhật được đơn.",
+          );
+        } finally {
+          setQuickAdvanceSavingId(null);
+        }
+      })();
+    },
+    [patchBooking],
+  );
+
+  const openEditBooking = useCallback((booking: Booking) => {
+    setEditingBooking(booking);
+    setEditForm(bookingToEditForm(booking));
+    setEditError(null);
+    setEditOptionsLoading(true);
+    void (async () => {
+      try {
+        const [custRes, camRes] = await Promise.all([
+          fetch(`${apiBase()}/api/customers`, { credentials: "include" }),
+          fetch(`${apiBase()}/api/cameras`, { credentials: "include" }),
+        ]);
+        if (!custRes.ok || !camRes.ok) {
+          throw new Error("Không tải được danh sách khách hoặc máy");
+        }
+        const customers = (await custRes.json()) as AdminCustomerOption[];
+        const cameras = (await camRes.json()) as AdminCameraOption[];
+        setEditCustomers(customers);
+        setEditCameras(cameras);
+      } catch (e) {
+        setEditError(
+          e instanceof Error ? e.message : "Không tải được dữ liệu form",
+        );
+      } finally {
+        setEditOptionsLoading(false);
+      }
+    })();
+  }, []);
+
+  const closeEditBooking = useCallback(() => {
+    setEditingBooking(null);
+    setEditForm(null);
+    setEditError(null);
+    setEditCustomers([]);
+    setEditCameras([]);
+  }, []);
+
+  const handleEditSubmit = useCallback(() => {
+    if (!editingBooking || !editForm) return;
+    const amount = Number.parseInt(editForm.amount, 10);
+    if (!editForm.bookingCode.trim() || !editForm.customerId || !editForm.cameraId) {
+      setEditError("Vui lòng điền đủ mã đơn, khách và máy.");
+      return;
+    }
+    if (!editForm.startBookingDateLocal || !editForm.endBookingDateLocal) {
+      setEditError("Vui lòng chọn ngày bắt đầu và kết thúc.");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount < 0) {
+      setEditError("Số tiền không hợp lệ.");
+      return;
+    }
+    let startBookingDate: string;
+    let endBookingDate: string;
+    try {
+      startBookingDate = datetimeLocalToIso(editForm.startBookingDateLocal);
+      endBookingDate = datetimeLocalToIso(editForm.endBookingDateLocal);
+    } catch {
+      setEditError("Ngày/giờ thuê không hợp lệ.");
+      return;
+    }
+    let pickupAt: string | null = null;
+    if (editForm.pickupAtLocal.trim()) {
+      try {
+        pickupAt = datetimeLocalToIso(editForm.pickupAtLocal);
+      } catch {
+        setEditError("Thời gian nhận máy không hợp lệ.");
+        return;
+      }
+    }
+    void (async () => {
+      setEditSaving(true);
+      setEditError(null);
+      try {
+        const updated = await patchBooking(editingBooking.id, {
+          bookingCode: editForm.bookingCode.trim(),
+          customerId: editForm.customerId,
+          cameraId: editForm.cameraId,
+          startBookingDate,
+          endBookingDate,
+          slot: editForm.slot,
+          pickupAt,
+          amount,
+          note: editForm.note.trim() || null,
+          shippingAddress: editForm.shippingAddress.trim() || null,
+          paymentStatus: editForm.paymentStatus,
+          status: editForm.status,
+        });
+        toaster.success({ title: `Đã cập nhật đơn ${updated.bookingCode}` });
+        closeEditBooking();
+      } catch (e) {
+        setEditError(
+          e instanceof Error ? e.message : "Không cập nhật được đơn.",
+        );
+      } finally {
+        setEditSaving(false);
+      }
+    })();
+  }, [editingBooking, editForm, patchBooking, closeEditBooking]);
 
   const handleBookingDelete = useCallback((booking: Booking) => {
     if (
@@ -1049,9 +1282,6 @@ export default function AdminBookingsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableColumnHeader {...tableCellPad}>
-                      Mã đơn
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
                       Ngày thuê
                     </TableColumnHeader>
                     <TableColumnHeader {...tableCellPad}>
@@ -1075,8 +1305,8 @@ export default function AdminBookingsPage() {
                     <TableColumnHeader maxW="12rem" {...tableCellPad}>
                       Ghi chú
                     </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad} w="4.5rem">
-                      Xóa
+                    <TableColumnHeader {...tableCellPad} w="7.5rem">
+                      Hành động
                     </TableColumnHeader>
                   </TableRow>
                 </TableHeader>
@@ -1084,26 +1314,6 @@ export default function AdminBookingsPage() {
                   {pagedBookings.map((b) => {
                     return (
                       <TableRow key={b.id}>
-                        <TableCell fontWeight="medium" {...tableCellPad}>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            h="auto"
-                            minH={0}
-                            px={1}
-                            py={0}
-                            fontWeight="medium"
-                            justifyContent="flex-start"
-                            title="Nhấn để sao chép mã đơn"
-                            _hover={{ textDecoration: "underline" }}
-                            onClick={() =>
-                              void copyToClipboard(b.bookingCode)
-                            }
-                          >
-                            {b.bookingCode}
-                          </Button>
-                        </TableCell>
                         <TableCell whiteSpace="nowrap" {...tableCellPad}>
                           <Stack gap={0} align="flex-start">
                             <Text fontSize="sm">
@@ -1205,11 +1415,7 @@ export default function AdminBookingsPage() {
                         <TableCell {...tableCellPad}>
                           <BookingPaymentMenuCell
                             booking={b}
-                            saving={
-                              paymentSavingId === b.id ||
-                              statusSavingId === b.id ||
-                              deleteSavingId === b.id
-                            }
+                            saving={isRowSaving(b.id)}
                             onChangePaymentStatus={handleBookingPaymentChange}
                             onMenuOpenChange={(open) => {
                               if (open) setPatchError(null);
@@ -1219,11 +1425,7 @@ export default function AdminBookingsPage() {
                         <TableCell {...tableCellPad}>
                           <BookingStatusMenuCell
                             booking={b}
-                            saving={
-                              statusSavingId === b.id ||
-                              paymentSavingId === b.id ||
-                              deleteSavingId === b.id
-                            }
+                            saving={isRowSaving(b.id)}
                             onChangeStatus={handleBookingStatusChange}
                             onMenuOpenChange={(open) => {
                               if (open) setPatchError(null);
@@ -1244,24 +1446,49 @@ export default function AdminBookingsPage() {
                           )}
                         </TableCell>
                         <TableCell {...tableCellPad}>
-                          <IconButton
-                            type="button"
-                            size="sm"
-                            variant="solid"
-                            aria-label={`Xóa đơn ${b.bookingCode}`}
-                            bg="red.400"
-                            color="white"
-                            _hover={{ bg: "red.500" }}
-                            _active={{ bg: "red.500" }}
-                            loading={deleteSavingId === b.id}
-                            disabled={
-                              deleteSavingId !== null &&
-                              deleteSavingId !== b.id
-                            }
-                            onClick={() => handleBookingDelete(b)}
-                          >
-                            <TrashIcon />
-                          </IconButton>
+                          <HStack gap={1} justify="flex-end">
+                            <IconButton
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              colorPalette={APP_COLOR_PALETTE}
+                              aria-label="Chuyển tiếp trạng thái"
+                              disabled={
+                                isRowSaving(b.id) ||
+                                getQuickAdvancePatch(b) === null
+                              }
+                              loading={quickAdvanceSavingId === b.id}
+                              onClick={() => handleQuickAdvance(b)}
+                            >
+                              <ChevronRightIcon />
+                            </IconButton>
+                            <IconButton
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              colorPalette={APP_COLOR_PALETTE}
+                              aria-label={`Sửa đơn ${b.bookingCode}`}
+                              disabled={isRowSaving(b.id)}
+                              onClick={() => openEditBooking(b)}
+                            >
+                              <PencilIcon />
+                            </IconButton>
+                            <IconButton
+                              type="button"
+                              size="sm"
+                              variant="solid"
+                              aria-label={`Xóa đơn ${b.bookingCode}`}
+                              bg="red.400"
+                              color="white"
+                              _hover={{ bg: "red.500" }}
+                              _active={{ bg: "red.500" }}
+                              loading={deleteSavingId === b.id}
+                              disabled={isRowSaving(b.id)}
+                              onClick={() => handleBookingDelete(b)}
+                            >
+                              <TrashIcon />
+                            </IconButton>
+                          </HStack>
                         </TableCell>
                       </TableRow>
                     );
@@ -1337,6 +1564,304 @@ export default function AdminBookingsPage() {
           </CardBody>
         </CardRoot>
       ) : null}
+
+      <DialogRoot
+        open={editingBooking !== null}
+        onOpenChange={(e) => {
+          if (!e.open) closeEditBooking();
+        }}
+        lazyMount
+        unmountOnExit
+      >
+        <DialogBackdrop />
+        <DialogPositioner>
+          <DialogContent maxW="lg" mx={4}>
+            <DialogHeader>
+              <DialogTitle>
+                Sửa đơn {editingBooking?.bookingCode ?? ""}
+              </DialogTitle>
+              <DialogCloseTrigger />
+            </DialogHeader>
+            <DialogBody>
+              {editOptionsLoading ? (
+                <HStack py={6} justify="center">
+                  <Spinner size="md" color="ocean.500" />
+                </HStack>
+              ) : editForm ? (
+                <Stack gap={4}>
+                  {editError ? (
+                    <Text color="red.fg" fontSize="sm" fontWeight="medium">
+                      {editError}
+                    </Text>
+                  ) : null}
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Mã đơn
+                    </Text>
+                    <Input
+                      value={editForm.bookingCode}
+                      maxLength={64}
+                      {...fieldInputProps}
+                      onChange={(e) =>
+                        setEditForm((f) =>
+                          f ? { ...f, bookingCode: e.target.value } : f,
+                        )
+                      }
+                    />
+                  </Box>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Khách hàng
+                    </Text>
+                    <NativeSelectRoot size="md">
+                      <NativeSelectField
+                        value={editForm.customerId}
+                        {...fieldInputProps}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f ? { ...f, customerId: e.target.value } : f,
+                          )
+                        }
+                      >
+                        {editCustomers.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} — {c.phone}
+                          </option>
+                        ))}
+                      </NativeSelectField>
+                      <NativeSelectIndicator />
+                    </NativeSelectRoot>
+                  </Box>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Máy ảnh
+                    </Text>
+                    <NativeSelectRoot size="md">
+                      <NativeSelectField
+                        value={editForm.cameraId}
+                        {...fieldInputProps}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f ? { ...f, cameraId: e.target.value } : f,
+                          )
+                        }
+                      >
+                        {editCameras.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.brand} — {c.name}
+                          </option>
+                        ))}
+                      </NativeSelectField>
+                      <NativeSelectIndicator />
+                    </NativeSelectRoot>
+                  </Box>
+                  <HStack gap={3} align="flex-start" flexWrap="wrap">
+                    <Box flex="1" minW="12rem">
+                      <Text fontSize="sm" fontWeight="medium" mb={1}>
+                        Bắt đầu thuê
+                      </Text>
+                      <Input
+                        type="datetime-local"
+                        value={editForm.startBookingDateLocal}
+                        {...fieldInputProps}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f
+                              ? { ...f, startBookingDateLocal: e.target.value }
+                              : f,
+                          )
+                        }
+                      />
+                    </Box>
+                    <Box flex="1" minW="12rem">
+                      <Text fontSize="sm" fontWeight="medium" mb={1}>
+                        Kết thúc thuê
+                      </Text>
+                      <Input
+                        type="datetime-local"
+                        value={editForm.endBookingDateLocal}
+                        {...fieldInputProps}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f
+                              ? { ...f, endBookingDateLocal: e.target.value }
+                              : f,
+                          )
+                        }
+                      />
+                    </Box>
+                  </HStack>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Buổi
+                    </Text>
+                    <NativeSelectRoot size="md">
+                      <NativeSelectField
+                        value={editForm.slot}
+                        {...fieldInputProps}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f ? { ...f, slot: e.target.value } : f,
+                          )
+                        }
+                      >
+                        {BOOKING_SLOT_OPTIONS.map((s) => (
+                          <option key={s} value={s}>
+                            {slotLabelVi(s)}
+                          </option>
+                        ))}
+                      </NativeSelectField>
+                      <NativeSelectIndicator />
+                    </NativeSelectRoot>
+                  </Box>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Thời gian nhận máy
+                    </Text>
+                    <Input
+                      type="datetime-local"
+                      value={editForm.pickupAtLocal}
+                      {...fieldInputProps}
+                      onChange={(e) =>
+                        setEditForm((f) =>
+                          f ? { ...f, pickupAtLocal: e.target.value } : f,
+                        )
+                      }
+                    />
+                  </Box>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Số tiền (VND)
+                    </Text>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={editForm.amount}
+                      {...fieldInputProps}
+                      onChange={(e) =>
+                        setEditForm((f) =>
+                          f ? { ...f, amount: e.target.value } : f,
+                        )
+                      }
+                    />
+                  </Box>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Địa chỉ giao (tuỳ chọn)
+                    </Text>
+                    <Textarea
+                      value={editForm.shippingAddress}
+                      rows={2}
+                      maxLength={500}
+                      {...fieldInputProps}
+                      onChange={(e) =>
+                        setEditForm((f) =>
+                          f ? { ...f, shippingAddress: e.target.value } : f,
+                        )
+                      }
+                    />
+                  </Box>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Ghi chú
+                    </Text>
+                    <Textarea
+                      value={editForm.note}
+                      rows={3}
+                      maxLength={2000}
+                      {...fieldInputProps}
+                      onChange={(e) =>
+                        setEditForm((f) =>
+                          f ? { ...f, note: e.target.value } : f,
+                        )
+                      }
+                    />
+                  </Box>
+                  <HStack gap={3} flexWrap="wrap">
+                    <Box flex="1" minW="10rem">
+                      <Text fontSize="sm" fontWeight="medium" mb={1}>
+                        Thanh toán
+                      </Text>
+                      <NativeSelectRoot size="md">
+                        <NativeSelectField
+                          value={editForm.paymentStatus}
+                          {...fieldInputProps}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f
+                                ? {
+                                    ...f,
+                                    paymentStatus: e.target
+                                      .value as PaymentStatusValue,
+                                  }
+                                : f,
+                            )
+                          }
+                        >
+                          {BOOKING_PAYMENT_EDIT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </NativeSelectField>
+                        <NativeSelectIndicator />
+                      </NativeSelectRoot>
+                    </Box>
+                    <Box flex="1" minW="10rem">
+                      <Text fontSize="sm" fontWeight="medium" mb={1}>
+                        Trạng thái
+                      </Text>
+                      <NativeSelectRoot size="md">
+                        <NativeSelectField
+                          value={editForm.status}
+                          {...fieldInputProps}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f
+                                ? {
+                                    ...f,
+                                    status: e.target.value as BookingStatusValue,
+                                  }
+                                : f,
+                            )
+                          }
+                        >
+                          {BOOKING_STATUS_EDIT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </NativeSelectField>
+                        <NativeSelectIndicator />
+                      </NativeSelectRoot>
+                    </Box>
+                  </HStack>
+                </Stack>
+              ) : null}
+            </DialogBody>
+            <DialogFooter gap={2}>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={editSaving}
+                onClick={closeEditBooking}
+              >
+                Huỷ
+              </Button>
+              <Button
+                type="button"
+                colorPalette={APP_COLOR_PALETTE}
+                loading={editSaving}
+                disabled={editOptionsLoading || !editForm}
+                onClick={() => void handleEditSubmit()}
+              >
+                Lưu
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </DialogPositioner>
+      </DialogRoot>
     </Stack>
   );
 }

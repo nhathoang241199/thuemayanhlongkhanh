@@ -310,8 +310,8 @@ export default function UserHomePage() {
                   Tổng: {vnd.format(b.amount)}
                 </Text>
                 {balanceDue > 0 ? (
-                  <Stack gap={1} align="flex-start">
-                    <Text fontSize="sm" color="fg.muted">
+                  <HStack justify="space-between" align="center" gap={2} w="full">
+                    <Text fontSize="sm" color="fg.muted" flex="1" minW={0}>
                       Còn lại khi lấy máy:{" "}
                       <Text as="span" fontWeight="semibold" color={titleColor}>
                         {vnd.format(balanceDue)}
@@ -321,11 +321,12 @@ export default function UserHomePage() {
                       href={STORE_MAP_URL}
                       target="_blank"
                       rel="noopener noreferrer"
+                      flexShrink={0}
                       {...inlineTextLinkProps}
                     >
                       Xem địa chỉ
                     </Link>
-                  </Stack>
+                  </HStack>
                 ) : null}
                 {b.status === "PENDING_PAYMENT" ? (
                   <HStack gap={2} w="full">
