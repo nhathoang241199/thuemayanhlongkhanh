@@ -15,6 +15,7 @@ import {
 import { Prisma } from '../../generated/prisma/client';
 import { AvailabilityService } from '../availability/availability.service';
 import {
+  assertPickupAtValid,
   dayCountInclusive,
   deliveryFeeVnd,
   rentalAmountVnd,
@@ -182,6 +183,22 @@ export class BookingService {
       return `${existingNote.trim()}\n\n${block}`;
     }
     return block;
+  }
+
+  private resolvePickupAt(
+    startDate: string,
+    slot: BookingSlot,
+    pickupAtIso: string,
+  ): Date {
+    const pickupAt = new Date(pickupAtIso);
+    try {
+      assertPickupAtValid(startDate, slot, pickupAt);
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : 'Thời gian nhận máy không hợp lệ',
+      );
+    }
+    return pickupAt;
   }
 
   private assertCustomerCanModifyDepositedBooking(booking: {
@@ -396,6 +413,7 @@ export class BookingService {
 
     const { startBookingDate } = slotWindow(dto.startDate, dto.slot);
     const { endBookingDate } = slotWindow(dto.endDate, dto.slot);
+    const pickupAt = this.resolvePickupAt(dto.startDate, dto.slot, dto.pickupAt);
 
     const updated = await this.prisma.booking.update({
       where: { id },
@@ -404,6 +422,7 @@ export class BookingService {
         startBookingDate,
         endBookingDate,
         slot: dto.slot,
+        pickupAt,
         amount: newAmount,
         note: this.formatChangeAppliedNote(
           newAmount,
@@ -477,6 +496,7 @@ export class BookingService {
 
     const { startBookingDate } = slotWindow(dto.startDate, dto.slot);
     const { endBookingDate } = slotWindow(dto.endDate, dto.slot);
+    const pickupAt = this.resolvePickupAt(dto.startDate, dto.slot, dto.pickupAt);
 
     let bookingCode = await this.generateBookingCode();
     for (let i = 0; i < 5; i++) {
@@ -496,6 +516,7 @@ export class BookingService {
           startBookingDate,
           endBookingDate,
           slot: dto.slot,
+          pickupAt,
           amount,
           note: dto.note,
           shippingAddress: dto.shippingAddress,
@@ -532,6 +553,7 @@ export class BookingService {
           startBookingDate: new Date(dto.startBookingDate),
           endBookingDate: new Date(dto.endBookingDate),
           slot: dto.slot,
+          pickupAt: dto.pickupAt ? new Date(dto.pickupAt) : undefined,
           amount: dto.amount,
           note: dto.note,
           shippingAddress: dto.shippingAddress,
@@ -583,7 +605,7 @@ export class BookingService {
       });
     }
 
-    const { startBookingDate, endBookingDate, ...rest } = dto;
+    const { startBookingDate, endBookingDate, pickupAt, ...rest } = dto;
     const data: Prisma.BookingUncheckedUpdateInput = {
       ...rest,
       ...(startBookingDate !== undefined
@@ -592,6 +614,7 @@ export class BookingService {
       ...(endBookingDate !== undefined
         ? { endBookingDate: new Date(endBookingDate) }
         : {}),
+      ...(pickupAt !== undefined ? { pickupAt: new Date(pickupAt) } : {}),
     };
 
     try {

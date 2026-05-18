@@ -168,6 +168,7 @@ export async function createCustomerBooking(body: {
   startDate: string;
   endDate: string;
   slot: BookingSlot;
+  pickupAt: string;
   note?: string;
   shippingAddress?: string;
 }): Promise<CustomerBooking> {

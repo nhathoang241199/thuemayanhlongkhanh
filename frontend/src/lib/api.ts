@@ -49,6 +49,7 @@ export type MyBooking = {
   bookingCode: string;
   startBookingDate: string;
   endBookingDate: string;
+  pickupAt: string | null;
   slot: string;
   amount: number;
   status: string;
@@ -88,6 +89,7 @@ export async function requestCustomerBookingChange(
     startDate: string;
     endDate: string;
     slot: string;
+    pickupAt: string;
     note?: string;
     shippingAddress?: string;
   },

@@ -87,6 +87,46 @@ export function assertDateStr(dateStr: string): void {
   }
 }
 
+/** Giờ nhận máy mặc định = đầu ca trên ngày bắt đầu thuê. */
+export function defaultPickupAt(
+  startDate: string,
+  slot: BookingSlotValue | BookingSlot,
+): Date {
+  assertDateStr(startDate);
+  const w = SLOT_TIME_WINDOWS[slot as BookingSlotValue];
+  if (!w) {
+    throw new Error(`Unknown slot: ${slot as string}`);
+  }
+  return vnDateTimeToUtc(startDate, w.startHour, 0);
+}
+
+export function assertPickupAtValid(
+  startDate: string,
+  slot: BookingSlotValue | BookingSlot,
+  pickupAt: Date,
+): void {
+  assertDateStr(startDate);
+  const w = SLOT_TIME_WINDOWS[slot as BookingSlotValue];
+  if (!w) {
+    throw new Error(`Unknown slot: ${slot as string}`);
+  }
+  if (Number.isNaN(pickupAt.getTime())) {
+    throw new Error('Thời gian nhận máy không hợp lệ');
+  }
+  if (toCalendarDayVN(pickupAt) !== startDate) {
+    throw new Error('Thời gian nhận máy phải trong ngày bắt đầu thuê');
+  }
+  const vn = new Date(pickupAt.getTime() + 7 * 60 * 60 * 1000);
+  const totalMinutes = vn.getUTCHours() * 60 + vn.getUTCMinutes();
+  const startMinutes = w.startHour * 60;
+  const endMinutes = w.endHour * 60;
+  if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
+    throw new Error(
+      `Thời gian nhận máy phải trong khung ${slotTimeRangeLabel(slot)}`,
+    );
+  }
+}
+
 export function slotWindow(
   dateStr: string,
   slot: BookingSlotValue | BookingSlot,

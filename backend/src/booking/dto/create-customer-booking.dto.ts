@@ -36,6 +36,13 @@ export class CreateCustomerBookingDto {
   @IsEnum(BookingSlot)
   slot: BookingSlot;
 
+  @ApiProperty({
+    example: '2026-05-20T00:00:00.000Z',
+    description: 'Thời gian nhận máy (ISO UTC)',
+  })
+  @IsDateString()
+  pickupAt: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

@@ -90,11 +90,11 @@ function toCalendarDayVN(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/** dd-mm (không năm, không giờ) cho card đơn khách. */
+/** dd-mm-yyyy (không giờ) cho card đơn khách. */
 function formatCalendarDayShort(ymd: string): string {
   const [y, m, d] = ymd.split("-");
   if (!y || !m || !d) return ymd;
-  return `${d}-${m}`;
+  return `${d}-${m}-${y}`;
 }
 
 export function formatBookingRange(startIso: string, endIso: string): string {
@@ -109,5 +109,5 @@ export function formatBookingRange(startIso: string, endIso: string): string {
   if (startDay === endDay) {
     return startLabel;
   }
-  return `${startLabel} – ${formatCalendarDayShort(endDay)}`;
+  return `${startLabel} → ${formatCalendarDayShort(endDay)}`;
 }

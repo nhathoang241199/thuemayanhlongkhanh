@@ -64,6 +64,7 @@ model Booking {
   startBookingDate DateTime
   endBookingDate   DateTime
   slot             BookingSlot
+  pickupAt         DateTime?
   amount        Int
   note          String?
   shippingAddress String?
@@ -75,6 +76,7 @@ model Booking {
   updatedAt     DateTime      @updatedAt
 
   @@index([cameraId, startBookingDate])
+  @@index([pickupAt])
 }
 
 model Payment {

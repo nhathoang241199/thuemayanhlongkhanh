@@ -40,6 +40,7 @@ import {
   slotLabelVi,
   slotTimeRangeLabel,
 } from "@/lib/booking-status";
+import { formatPickupAtVi } from "@/lib/datetime-vn";
 import type { CameraBrand } from "@/lib/booking-api";
 import {
   BOOKING_CANCEL_REFUND_VND,
@@ -297,6 +298,14 @@ export default function UserHomePage() {
                     {slotTimeRangeLabel(b.slot)}
                   </Text>
                 </HStack>
+                {b.pickupAt ? (
+                  <Text fontSize="sm" color="fg.muted">
+                    Nhận máy:{" "}
+                    <Text as="span" fontWeight="medium" color={titleColor}>
+                      {formatPickupAtVi(b.pickupAt)}
+                    </Text>
+                  </Text>
+                ) : null}
                 <Text fontSize="sm" fontWeight="medium">
                   Tổng: {vnd.format(b.amount)}
                 </Text>

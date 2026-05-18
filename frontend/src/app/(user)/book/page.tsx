@@ -11,6 +11,7 @@ import {
   CheckboxLabel,
   CheckboxRoot,
   HStack,
+  Input,
   Stack,
   Text,
   Textarea,
@@ -48,6 +49,11 @@ import {
   type MyBooking,
 } from "@/lib/api";
 import { DELIVERY_FEE_VND } from "@/lib/booking-status";
+import {
+  datetimeLocalToIso,
+  isSundayYmd,
+  slotPickupBounds,
+} from "@/lib/datetime-vn";
 import { rentalAmountVnd } from "@/lib/rental-pricing";
 import { getSession, setSession } from "@/lib/customer-session";
 import {
@@ -102,6 +108,7 @@ function BookPageContent() {
   const [endDate, setEndDate] = useState<string | null>(null);
   const [slot, setSlot] = useState<BookingSlot | null>("FULL_DAY");
   const [note, setNote] = useState("");
+  const [pickupAtLocal, setPickupAtLocal] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
   const [canRequestDelivery, setCanRequestDelivery] = useState(false);
   const [wantDelivery, setWantDelivery] = useState(false);
@@ -228,6 +235,17 @@ function BookPageContent() {
   useEffect(() => {
     if (forceFullDay) setSlot("FULL_DAY");
   }, [forceFullDay]);
+
+  useEffect(() => {
+    if (!startDate || !effectiveSlot) return;
+    const { defaultLocal } = slotPickupBounds(startDate, effectiveSlot);
+    setPickupAtLocal(defaultLocal);
+  }, [startDate, effectiveSlot]);
+
+  const pickupBounds = useMemo(() => {
+    if (!startDate || !effectiveSlot) return null;
+    return slotPickupBounds(startDate, effectiveSlot);
+  }, [startDate, effectiveSlot]);
 
   useEffect(() => {
     if (!camera || !startDate || !endDate || !effectiveSlot) {
@@ -408,6 +426,17 @@ function BookPageContent() {
       setError("Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại.");
       return;
     }
+    if (!pickupAtLocal.trim()) {
+      setError("Vui lòng chọn thời gian nhận máy.");
+      return;
+    }
+    let pickupAt: string;
+    try {
+      pickupAt = datetimeLocalToIso(pickupAtLocal);
+    } catch {
+      setError("Thời gian nhận máy không hợp lệ.");
+      return;
+    }
     setPaying(true);
     setError(null);
     try {
@@ -417,6 +446,7 @@ function BookPageContent() {
         startDate,
         endDate,
         slot: effectiveSlot,
+        pickupAt,
         note: note || undefined,
         shippingAddress:
           canRequestDelivery && wantDelivery && shippingAddress.trim()
@@ -445,6 +475,17 @@ function BookPageContent() {
       setError("Vui lòng nhập địa chỉ giao máy.");
       return;
     }
+    if (!pickupAtLocal.trim()) {
+      setError("Vui lòng chọn thời gian nhận máy.");
+      return;
+    }
+    let pickupAt: string;
+    try {
+      pickupAt = datetimeLocalToIso(pickupAtLocal);
+    } catch {
+      setError("Thời gian nhận máy không hợp lệ.");
+      return;
+    }
     setPaying(true);
     setError(null);
     try {
@@ -454,6 +495,7 @@ function BookPageContent() {
         startDate,
         endDate,
         slot: effectiveSlot,
+        pickupAt,
         note: note || undefined,
         shippingAddress:
           canRequestDelivery && wantDelivery && shippingAddress.trim()
@@ -620,51 +662,69 @@ function BookPageContent() {
             Một hoặc nhiều ngày trong khoảng đã hết chỗ.
           </Text>
         ) : null}
-         
-          <Textarea
-            placeholder="Ghi chú — ví dụ: nhận máy lúc 19:00"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
+        <Stack gap={1} align="stretch">
+          <Text fontSize="sm" fontWeight="medium" color={titleColor}>
+            Thời gian nhận máy
+          </Text>
+          <Input
+            type="datetime-local"
+            size="md"
+            value={pickupAtLocal}
+            min={pickupBounds?.minLocal}
+            max={pickupBounds?.maxLocal}
+            onChange={(e) => setPickupAtLocal(e.target.value)}
             {...userFieldInputProps}
           />
-        <Stack gap={2} align="stretch">
-          <CheckboxRoot
-            size="sm"
-            colorPalette={APP_COLOR_PALETTE}
-            checked={canRequestDelivery ? wantDelivery : false}
-            disabled={!canRequestDelivery}
-            onCheckedChange={({ checked }) =>
-              setWantDelivery(checked === true)
-            }
-          >
-            <CheckboxHiddenInput />
-            <CheckboxControl
-              bg="white"
-              borderColor="cerulean.300"
-              _checked={{
-                bg: "colorPalette.solid",
-                borderColor: "colorPalette.solid",
-                color: "colorPalette.contrast",
-              }}
-            />
-            <CheckboxLabel fontSize="sm" color="fg.muted">
-              Giao & trả máy tận nơi Long Khánh (+{vnd.format(DELIVERY_FEE_VND)})
-            </CheckboxLabel>
-          </CheckboxRoot>
-          {!canRequestDelivery ? (
-            <Text fontSize="xs" color="fg.muted">
-              Giao hàng chỉ áp dụng với tài khoản đã xác minh. Liên hệ fanpage để xác minh.
+          {startDate && isSundayYmd(startDate) ? (
+            <Text fontSize="xs" color="fg.muted" lineHeight="tall">
+              Lưu ý: Nếu thuê Chủ nhật, không nên lấy máy quá sớm vì cần chờ
+              khách thứ Bảy trả máy.
             </Text>
           ) : null}
         </Stack>
         <Textarea
-          placeholder="Địa chỉ giao máy"
-          value={shippingAddress}
-          onChange={(e) => setShippingAddress(e.target.value)}
-          disabled={!canRequestDelivery || !wantDelivery}
-          opacity={!canRequestDelivery || !wantDelivery ? 0.55 : 1}
+          placeholder="Ghi chú thêm (nếu có)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
           {...userFieldInputProps}
         />
+        {canRequestDelivery ? (
+          <>
+            <Stack gap={2} align="stretch">
+              <CheckboxRoot
+                size="sm"
+                colorPalette={APP_COLOR_PALETTE}
+                checked={wantDelivery}
+                onCheckedChange={({ checked }) =>
+                  setWantDelivery(checked === true)
+                }
+              >
+                <CheckboxHiddenInput />
+                <CheckboxControl
+                  bg="white"
+                  borderColor="cerulean.300"
+                  _checked={{
+                    bg: "colorPalette.solid",
+                    borderColor: "colorPalette.solid",
+                    color: "colorPalette.contrast",
+                  }}
+                />
+                <CheckboxLabel fontSize="sm" color="fg.muted">
+                  Giao & trả máy tận nơi Long Khánh (+
+                  {vnd.format(DELIVERY_FEE_VND)})
+                </CheckboxLabel>
+              </CheckboxRoot>
+            </Stack>
+            <Textarea
+              placeholder="Địa chỉ giao máy"
+              value={shippingAddress}
+              onChange={(e) => setShippingAddress(e.target.value)}
+              disabled={!wantDelivery}
+              opacity={!wantDelivery ? 0.55 : 1}
+              {...userFieldInputProps}
+            />
+          </>
+        ) : null}
         <Button
           colorPalette={APP_COLOR_PALETTE}
           size="lg"

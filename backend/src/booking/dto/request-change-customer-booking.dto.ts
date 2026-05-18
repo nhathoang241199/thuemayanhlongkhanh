@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BookingSlot } from '../../../generated/prisma/enums';
 import {
+  IsDateString,
   IsEnum,
   IsOptional,
   IsString,
@@ -33,6 +34,13 @@ export class RequestChangeCustomerBookingDto {
   @ApiProperty({ enum: BookingSlot })
   @IsEnum(BookingSlot)
   slot: BookingSlot;
+
+  @ApiProperty({
+    example: '2026-05-20T00:00:00.000Z',
+    description: 'Thời gian nhận máy (ISO UTC)',
+  })
+  @IsDateString()
+  pickupAt: string;
 
   @ApiPropertyOptional()
   @IsOptional()

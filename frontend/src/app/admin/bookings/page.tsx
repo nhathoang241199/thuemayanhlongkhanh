@@ -40,6 +40,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
+import { formatPickupAtVi } from "@/lib/datetime-vn";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -66,6 +67,7 @@ type Booking = {
   cameraId: string;
   startBookingDate: string;
   endBookingDate: string;
+  pickupAt: string | null;
   slot: string;
   amount: number;
   note: string | null;
@@ -455,6 +457,7 @@ export default function AdminBookingsPage() {
   const [filterDateKey, setFilterDateKey] = useState(todayLocalDateKey);
   /** Bật = không lọc theo ngày, hiển thị mọi đơn (theo các bộ lọc khác). */
   const [showAllDates, setShowAllDates] = useState(true);
+  const [filterByPickupTime, setFilterByPickupTime] = useState(false);
   const [paymentStatusFilter, setPaymentStatusFilter] =
     useState<PaymentStatusFilter>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -580,11 +583,11 @@ export default function AdminBookingsPage() {
 
   const filteredBookings = useMemo(() => {
     if (!bookings) return [];
-    return bookings.filter((b) => {
-      if (
-        !showAllDates &&
-        bookingLocalDateKey(b.startBookingDate) !== filterDateKey
-      ) {
+    const filtered = bookings.filter((b) => {
+      const dateKey = filterByPickupTime
+        ? bookingLocalDateKey(b.pickupAt ?? b.startBookingDate)
+        : bookingLocalDateKey(b.startBookingDate);
+      if (!showAllDates && dateKey !== filterDateKey) {
         return false;
       }
       if (statusFilter !== "ALL" && b.status !== statusFilter) {
@@ -598,12 +601,21 @@ export default function AdminBookingsPage() {
       }
       return bookingMatchesSearch(b, searchField, searchQuery);
     });
+    if (filterByPickupTime && !showAllDates) {
+      return [...filtered].sort((a, b) => {
+        const ta = new Date(a.pickupAt ?? a.startBookingDate).getTime();
+        const tb = new Date(b.pickupAt ?? b.startBookingDate).getTime();
+        return ta - tb;
+      });
+    }
+    return filtered;
   }, [
     bookings,
     searchField,
     searchQuery,
     filterDateKey,
     showAllDates,
+    filterByPickupTime,
     statusFilter,
     paymentStatusFilter,
   ]);
@@ -678,6 +690,7 @@ export default function AdminBookingsPage() {
                   size="sm"
                   variant={
                     !showAllDates &&
+                    filterByPickupTime &&
                     filterDateKey === todayLocalDateKey() &&
                     statusFilter === "ALL" &&
                     paymentStatusFilter === "ALL" &&
@@ -688,6 +701,7 @@ export default function AdminBookingsPage() {
                   colorPalette={APP_COLOR_PALETTE}
                   onClick={() => {
                     setShowAllDates(false);
+                    setFilterByPickupTime(true);
                     setFilterDateKey(todayLocalDateKey());
                     setStatusFilter("ALL");
                     setPaymentStatusFilter("ALL");
@@ -774,7 +788,7 @@ export default function AdminBookingsPage() {
                       fontWeight="medium"
                       color="fg.muted"
                     >
-                      Ngày thuê
+                      {filterByPickupTime ? "Ngày nhận máy" : "Ngày thuê"}
                     </Text>
                     <Input
                       type="date"
@@ -788,7 +802,11 @@ export default function AdminBookingsPage() {
                       onChange={(e) => setFilterDateKey(e.target.value)}
                       disabled={showAllDates}
                       opacity={showAllDates ? 0.55 : 1}
-                      aria-label="Lọc theo ngày thuê"
+                      aria-label={
+                        filterByPickupTime
+                          ? "Lọc theo ngày nhận máy"
+                          : "Lọc theo ngày thuê"
+                      }
                       _focusVisible={{
                         borderColor: "ocean.500",
                       }}
@@ -819,6 +837,30 @@ export default function AdminBookingsPage() {
                       />
                       <CheckboxLabel fontSize="sm" color="fg.muted">
                         Tất cả ngày
+                      </CheckboxLabel>
+                    </CheckboxRoot>
+                    <CheckboxRoot
+                      size="sm"
+                      colorPalette={APP_COLOR_PALETTE}
+                      checked={filterByPickupTime}
+                      disabled={showAllDates}
+                      aria-label="Lọc theo giờ nhận máy"
+                      onCheckedChange={({ checked }) =>
+                        setFilterByPickupTime(checked === true)
+                      }
+                    >
+                      <CheckboxHiddenInput />
+                      <CheckboxControl
+                        bg="white"
+                        borderColor="gray.300"
+                        _checked={{
+                          bg: "colorPalette.solid",
+                          borderColor: "colorPalette.solid",
+                          color: "colorPalette.contrast",
+                        }}
+                      />
+                      <CheckboxLabel fontSize="sm" color="fg.muted">
+                        Lọc theo giờ nhận máy
                       </CheckboxLabel>
                     </CheckboxRoot>
                   </Stack>
@@ -1012,6 +1054,9 @@ export default function AdminBookingsPage() {
                     <TableColumnHeader {...tableCellPad}>
                       Ngày thuê
                     </TableColumnHeader>
+                    <TableColumnHeader {...tableCellPad}>
+                      Nhận máy
+                    </TableColumnHeader>
                     <TableColumnHeader {...tableCellPad}>Buổi</TableColumnHeader>
                     <TableColumnHeader {...tableCellPad}>Khách</TableColumnHeader>
                     <TableColumnHeader maxW="14rem" {...tableCellPad}>
@@ -1071,6 +1116,13 @@ export default function AdminBookingsPage() {
                               </Text>
                             ) : null}
                           </Stack>
+                        </TableCell>
+                        <TableCell whiteSpace="nowrap" {...tableCellPad}>
+                          <Text fontSize="sm">
+                            {b.pickupAt
+                              ? formatPickupAtVi(b.pickupAt)
+                              : "—"}
+                          </Text>
                         </TableCell>
                         <TableCell {...tableCellPad}>
                           <Stack gap={0} align="flex-start">

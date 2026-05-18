@@ -7,6 +7,7 @@ import {
 } from "../src/common/booking-dates";
 import {
   dayCountInclusive,
+  defaultPickupAt,
   deliveryFeeVnd,
   rentalAmountVnd,
   slotWindow,
@@ -274,6 +275,11 @@ async function main() {
       );
 
       const bookingCode = `DH-${y}${pad2(monthIndex + 1)}${pad2(day)}-${pad2(i + 1)}`;
+      const startDateStr = `${y}-${pad2(monthIndex + 1)}-${pad2(day)}`;
+      const pickupAt = defaultPickupAt(
+        startDateStr,
+        sc.slot as BookingSlotValue,
+      );
 
       await prisma.booking.create({
         data: {
@@ -283,6 +289,7 @@ async function main() {
           startBookingDate,
           endBookingDate,
           slot: sc.slot,
+          pickupAt,
           amount,
           note: `[${cam.label}] ${sc.note} (seed ${day}/${monthIndex + 1})`,
           shippingAddress: sc.ship
@@ -303,6 +310,7 @@ async function main() {
   overdueEnd.setDate(overdueEnd.getDate() - 1);
   overdueEnd.setHours(12, 0, 0, 0);
 
+  const overdueStartDate = `${overdueStart.getFullYear()}-${pad2(overdueStart.getMonth() + 1)}-${pad2(overdueStart.getDate())}`;
   await prisma.booking.create({
     data: {
       bookingCode: `DH-${y}${pad2(monthIndex + 1)}-OVERDUE`,
@@ -311,6 +319,7 @@ async function main() {
       startBookingDate: overdueStart,
       endBookingDate: overdueEnd,
       slot: "AFTERNOON",
+      pickupAt: defaultPickupAt(overdueStartDate, "AFTERNOON"),
       amount: camFuji.shiftPrice,
       note: "[X-T5] Đang thuê quá hạn — auto Trả trễ khi load danh sách",
       paymentStatus: "PAID",
@@ -422,6 +431,7 @@ async function main() {
         startBookingDate,
         endBookingDate,
         slot: md.slot,
+        pickupAt: defaultPickupAt(md.startDate, md.slot),
         amount,
         note: `[${md.camera.label}] ${md.note} (${dayCount} ngày)`,
         shippingAddress,
