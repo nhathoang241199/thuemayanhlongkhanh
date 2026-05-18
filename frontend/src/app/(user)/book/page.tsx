@@ -699,7 +699,7 @@ function BookPageContent() {
           />
           {effectiveSlot === "FULL_DAY" ? (
             <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-              Khi thuê tối thiểu 1 ngày, bạn có thể nhận máy sớm từ tối đêm trước ngày thuê. Lưu ý nếu nhận vào tối thứ 7 thì nhận sau 21h.
+              Khi thuê tối thiểu 1 ngày, bạn có thể nhận máy sớm từ tối đêm trước ngày thuê. Đối với tối thứ 7 vui lòng nhận sau 21h.
             </Text>
           ) : null}
           {startDate && isSundayYmd(startDate) ? (
@@ -940,7 +940,6 @@ function BookPageContent() {
           <CardBody>
           {mode === "BY_CAMERA" && step === 2 && camera && (
             <Stack gap={4}>
-              {renderDatePickupNotice()}
               <MonthCalendar
                 year={ym.year}
                 month={ym.month}

@@ -1487,7 +1487,7 @@ export default function AdminBookingsPage() {
                             <IconButton
                               type="button"
                               size="sm"
-                              variant="solid"
+                              variant="subtle"
                               colorPalette="green"
                               aria-label="Chuyển tiếp trạng thái"
                               disabled={
@@ -1502,7 +1502,7 @@ export default function AdminBookingsPage() {
                             <IconButton
                               type="button"
                               size="sm"
-                              variant="solid"
+                              variant="subtle"
                               colorPalette="blue"
                               aria-label={`Sửa đơn ${b.bookingCode}`}
                               disabled={isRowSaving(b.id)}
@@ -1513,12 +1513,9 @@ export default function AdminBookingsPage() {
                             <IconButton
                               type="button"
                               size="sm"
-                              variant="solid"
+                              variant="subtle"
+                              colorPalette="red"
                               aria-label={`Xóa đơn ${b.bookingCode}`}
-                              bg="red.400"
-                              color="white"
-                              _hover={{ bg: "red.500" }}
-                              _active={{ bg: "red.500" }}
                               loading={deleteSavingId === b.id}
                               disabled={isRowSaving(b.id)}
                               onClick={() => handleBookingDelete(b)}
