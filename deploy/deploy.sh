@@ -32,7 +32,8 @@ mkdir -p backend/uploads/verification
 log "Backend: install, migrate, build..."
 (
   cd backend
-  npm ci
+  # Cần devDependencies (prisma CLI, @prisma/config → effect) dù NODE_ENV=production trên VPS
+  npm ci --include=dev
   npx prisma generate
   npx prisma migrate deploy
   npm run build

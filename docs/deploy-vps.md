@@ -158,3 +158,4 @@ cd /var/www/thuemayanhlongkhanh
 | CORS | `FRONTEND_ORIGIN=https://thuemayanhlongkhanh.com` trong `backend/.env` |
 | Webhook SePay không chạy | URL HTTPS, `SEPAY_WEBHOOK_API_KEY`, nội dung CK bắt đầu `SEVQR` |
 | 502 Bad Gateway | `pm2 status`, Postgres `docker compose ps` |
+| `Cannot find module 'effect'` khi `prisma migrate` | `cd backend && npm ci --include=dev` rồi chạy lại migrate/deploy (VPS thường đặt `NODE_ENV=production` nên `npm ci` bỏ devDependencies) |
