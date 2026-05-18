@@ -60,6 +60,7 @@ const BRAND_LABEL_VI: Record<CameraBrand, string> = {
 };
 
 type EditForm = {
+  brand: CameraBrand;
   name: string;
   imageUrl: string;
   tutorialVideoUrl: string;
@@ -67,6 +68,12 @@ type EditForm = {
   dayPrice: number;
   shiftPrice: number;
 };
+
+function parseCameraBrand(raw: string): CameraBrand {
+  return CAMERA_BRANDS.includes(raw as CameraBrand)
+    ? (raw as CameraBrand)
+    : "CANON";
+}
 
 type CreateForm = {
   brand: CameraBrand;
@@ -169,6 +176,7 @@ function formDirty(c: Camera, f: EditForm): boolean {
   const nextUrl = normalizeImageUrlInput(f.imageUrl);
   const nextVideo = normalizeTutorialVideoUrl(f.tutorialVideoUrl);
   return (
+    f.brand !== parseCameraBrand(c.brand) ||
     f.name.trim() !== c.name ||
     nextUrl !== c.imageUrl ||
     nextVideo !== c.tutorialVideoUrl ||
@@ -185,6 +193,7 @@ export default function AdminCamerasPage() {
 
   const [editing, setEditing] = useState<Camera | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
+    brand: "CANON",
     name: "",
     imageUrl: "",
     tutorialVideoUrl: "",
@@ -254,6 +263,7 @@ export default function AdminCamerasPage() {
     setCreateError(null);
     setEditing(c);
     setEditForm({
+      brand: parseCameraBrand(c.brand),
       name: c.name,
       imageUrl: c.imageUrl ?? "",
       tutorialVideoUrl: c.tutorialVideoUrl ?? "",
@@ -280,6 +290,7 @@ export default function AdminCamerasPage() {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            brand: editForm.brand,
             name,
             imageUrl: normalizeImageUrlInput(editForm.imageUrl),
             tutorialVideoUrl: normalizeTutorialVideoUrl(
@@ -601,12 +612,29 @@ export default function AdminCamerasPage() {
             <DialogBody>
               {editing ? (
                 <Stack gap={4}>
-                  <Text color="fg.muted" fontSize="sm">
-                    Thương hiệu:{" "}
-                    <Text as="span" fontWeight="semibold" color="fg">
-                      {editing.brand}
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Thương hiệu
                     </Text>
-                  </Text>
+                    <NativeSelectRoot size="md">
+                      <NativeSelectField
+                        value={editForm.brand}
+                        onChange={(e) => {
+                          const v = e.target.value as CameraBrand;
+                          if (CAMERA_BRANDS.includes(v)) {
+                            setEditForm((f) => ({ ...f, brand: v }));
+                          }
+                        }}
+                      >
+                        {CAMERA_BRANDS.map((b) => (
+                          <option key={b} value={b}>
+                            {BRAND_LABEL_VI[b]}
+                          </option>
+                        ))}
+                      </NativeSelectField>
+                      <NativeSelectIndicator />
+                    </NativeSelectRoot>
+                  </Box>
                   {modalError ? (
                     <Text color="red.fg" fontSize="sm" fontWeight="medium">
                       {modalError}
