@@ -85,6 +85,7 @@ export function CameraPickerCard({
 
   const cardProps = {
     ...userBookingCardProps,
+    bg: "white",
     opacity: disabled ? 0.55 : 1,
     pointerEvents: disabled ? ("none" as const) : undefined,
     _hover: disabled ? undefined : { borderColor: "cerulean.300" },
