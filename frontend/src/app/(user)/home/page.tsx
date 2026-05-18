@@ -16,6 +16,7 @@ import {
   DialogRoot,
   DialogTitle,
   HStack,
+  Link,
   Stack,
   Text,
   Textarea,
@@ -55,6 +56,15 @@ import {
 } from "@/lib/user-theme";
 
 const GUIDE_STATUSES = new Set(["CONFIRMED", "RENTING", "LATE_RETURN"]);
+
+const STORE_MAP_URL = "https://maps.app.goo.gl/p7E56GSttpufsQVx5";
+
+const inlineTextLinkProps = {
+  fontSize: "sm",
+  color: "cerulean.700",
+  textDecoration: "underline",
+  cursor: "pointer",
+} as const;
 
 function cameraDisplayName(brand: string, name: string) {
   const label = BRAND_LABEL[brand as CameraBrand] ?? brand;
@@ -220,11 +230,8 @@ export default function UserHomePage() {
                   {GUIDE_STATUSES.has(b.status) ? (
                     <Text
                       as="button"
-                      fontSize="sm"
-                      color="cerulean.700"
-                      textDecoration="underline"
+                      {...inlineTextLinkProps}
                       flexShrink={0}
-                      cursor="pointer"
                       onClick={() =>
                         setGuideCamera({
                           id: b.camera.id,
@@ -252,12 +259,22 @@ export default function UserHomePage() {
                   Tổng: {vnd.format(b.amount)}
                 </Text>
                 {balanceDue > 0 ? (
-                  <Text fontSize="sm" color="fg.muted">
-                    Còn lại khi lấy máy:{" "}
-                    <Text as="span" fontWeight="semibold" color={titleColor}>
-                      {vnd.format(balanceDue)}
+                  <Stack gap={1} align="flex-start">
+                    <Text fontSize="sm" color="fg.muted">
+                      Còn lại khi lấy máy:{" "}
+                      <Text as="span" fontWeight="semibold" color={titleColor}>
+                        {vnd.format(balanceDue)}
+                      </Text>
                     </Text>
-                  </Text>
+                    <Link
+                      href={STORE_MAP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      {...inlineTextLinkProps}
+                    >
+                      Xem địa chỉ
+                    </Link>
+                  </Stack>
                 ) : null}
                 {b.status === "PENDING_PAYMENT" ? (
                   <Button

@@ -1208,8 +1208,11 @@ export default function AdminBookingsPage() {
                             type="button"
                             size="sm"
                             variant="solid"
-                            colorPalette="red"
                             aria-label={`Xóa đơn ${b.bookingCode}`}
+                            bg="red.400"
+                            color="white"
+                            _hover={{ bg: "red.500" }}
+                            _active={{ bg: "red.500" }}
                             loading={deleteSavingId === b.id}
                             disabled={
                               deleteSavingId !== null &&
