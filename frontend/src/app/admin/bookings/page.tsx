@@ -42,6 +42,7 @@ import {
 import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table";
 import { MonthCalendar } from "@/components/booking/month-calendar";
 import { BookingListCard } from "@/app/admin/bookings/booking-list-card";
+import { PlusIcon } from "@/app/admin/bookings/booking-list-icons";
 import { BookingListRow } from "@/app/admin/bookings/booking-list-row";
 import type {
   Booking,
@@ -267,6 +268,62 @@ function toLocalDateKey(d: Date): string {
 
 function todayLocalDateKey(): string {
   return toLocalDateKey(new Date());
+}
+
+type QuickFilterKey = "all" | "today" | "renting" | "pending_payment";
+
+const QUICK_FILTER_OPTIONS: { value: QuickFilterKey; label: string }[] = [
+  { value: "all", label: "Tất cả đơn" },
+  { value: "today", label: "Đơn thuê hôm nay" },
+  { value: "renting", label: "Đơn đang thuê" },
+  { value: "pending_payment", label: "Đơn chờ cọc" },
+];
+
+function deriveQuickFilter(params: {
+  showAllDates: boolean;
+  filterByPickupTime: boolean;
+  filterDateKey: string;
+  statusFilter: StatusFilter;
+  paymentStatusFilter: PaymentStatusFilter;
+  cameraFilter: CameraFilter;
+  searchQuery: string;
+}): QuickFilterKey {
+  const {
+    showAllDates,
+    filterByPickupTime,
+    filterDateKey,
+    statusFilter,
+    paymentStatusFilter,
+    cameraFilter,
+    searchQuery,
+  } = params;
+  const noSearch = searchQuery.trim() === "";
+  const defaults =
+    paymentStatusFilter === "ALL" && cameraFilter === "ALL" && noSearch;
+
+  if (
+    showAllDates &&
+    statusFilter === "ALL" &&
+    defaults
+  ) {
+    return "all";
+  }
+  if (
+    !showAllDates &&
+    filterByPickupTime &&
+    filterDateKey === todayLocalDateKey() &&
+    statusFilter === "ALL" &&
+    defaults
+  ) {
+    return "today";
+  }
+  if (showAllDates && statusFilter === "RENTING" && defaults) {
+    return "renting";
+  }
+  if (showAllDates && statusFilter === "PENDING_PAYMENT" && defaults) {
+    return "pending_payment";
+  }
+  return "all";
 }
 
 export default function AdminBookingsPage() {
@@ -817,16 +874,133 @@ export default function AdminBookingsPage() {
     })();
   }, []);
 
+  const activeQuickFilter = useMemo(
+    () =>
+      deriveQuickFilter({
+        showAllDates,
+        filterByPickupTime,
+        filterDateKey,
+        statusFilter,
+        paymentStatusFilter,
+        cameraFilter,
+        searchQuery,
+      }),
+    [
+      showAllDates,
+      filterByPickupTime,
+      filterDateKey,
+      statusFilter,
+      paymentStatusFilter,
+      cameraFilter,
+      searchQuery,
+    ],
+  );
+
+  const applyQuickFilter = useCallback((key: QuickFilterKey) => {
+    setSearchField("phone");
+    setPage(1);
+    switch (key) {
+      case "all":
+        setShowAllDates(true);
+        setStatusFilter("ALL");
+        setPaymentStatusFilter("ALL");
+        setCameraFilter("ALL");
+        setSearchQuery("");
+        break;
+      case "today":
+        setShowAllDates(false);
+        setFilterByPickupTime(true);
+        setFilterDateKey(todayLocalDateKey());
+        setStatusFilter("ALL");
+        setPaymentStatusFilter("ALL");
+        setCameraFilter("ALL");
+        setSearchQuery("");
+        break;
+      case "renting":
+        setShowAllDates(true);
+        setStatusFilter("RENTING");
+        setPaymentStatusFilter("ALL");
+        setCameraFilter("ALL");
+        setSearchQuery("");
+        break;
+      case "pending_payment":
+        setShowAllDates(true);
+        setStatusFilter("PENDING_PAYMENT");
+        setPaymentStatusFilter("ALL");
+        setCameraFilter("ALL");
+        setSearchQuery("");
+        break;
+    }
+  }, []);
+
   return (
     <Stack gap={6}>
       <CardRoot {...cardSurfaceProps}>
         <CardHeader>
+          {/* Mobile toolbar */}
+          <Stack
+            display={{ base: "flex", lg: "none" }}
+            gap={3}
+            w="full"
+          >
+            <HStack justify="space-between" align="center" w="full">
+              <CardTitle textStyle="xl">Đơn thuê</CardTitle>
+              <HStack gap={2}>
+                <IconButton
+                  type="button"
+                  size="sm"
+                  variant="solid"
+                  colorPalette={APP_COLOR_PALETTE}
+                  loading={loading}
+                  onClick={() => void loadBookings()}
+                  aria-label="Làm mới danh sách đơn thuê"
+                >
+                  <RefreshIcon />
+                </IconButton>
+                <IconButton
+                  type="button"
+                  size="sm"
+                  variant="solid"
+                  colorPalette={APP_COLOR_PALETTE}
+                  onClick={openCreateBooking}
+                  aria-label="Thêm đơn"
+                >
+                  <PlusIcon />
+                </IconButton>
+              </HStack>
+            </HStack>
+            {bookings !== null ? (
+              <NativeSelectRoot size="sm" w="full">
+                <NativeSelectField
+                  value={activeQuickFilter}
+                  bg="white"
+                  borderWidth="1px"
+                  borderColor="gray.200"
+                  aria-label="Lọc nhanh đơn thuê"
+                  onChange={(e) =>
+                    applyQuickFilter(e.target.value as QuickFilterKey)
+                  }
+                >
+                  {QUICK_FILTER_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </NativeSelectField>
+                <NativeSelectIndicator />
+              </NativeSelectRoot>
+            ) : null}
+          </Stack>
+
+          {/* Desktop toolbar */}
           <HStack
+            display={{ base: "none", lg: "flex" }}
             justify="space-between"
             align="center"
             gap={4}
             flexWrap="wrap"
             rowGap={3}
+            w="full"
           >
             <HStack gap={3} align="center" flexWrap="wrap">
               <CardTitle textStyle="2xl">Đơn thuê</CardTitle>
@@ -853,113 +1027,54 @@ export default function AdminBookingsPage() {
             </HStack>
             {bookings !== null ? (
               <HStack gap={2} flexWrap="wrap" justify="flex-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={
-                    showAllDates &&
-                    statusFilter === "ALL" &&
-                    paymentStatusFilter === "ALL" &&
-                    cameraFilter === "ALL" &&
-                    searchQuery.trim() === ""
-                      ? "solid"
-                      : "outline"
-                  }
-                  colorPalette={APP_COLOR_PALETTE}
-                  onClick={() => {
-                    setShowAllDates(true);
-                    setStatusFilter("ALL");
-                    setPaymentStatusFilter("ALL");
-                    setCameraFilter("ALL");
-                    setSearchQuery("");
-                    setPage(1);
-                  }}
-                >
-                  Tất cả đơn
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={
-                    !showAllDates &&
-                    filterByPickupTime &&
-                    filterDateKey === todayLocalDateKey() &&
-                    statusFilter === "ALL" &&
-                    paymentStatusFilter === "ALL" &&
-                    cameraFilter === "ALL" &&
-                    searchQuery.trim() === ""
-                      ? "solid"
-                      : "outline"
-                  }
-                  colorPalette={APP_COLOR_PALETTE}
-                  onClick={() => {
-                    setShowAllDates(false);
-                    setFilterByPickupTime(true);
-                    setFilterDateKey(todayLocalDateKey());
-                    setStatusFilter("ALL");
-                    setPaymentStatusFilter("ALL");
-                    setCameraFilter("ALL");
-                    setSearchQuery("");
-                    setPage(1);
-                  }}
-                >
-                  Đơn thuê hôm nay
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={
-                    showAllDates &&
-                    statusFilter === "RENTING" &&
-                    paymentStatusFilter === "ALL" &&
-                    cameraFilter === "ALL" &&
-                    searchQuery.trim() === ""
-                      ? "solid"
-                      : "outline"
-                  }
-                  colorPalette={APP_COLOR_PALETTE}
-                  onClick={() => {
-                    setShowAllDates(true);
-                    setStatusFilter("RENTING");
-                    setPaymentStatusFilter("ALL");
-                    setCameraFilter("ALL");
-                    setSearchQuery("");
-                    setPage(1);
-                  }}
-                >
-                  Đơn đang thuê
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={
-                    showAllDates &&
-                    statusFilter === "PENDING_PAYMENT" &&
-                    paymentStatusFilter === "ALL" &&
-                    cameraFilter === "ALL" &&
-                    searchQuery.trim() === ""
-                      ? "solid"
-                      : "outline"
-                  }
-                  colorPalette={APP_COLOR_PALETTE}
-                  onClick={() => {
-                    setShowAllDates(true);
-                    setStatusFilter("PENDING_PAYMENT");
-                    setPaymentStatusFilter("ALL");
-                    setCameraFilter("ALL");
-                    setSearchQuery("");
-                    setPage(1);
-                  }}
-                >
-                  Đơn chờ cọc
-                </Button>
+                {QUICK_FILTER_OPTIONS.map((opt) => (
+                  <Button
+                    key={opt.value}
+                    type="button"
+                    size="sm"
+                    variant={
+                      activeQuickFilter === opt.value ? "solid" : "outline"
+                    }
+                    colorPalette={APP_COLOR_PALETTE}
+                    onClick={() => applyQuickFilter(opt.value)}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
               </HStack>
             ) : null}
           </HStack>
         </CardHeader>
         <CardBody>
           <Stack gap={4} w="full">
-            <CardDescription>
+            {/* Mobile: phone search only */}
+            {bookings && bookings.length > 0 ? (
+              <Stack
+                display={{ base: "flex", lg: "none" }}
+                gap={2}
+                w="full"
+              >
+                <Text fontSize="sm" fontWeight="medium" color="fg.muted">
+                  Số điện thoại
+                </Text>
+                <Input
+                  size="sm"
+                  bg="white"
+                  borderWidth="1px"
+                  borderColor="gray.200"
+                  _focusVisible={{ borderColor: "ocean.500" }}
+                  placeholder="Ví dụ: 0901…"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchField("phone");
+                    setSearchQuery(e.target.value);
+                  }}
+                  aria-label="Tìm theo số điện thoại"
+                />
+              </Stack>
+            ) : null}
+
+            <CardDescription display={{ base: "none", lg: "block" }}>
               Danh sách đơn từ{" "}
               <Text as="span" fontWeight="semibold">
                 GET /api/bookings
@@ -968,11 +1083,12 @@ export default function AdminBookingsPage() {
             </CardDescription>
             {bookings && bookings.length > 0 ? (
               <HStack
+                display={{ base: "none", lg: "flex" }}
                 w="full"
                 align="flex-start"
                 justify="space-between"
                 gap={4}
-                flexWrap={{ base: "wrap", lg: "nowrap" }}
+                flexWrap="nowrap"
               >
                 <HStack
                   gap={4}
@@ -1173,12 +1289,12 @@ export default function AdminBookingsPage() {
                 </HStack>
                 <Stack
                   gap={2}
-                  align={{ base: "stretch", md: "flex-end" }}
+                  align="flex-end"
                   flex="1"
                   minW={0}
-                  maxW={{ lg: "36rem" }}
-                  w={{ base: "full", lg: "auto" }}
-                  ml={{ lg: "auto" }}
+                  maxW="36rem"
+                  w="auto"
+                  ml="auto"
                 >
                   <Text
                     fontSize="sm"

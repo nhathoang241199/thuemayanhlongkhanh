@@ -8,23 +8,20 @@ import {
   BreadcrumbList,
   BreadcrumbRoot,
   BreadcrumbSeparator,
-  Button,
-  CardBody,
-  CardRoot,
   Container,
-  HStack,
   Stack,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 
-import { adminLogout } from "@/lib/admin-auth";
 import {
-  ADMIN_COLOR_PALETTE,
-  adminShellBg,
-  cardSurfaceProps,
-} from "@/lib/app-theme";
+  AdminDesktopNav,
+  AdminMobileNavBar,
+  AdminMobileNavDrawer,
+} from "@/components/admin/admin-mobile-nav";
+import { adminLogout } from "@/lib/admin-auth";
+import { ADMIN_COLOR_PALETTE, adminShellBg } from "@/lib/app-theme";
 
 type Crumb = { href: string | null; label: string };
 
@@ -67,12 +64,14 @@ export default function AdminLayout({
 }>) {
   const pathname = usePathname();
   const router = useRouter();
+  const [navOpen, setNavOpen] = useState(false);
 
   if (pathname === "/admin/login" || pathname.startsWith("/admin/login/")) {
     return <>{children}</>;
   }
 
   const crumbs = adminBreadcrumbs(pathname);
+  const pageTitle = crumbs[crumbs.length - 1]?.label ?? "Admin";
 
   const handleLogout = () => {
     void (async () => {
@@ -87,7 +86,7 @@ export default function AdminLayout({
       minH="100dvh"
       bg={adminShellBg}
       colorPalette={ADMIN_COLOR_PALETTE}
-      py={{ base: 8, md: 10 }}
+      py={{ base: 4, md: 10 }}
     >
       <Container
         maxW={
@@ -95,8 +94,22 @@ export default function AdminLayout({
         }
         px={{ base: 3, md: 4 }}
       >
-        <Stack gap={6}>
-          <BreadcrumbRoot size="sm" colorPalette={ADMIN_COLOR_PALETTE}>
+        <Stack gap={{ base: 4, lg: 6 }}>
+          <AdminMobileNavBar
+            pageTitle={pageTitle}
+            onOpenMenu={() => setNavOpen(true)}
+          />
+          <AdminMobileNavDrawer
+            pathname={pathname}
+            open={navOpen}
+            onOpenChange={setNavOpen}
+            onLogout={handleLogout}
+          />
+          <BreadcrumbRoot
+            size="sm"
+            colorPalette={ADMIN_COLOR_PALETTE}
+            display={{ base: "none", lg: "block" }}
+          >
             <BreadcrumbList flexWrap="wrap">
               {crumbs.map((c, i) => {
                 const isLast = i === crumbs.length - 1;
@@ -119,81 +132,7 @@ export default function AdminLayout({
               })}
             </BreadcrumbList>
           </BreadcrumbRoot>
-          <CardRoot {...cardSurfaceProps}>
-            <CardBody py={3}>
-              <Stack gap={2}>
-                <HStack gap={1.5} flexWrap="wrap" w="full">
-                  <Button
-                    asChild
-                    variant={pathname === "/admin" ? "solid" : "ghost"}
-                    colorPalette={ADMIN_COLOR_PALETTE}
-                    size="sm"
-                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
-                  >
-                    <NextLink href="/admin">Tổng quan</NextLink>
-                  </Button>
-                  <Button
-                    asChild
-                    variant={
-                      pathname === "/admin/bookings" ? "solid" : "ghost"
-                    }
-                    colorPalette={ADMIN_COLOR_PALETTE}
-                    size="sm"
-                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
-                  >
-                    <NextLink href="/admin/bookings">Đơn thuê</NextLink>
-                  </Button>
-                  <Button
-                    asChild
-                    variant={
-                      pathname === "/admin/expenses" ? "solid" : "ghost"
-                    }
-                    colorPalette={ADMIN_COLOR_PALETTE}
-                    size="sm"
-                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
-                  >
-                    <NextLink href="/admin/expenses">Chi tiêu</NextLink>
-                  </Button>
-                  <Button
-                    asChild
-                    variant={
-                      pathname === "/admin/customers" ||
-                      pathname.startsWith("/admin/customers/")
-                        ? "solid"
-                        : "ghost"
-                    }
-                    colorPalette={ADMIN_COLOR_PALETTE}
-                    size="sm"
-                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
-                  >
-                    <NextLink href="/admin/customers">Khách hàng</NextLink>
-                  </Button>
-                  <Button
-                    asChild
-                    variant={
-                      pathname === "/admin/cameras" ? "solid" : "ghost"
-                    }
-                    colorPalette={ADMIN_COLOR_PALETTE}
-                    size="sm"
-                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
-                  >
-                    <NextLink href="/admin/cameras">Máy ảnh</NextLink>
-                  </Button>
-                </HStack>
-                <Button
-                  type="button"
-                  variant="outline"
-                  colorPalette={ADMIN_COLOR_PALETTE}
-                  size="sm"
-                  w={{ base: "full", sm: "auto" }}
-                  alignSelf={{ sm: "flex-end" }}
-                  onClick={handleLogout}
-                >
-                  Đăng xuất
-                </Button>
-              </Stack>
-            </CardBody>
-          </CardRoot>
+          <AdminDesktopNav pathname={pathname} onLogout={handleLogout} />
           {children}
         </Stack>
       </Container>

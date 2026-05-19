@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Badge,
   Button,
   HStack,
   IconButton,
@@ -19,16 +20,14 @@ import {
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 
-import {
-  BookingPaymentMenuCell,
-  BookingStatusMenuCell,
-} from "./booking-menu-cells";
-import { ChevronRightIcon, PencilIcon, TrashIcon } from "./booking-list-icons";
+import { BookingStatusMenuCell } from "./booking-menu-cells";
+import { ChevronRightIcon } from "./booking-list-icons";
 import type { BookingListRowProps } from "./booking-list-row";
 import {
   bookingLocalDateKey,
   formatBookingDate,
   formatPickupAtTable,
+  paymentBadgeProps,
   vnd,
 } from "./booking-list-utils";
 
@@ -36,21 +35,19 @@ export function BookingListCard({
   booking: b,
   isRowSaving,
   quickAdvanceSaving,
-  deleteSaving,
   canQuickAdvance,
   onCopyPhone,
-  onPaymentChange,
   onStatusChange,
   onMenuOpenChange,
   onQuickAdvance,
-  onEdit,
-  onDelete,
 }: BookingListRowProps) {
   const dateLabel =
     bookingLocalDateKey(b.startBookingDate) !==
     bookingLocalDateKey(b.endBookingDate)
       ? `${formatBookingDate(b.startBookingDate)} → ${formatBookingDate(b.endBookingDate)}`
       : formatBookingDate(b.startBookingDate);
+
+  const pay = paymentBadgeProps(b.paymentStatus);
 
   return (
     <AdminDataCard>
@@ -61,12 +58,9 @@ export function BookingListCard({
               {b.bookingCode}
             </Text>
             <HStack gap={1} flexWrap="wrap" justify="flex-end">
-              <BookingPaymentMenuCell
-                booking={b}
-                saving={isRowSaving}
-                onChangePaymentStatus={onPaymentChange}
-                onMenuOpenChange={onMenuOpenChange}
-              />
+              <Badge variant="subtle" colorPalette={pay.colorPalette}>
+                {pay.label}
+              </Badge>
               <BookingStatusMenuCell
                 booking={b}
                 saving={isRowSaving}
@@ -157,29 +151,6 @@ export function BookingListCard({
           onClick={onQuickAdvance}
         >
           <ChevronRightIcon />
-        </IconButton>
-        <IconButton
-          type="button"
-          size="sm"
-          variant="subtle"
-          colorPalette="blue"
-          aria-label={`Sửa đơn ${b.bookingCode}`}
-          disabled={isRowSaving}
-          onClick={onEdit}
-        >
-          <PencilIcon />
-        </IconButton>
-        <IconButton
-          type="button"
-          size="sm"
-          variant="subtle"
-          colorPalette="red"
-          aria-label={`Xóa đơn ${b.bookingCode}`}
-          loading={deleteSaving}
-          disabled={isRowSaving}
-          onClick={onDelete}
-        >
-          <TrashIcon />
         </IconButton>
       </AdminDataCardActions>
     </AdminDataCard>

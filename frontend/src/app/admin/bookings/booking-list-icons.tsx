@@ -40,6 +40,19 @@ export const TrashIcon = createIcon({
   ),
 });
 
+export const PlusIcon = createIcon({
+  displayName: "PlusIcon",
+  path: (
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      d="M12 5v14M5 12h14"
+    />
+  ),
+});
+
 export const ChevronRightIcon = createIcon({
   displayName: "ChevronRightIcon",
   path: (
