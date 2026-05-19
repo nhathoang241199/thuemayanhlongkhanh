@@ -324,8 +324,8 @@ export default function UserHomePage() {
                     </Text>
                     <Box {...userWarningNoteProps}>
                       <Text {...userWarningNoteTextProps}>
-                        Lưu ý: Vui lòng sạc pin khoảng 20 phút sau khi nhận
-                        máy để sử dụng.
+                        Lưu ý: Mang theo CCCD bảng gốc hoặc VnID để nhận máy. Vui lòng sạc pin khoảng 20 phút sau khi nhận
+                        máy để sử dụng. 
                       </Text>
                     </Box>
                   </Stack>

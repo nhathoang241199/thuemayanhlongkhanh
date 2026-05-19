@@ -3,7 +3,7 @@ export function bookingStatusLabel(status: string): string {
     case "PENDING_PAYMENT":
       return "Chờ cọc";
     case "CONFIRMED":
-      return "Chờ lấy máy";
+      return "Đã cọc";
     case "RENTING":
       return "Đang thuê";
     case "LATE_RETURN":
@@ -26,7 +26,7 @@ export function bookingStatusColor(
     case "PENDING_PAYMENT":
       return "orange";
     case "CONFIRMED":
-      return "purple";
+      return "green";
     case "RENTING":
       return "cerulean";
     case "LATE_RETURN":
