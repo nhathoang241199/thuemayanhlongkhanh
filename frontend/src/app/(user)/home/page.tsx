@@ -111,6 +111,20 @@ const TrashIcon = createIcon({
   ),
 });
 
+const PencilIcon = createIcon({
+  displayName: "PencilIcon",
+  path: (
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+    />
+  ),
+});
+
 export default function UserHomePage() {
   const router = useRouter();
   const [session, setSessionState] = useState<CustomerSession | null>(null);
@@ -343,6 +357,19 @@ export default function UserHomePage() {
                       onClick={() => void handleDeletePending(b)}
                     >
                       <TrashIcon />
+                    </IconButton>
+                    <IconButton
+                      type="button"
+                      size="sm"
+                      variant="solid"
+                      colorPalette={APP_COLOR_PALETTE}
+                      aria-label={`Sửa đơn ${b.bookingCode}`}
+                      disabled={deletePendingId !== null}
+                      onClick={() =>
+                        router.push(`/book?editBookingId=${b.id}`)
+                      }
+                    >
+                      <PencilIcon />
                     </IconButton>
                     <Button
                       asChild

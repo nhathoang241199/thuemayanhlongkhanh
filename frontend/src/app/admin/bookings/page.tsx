@@ -348,6 +348,23 @@ function bookingToEditForm(b: Booking): BookingEditForm {
   };
 }
 
+function emptyBookingForm(): BookingEditForm {
+  return {
+    bookingCode: "",
+    customerId: "",
+    cameraId: "",
+    startBookingDateLocal: "",
+    endBookingDateLocal: "",
+    slot: "FULL_DAY",
+    pickupAtLocal: "",
+    amount: "",
+    note: "",
+    shippingAddress: "",
+    paymentStatus: "PENDING",
+    status: "PENDING_PAYMENT",
+  };
+}
+
 /** Lọc theo `paymentStatus` từ API */
 type PaymentStatusFilter = "ALL" | PaymentStatusValue;
 
@@ -561,6 +578,9 @@ export default function AdminBookingsPage() {
   const [quickAdvanceSavingId, setQuickAdvanceSavingId] = useState<string | null>(
     null,
   );
+  const [bookingFormMode, setBookingFormMode] = useState<"create" | "edit" | null>(
+    null,
+  );
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [editForm, setEditForm] = useState<BookingEditForm | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -695,35 +715,51 @@ export default function AdminBookingsPage() {
     [patchBooking],
   );
 
-  const openEditBooking = useCallback((booking: Booking) => {
-    setEditingBooking(booking);
-    setEditForm(bookingToEditForm(booking));
-    setEditError(null);
+  const loadBookingFormOptions = useCallback(async () => {
     setEditOptionsLoading(true);
-    void (async () => {
-      try {
-        const [custRes, camRes] = await Promise.all([
-          fetch(`${apiBase()}/api/customers`, { credentials: "include" }),
-          fetch(`${apiBase()}/api/cameras`, { credentials: "include" }),
-        ]);
-        if (!custRes.ok || !camRes.ok) {
-          throw new Error("Không tải được danh sách khách hoặc máy");
-        }
-        const customers = (await custRes.json()) as AdminCustomerOption[];
-        const cameras = (await camRes.json()) as AdminCameraOption[];
-        setEditCustomers(customers);
-        setEditCameras(cameras);
-      } catch (e) {
-        setEditError(
-          e instanceof Error ? e.message : "Không tải được dữ liệu form",
-        );
-      } finally {
-        setEditOptionsLoading(false);
+    setEditError(null);
+    try {
+      const [custRes, camRes] = await Promise.all([
+        fetch(`${apiBase()}/api/customers`, { credentials: "include" }),
+        fetch(`${apiBase()}/api/cameras`, { credentials: "include" }),
+      ]);
+      if (!custRes.ok || !camRes.ok) {
+        throw new Error("Không tải được danh sách khách hoặc máy");
       }
-    })();
+      const customers = (await custRes.json()) as AdminCustomerOption[];
+      const cameras = (await camRes.json()) as AdminCameraOption[];
+      setEditCustomers(customers);
+      setEditCameras(cameras);
+    } catch (e) {
+      setEditError(
+        e instanceof Error ? e.message : "Không tải được dữ liệu form",
+      );
+    } finally {
+      setEditOptionsLoading(false);
+    }
   }, []);
 
-  const closeEditBooking = useCallback(() => {
+  const openCreateBooking = useCallback(() => {
+    setBookingFormMode("create");
+    setEditingBooking(null);
+    setEditForm(emptyBookingForm());
+    setEditError(null);
+    void loadBookingFormOptions();
+  }, [loadBookingFormOptions]);
+
+  const openEditBooking = useCallback(
+    (booking: Booking) => {
+      setBookingFormMode("edit");
+      setEditingBooking(booking);
+      setEditForm(bookingToEditForm(booking));
+      setEditError(null);
+      void loadBookingFormOptions();
+    },
+    [loadBookingFormOptions],
+  );
+
+  const closeBookingForm = useCallback(() => {
+    setBookingFormMode(null);
     setEditingBooking(null);
     setEditForm(null);
     setEditError(null);
@@ -731,11 +767,39 @@ export default function AdminBookingsPage() {
     setEditCameras([]);
   }, []);
 
-  const handleEditSubmit = useCallback(() => {
-    if (!editingBooking || !editForm) return;
+  const createBooking = useCallback(
+    async (body: Record<string, unknown>) => {
+      const res = await fetch(`${apiBase()}/api/bookings`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+      const created = (await res.json()) as Booking;
+      setBookings((prev) => (prev ? [created, ...prev] : [created]));
+      return created;
+    },
+    [],
+  );
+
+  const handleBookingFormSubmit = useCallback(() => {
+    if (!bookingFormMode || !editForm) return;
     const amount = Number.parseInt(editForm.amount, 10);
-    if (!editForm.bookingCode.trim() || !editForm.customerId || !editForm.cameraId) {
-      setEditError("Vui lòng điền đủ mã đơn, khách và máy.");
+    const isCreate = bookingFormMode === "create";
+    if (
+      (!isCreate && !editForm.bookingCode.trim()) ||
+      !editForm.customerId ||
+      !editForm.cameraId
+    ) {
+      setEditError(
+        isCreate
+          ? "Vui lòng chọn khách và máy."
+          : "Vui lòng điền đủ mã đơn, khách và máy.",
+      );
       return;
     }
     if (!editForm.startBookingDateLocal || !editForm.endBookingDateLocal) {
@@ -764,35 +828,59 @@ export default function AdminBookingsPage() {
         return;
       }
     }
+    const payload = {
+      customerId: editForm.customerId,
+      cameraId: editForm.cameraId,
+      startBookingDate,
+      endBookingDate,
+      slot: editForm.slot,
+      pickupAt,
+      amount,
+      note: editForm.note.trim() || null,
+      shippingAddress: editForm.shippingAddress.trim() || null,
+      paymentStatus: editForm.paymentStatus,
+      status: editForm.status,
+    };
+
     void (async () => {
       setEditSaving(true);
       setEditError(null);
       try {
-        const updated = await patchBooking(editingBooking.id, {
-          bookingCode: editForm.bookingCode.trim(),
-          customerId: editForm.customerId,
-          cameraId: editForm.cameraId,
-          startBookingDate,
-          endBookingDate,
-          slot: editForm.slot,
-          pickupAt,
-          amount,
-          note: editForm.note.trim() || null,
-          shippingAddress: editForm.shippingAddress.trim() || null,
-          paymentStatus: editForm.paymentStatus,
-          status: editForm.status,
-        });
-        toaster.success({ title: `Đã cập nhật đơn ${updated.bookingCode}` });
-        closeEditBooking();
+        if (isCreate) {
+          const code = editForm.bookingCode.trim();
+          const created = await createBooking({
+            ...payload,
+            ...(code ? { bookingCode: code } : {}),
+          });
+          toaster.success({ title: `Đã tạo đơn ${created.bookingCode}` });
+        } else if (editingBooking) {
+          const updated = await patchBooking(editingBooking.id, {
+            bookingCode: editForm.bookingCode.trim(),
+            ...payload,
+          });
+          toaster.success({ title: `Đã cập nhật đơn ${updated.bookingCode}` });
+        }
+        closeBookingForm();
       } catch (e) {
         setEditError(
-          e instanceof Error ? e.message : "Không cập nhật được đơn.",
+          e instanceof Error
+            ? e.message
+            : isCreate
+              ? "Không tạo được đơn."
+              : "Không cập nhật được đơn.",
         );
       } finally {
         setEditSaving(false);
       }
     })();
-  }, [editingBooking, editForm, patchBooking, closeEditBooking]);
+  }, [
+    bookingFormMode,
+    editingBooking,
+    editForm,
+    patchBooking,
+    createBooking,
+    closeBookingForm,
+  ]);
 
   const handleBookingDelete = useCallback((booking: Booking) => {
     if (
@@ -930,6 +1018,15 @@ export default function AdminBookingsPage() {
               >
                 <RefreshIcon />
               </IconButton>
+              <Button
+                type="button"
+                size="sm"
+                variant="solid"
+                colorPalette={APP_COLOR_PALETTE}
+                onClick={openCreateBooking}
+              >
+                Thêm đơn
+              </Button>
             </HStack>
             {bookings !== null ? (
               <HStack gap={2} flexWrap="wrap" justify="flex-end">
@@ -1600,9 +1697,9 @@ export default function AdminBookingsPage() {
       ) : null}
 
       <DialogRoot
-        open={editingBooking !== null}
+        open={bookingFormMode !== null}
         onOpenChange={(e) => {
-          if (!e.open) closeEditBooking();
+          if (!e.open) closeBookingForm();
         }}
         lazyMount
         unmountOnExit
@@ -1612,7 +1709,9 @@ export default function AdminBookingsPage() {
           <DialogContent maxW="lg" mx={4}>
             <DialogHeader>
               <DialogTitle>
-                Sửa đơn {editingBooking?.bookingCode ?? ""}
+                {bookingFormMode === "create"
+                  ? "Thêm đơn mới"
+                  : `Sửa đơn ${editingBooking?.bookingCode ?? ""}`}
               </DialogTitle>
               <DialogCloseTrigger />
             </DialogHeader>
@@ -1631,10 +1730,21 @@ export default function AdminBookingsPage() {
                   <Box>
                     <Text fontSize="sm" fontWeight="medium" mb={1}>
                       Mã đơn
+                      {bookingFormMode === "create" ? (
+                        <Text as="span" fontWeight="normal" color="fg.muted">
+                          {" "}
+                          (tuỳ chọn)
+                        </Text>
+                      ) : null}
                     </Text>
                     <Input
                       value={editForm.bookingCode}
                       maxLength={64}
+                      placeholder={
+                        bookingFormMode === "create"
+                          ? "Để trống — hệ thống tự sinh"
+                          : undefined
+                      }
                       {...fieldInputProps}
                       onChange={(e) =>
                         setEditForm((f) =>
@@ -1657,6 +1767,9 @@ export default function AdminBookingsPage() {
                           )
                         }
                       >
+                        {bookingFormMode === "create" ? (
+                          <option value="">— Chọn khách —</option>
+                        ) : null}
                         {editCustomers.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.name} — {c.phone}
@@ -1680,6 +1793,9 @@ export default function AdminBookingsPage() {
                           )
                         }
                       >
+                        {bookingFormMode === "create" ? (
+                          <option value="">— Chọn máy —</option>
+                        ) : null}
                         {editCameras.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.brand} — {c.name}
@@ -1879,7 +1995,7 @@ export default function AdminBookingsPage() {
                 type="button"
                 variant="ghost"
                 disabled={editSaving}
-                onClick={closeEditBooking}
+                onClick={closeBookingForm}
               >
                 Huỷ
               </Button>
@@ -1888,9 +2004,9 @@ export default function AdminBookingsPage() {
                 colorPalette={APP_COLOR_PALETTE}
                 loading={editSaving}
                 disabled={editOptionsLoading || !editForm}
-                onClick={() => void handleEditSubmit()}
+                onClick={() => void handleBookingFormSubmit()}
               >
-                Lưu
+                {bookingFormMode === "create" ? "Tạo đơn" : "Lưu"}
               </Button>
             </DialogFooter>
           </DialogContent>

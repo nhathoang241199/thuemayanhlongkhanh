@@ -81,6 +81,34 @@ export async function fetchMyBookings(phone: string): Promise<MyBooking[]> {
   return (await res.json()) as MyBooking[];
 }
 
+export async function updatePendingCustomerBooking(
+  bookingId: string,
+  body: {
+    phone: string;
+    cameraId: string;
+    startDate: string;
+    endDate: string;
+    slot: string;
+    pickupAt: string;
+    note?: string;
+    shippingAddress?: string | null;
+  },
+): Promise<MyBooking> {
+  const res = await fetch(
+    `${apiBase()}/api/bookings/customer/${bookingId}/update-pending`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+  return (await res.json()) as MyBooking;
+}
+
 export async function requestCustomerBookingChange(
   bookingId: string,
   body: {

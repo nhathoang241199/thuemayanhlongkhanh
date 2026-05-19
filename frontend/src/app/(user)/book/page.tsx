@@ -47,6 +47,7 @@ import {
   fetchCustomerVerification,
   fetchMyBookings,
   requestCustomerBookingChange,
+  updatePendingCustomerBooking,
   type MyBooking,
 } from "@/lib/api";
 import { DELIVERY_FEE_VND } from "@/lib/booking-status";
@@ -95,9 +96,14 @@ function BookPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const changeBookingId = searchParams.get("changeBookingId");
+  const editBookingId = searchParams.get("editBookingId");
   const preselectCameraId = searchParams.get("cameraId");
   const [changeSource, setChangeSource] = useState<MyBooking | null>(null);
-  const [changeLoading, setChangeLoading] = useState(!!changeBookingId);
+  const [editSource, setEditSource] = useState<MyBooking | null>(null);
+  const [changeLoading, setChangeLoading] = useState(
+    !!changeBookingId || !!editBookingId,
+  );
+  const modifyBookingId = changeSource?.id ?? editSource?.id;
   const [mode, setMode] = useState<Mode>(null);
   const [step, setStep] = useState(0);
   const [brand, setBrand] = useState<CameraBrand | null>(null);
@@ -133,7 +139,7 @@ function BookPageContent() {
   }, [router]);
 
   useEffect(() => {
-    if (changeBookingId || !preselectCameraId) return;
+    if (changeBookingId || editBookingId || !preselectCameraId) return;
     void fetchPublicCamera(preselectCameraId)
       .then((cam) => {
         setMode("BY_CAMERA");
@@ -144,7 +150,7 @@ function BookPageContent() {
       .catch(() => {
         setError("Không tải được thông tin máy đã chọn.");
       });
-  }, [changeBookingId, preselectCameraId]);
+  }, [changeBookingId, editBookingId, preselectCameraId]);
 
   useEffect(() => {
     const s = getSession();
@@ -235,13 +241,38 @@ function BookPageContent() {
   }, [changeBookingId, router]);
 
   useEffect(() => {
+    if (!editBookingId) return;
+    const session = getSession();
+    if (!session) return;
+
+    void (async () => {
+      setChangeLoading(true);
+      setError(null);
+      try {
+        const list = await fetchMyBookings(session.phone);
+        const b = list.find(
+          (x) =>
+            x.id === editBookingId && x.status === "PENDING_PAYMENT",
+        );
+        if (!b) {
+          router.replace("/home");
+          return;
+        }
+        setEditSource(b);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Không tải được đơn");
+      } finally {
+        setChangeLoading(false);
+      }
+    })();
+  }, [editBookingId, router]);
+
+  useEffect(() => {
     if (forceFullDay) setSlot("FULL_DAY");
   }, [forceFullDay]);
 
   useEffect(() => {
-    if (!startDate || !effectiveSlot) return;
-    const { defaultLocal } = slotPickupBounds(startDate, effectiveSlot);
-    setPickupAtLocal(defaultLocal);
+    setPickupAtLocal("");
   }, [startDate, effectiveSlot]);
 
   const pickupBounds = useMemo(() => {
@@ -259,11 +290,11 @@ function BookPageContent() {
       startDate,
       endDate,
       effectiveSlot,
-      changeSource?.id,
+      modifyBookingId,
     )
       .then((r) => setRangeOk(r.available))
       .catch(() => setRangeOk(false));
-  }, [camera, startDate, endDate, effectiveSlot, changeSource?.id]);
+  }, [camera, startDate, endDate, effectiveSlot, modifyBookingId]);
 
   const onSlotStep =
     (mode === "BY_CAMERA" && step === 3 && !!camera) ||
@@ -290,7 +321,7 @@ function BookPageContent() {
     setSlotsLoading(true);
     void (async () => {
       try {
-        const excludeId = changeSource?.id;
+        const excludeId = modifyBookingId;
         const { slots } =
           mode === "BY_CAMERA" && camera
             ? await fetchRangeSlotsAvailability(
@@ -322,7 +353,7 @@ function BookPageContent() {
     startDate,
     endDate,
     forceFullDay,
-    changeSource?.id,
+    modifyBookingId,
     onSlotStep,
     onDateStepForceFullDay,
   ]);
@@ -361,7 +392,7 @@ function BookPageContent() {
         endDate,
         effectiveSlot,
         b,
-        changeSource?.id,
+        modifyBookingId,
       );
       setCamerasAvail(list);
     } catch (e) {
@@ -399,6 +430,7 @@ function BookPageContent() {
     setWantDelivery(false);
     setShippingAddress("");
     setNote("");
+    setPickupAtLocal("");
   }
 
   function handleRangeChange(s: string, e: string) {
@@ -467,6 +499,73 @@ function BookPageContent() {
       router.push("/home");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không thay đổi được đơn");
+      setPaying(false);
+    }
+  }
+
+  async function handleEditPendingSubmit() {
+    const session = getSession();
+    if (
+      !session ||
+      !editSource ||
+      !camera ||
+      !startDate ||
+      !endDate ||
+      !effectiveSlot
+    ) {
+      return;
+    }
+    if (rangeOk === false) {
+      setError("Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại.");
+      return;
+    }
+    if (
+      canRequestDelivery &&
+      wantDelivery &&
+      !shippingAddress.trim()
+    ) {
+      setError("Vui lòng nhập địa chỉ giao máy.");
+      return;
+    }
+    if (!pickupAtLocal.trim()) {
+      setError("Vui lòng chọn thời gian nhận máy.");
+      return;
+    }
+    const pickupErr = validatePickupAtLocal(
+      startDate,
+      effectiveSlot,
+      pickupAtLocal,
+    );
+    if (pickupErr) {
+      setError(pickupErr);
+      return;
+    }
+    let pickupAt: string;
+    try {
+      pickupAt = datetimeLocalToIso(pickupAtLocal);
+    } catch {
+      setError("Thời gian nhận máy không hợp lệ.");
+      return;
+    }
+    setPaying(true);
+    setError(null);
+    try {
+      await updatePendingCustomerBooking(editSource.id, {
+        phone: session.phone,
+        cameraId: camera.id,
+        startDate,
+        endDate,
+        slot: effectiveSlot,
+        pickupAt,
+        note: note || undefined,
+        shippingAddress:
+          canRequestDelivery && wantDelivery && shippingAddress.trim()
+            ? shippingAddress.trim()
+            : null,
+      });
+      router.push(`/book/payment?bookingId=${editSource.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không sửa được đơn");
       setPaying(false);
     }
   }
@@ -545,6 +644,20 @@ function BookPageContent() {
   const isCameraStep =
     (mode === "BY_CAMERA" && step === 1) ||
     (mode === "BY_DATE" && step === 3);
+
+  function renderDateStepHeader() {
+    return (
+      <Stack gap={1} align="stretch">
+        <Text fontSize="md" fontWeight="semibold" color={titleColor}>
+          Ngày sử dụng máy
+        </Text>
+        <Text fontSize="sm" color="fg.muted" lineHeight="tall">
+          Chọn ngày bạn thực sự dùng máy, không tính đêm nhận sớm hôm trước. Ví
+          dụ thuê ngày 25, nhận máy tối ngày 24 — tại bước này hãy chọn ngày 25.
+        </Text>
+      </Stack>
+    );
+  }
 
   function renderDatePickupNotice() {
     return (
@@ -626,6 +739,7 @@ function BookPageContent() {
 
   function renderSummary() {
     const isChange = !!changeSource;
+    const isEditPending = !!editSource;
     return (
       <Stack gap={4}>
         <Stack gap={1} fontSize="sm">
@@ -686,11 +800,15 @@ function BookPageContent() {
         ) : null}
         <Stack gap={1} align="stretch">
           <Text fontSize="sm" fontWeight="medium" color={titleColor}>
-            Thời gian nhận máy
+            Thời gian nhận máy{" "}
+            <Text as="span" color="red.500">
+              *
+            </Text>
           </Text>
           <Input
             type="datetime-local"
             size="md"
+            required
             value={pickupAtLocal}
             min={pickupBounds?.minLocal}
             max={pickupBounds?.maxLocal}
@@ -757,12 +875,24 @@ function BookPageContent() {
           size="lg"
           w="full"
           loading={paying}
-          disabled={!effectiveSlot || rangeOk === false}
+          disabled={
+            !effectiveSlot || rangeOk === false || !pickupAtLocal.trim()
+          }
           onClick={() =>
-            void (isChange ? handleChangeSubmit() : handlePay())
+            void (
+              isChange
+                ? handleChangeSubmit()
+                : isEditPending
+                  ? handleEditPendingSubmit()
+                  : handlePay()
+            )
           }
         >
-          {isChange ? "Xác nhận thay đổi" : "Xác nhận & thanh toán cọc"}
+          {isChange
+            ? "Xác nhận thay đổi"
+            : isEditPending
+              ? "Lưu & thanh toán cọc"
+              : "Xác nhận & thanh toán cọc"}
         </Button>
       </Stack>
     );
@@ -780,11 +910,16 @@ function BookPageContent() {
     return (
       <Stack gap={6} py={4}>
         <Text textStyle="xl" fontWeight="bold" color={titleColor}>
-          {changeSource ? "Thay đổi đặt lịch" : "Đặt lịch thuê máy"}
+          {changeSource
+            ? "Thay đổi đặt lịch"
+            : editSource
+              ? "Chỉnh sửa đơn"
+              : "Đặt lịch thuê máy"}
         </Text>
-        {changeSource ? (
+        {changeSource || editSource ? (
           <Text fontSize="sm" color="fg.muted">
-            Đơn {changeSource.bookingCode} — chọn lại hãng, máy, ngày và buổi.
+            Đơn {(changeSource ?? editSource)!.bookingCode} — chọn lại hãng,
+            máy, ngày và buổi.
           </Text>
         ) : null}
         {error ? (
@@ -808,7 +943,7 @@ function BookPageContent() {
         </Button>
         <Button asChild variant="ghost" size="sm">
           <NextLink href="/home">
-            {changeSource ? "Huỷ thay đổi" : "Quay lại"}
+            {changeSource || editSource ? "Huỷ chỉnh sửa" : "Quay lại"}
           </NextLink>
         </Button>
       </Stack>
@@ -821,9 +956,11 @@ function BookPageContent() {
         <Text textStyle="lg" fontWeight="bold" color={titleColor}>
           {changeSource
             ? "Thay đổi đặt lịch"
-            : mode === "BY_CAMERA"
-              ? "Theo máy"
-              : "Theo ngày"}
+            : editSource
+              ? "Chỉnh sửa đơn"
+              : mode === "BY_CAMERA"
+                ? "Theo máy"
+                : "Theo ngày"}
         </Text>
         <Badge variant="subtle">{steps[step]}</Badge>
       </HStack>
@@ -940,6 +1077,7 @@ function BookPageContent() {
           <CardBody>
           {mode === "BY_CAMERA" && step === 2 && camera && (
             <Stack gap={4}>
+              {renderDateStepHeader()}
               <MonthCalendar
                 year={ym.year}
                 month={ym.month}
@@ -992,6 +1130,7 @@ function BookPageContent() {
 
           {mode === "BY_DATE" && step === 0 && (
             <Stack gap={4}>
+              {renderDateStepHeader()}
               {renderDatePickupNotice()}
               <MonthCalendar
                 year={ym.year}

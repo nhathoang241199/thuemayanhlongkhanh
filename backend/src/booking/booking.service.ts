@@ -38,6 +38,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCustomerBookingDto } from './dto/create-customer-booking.dto';
 import { RequestChangeCustomerBookingDto } from './dto/request-change-customer-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
+import { UpdatePendingCustomerBookingDto } from './dto/update-pending-customer-booking.dto';
 
 const bookingInclude = {
   customer: { select: { id: true, name: true, phone: true } },
@@ -447,6 +448,85 @@ export class BookingService {
     };
   }
 
+  async updatePendingCustomerBooking(
+    id: string,
+    dto: UpdatePendingCustomerBookingDto,
+  ) {
+    const phone = normalizePhone(dto.phone);
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: {
+        customer: { select: { phone: true, isVerified: true } },
+      },
+    });
+    if (!booking) {
+      throw new NotFoundException('Không tìm thấy đơn');
+    }
+    if (normalizePhone(booking.customer.phone) !== phone) {
+      throw new ForbiddenException('Không có quyền sửa đơn này');
+    }
+    if (booking.status !== BookingStatus.PENDING_PAYMENT) {
+      throw new BadRequestException('Chỉ sửa được đơn đang chờ cọc');
+    }
+    if (booking.paymentStatus !== PaymentStatus.PENDING) {
+      throw new BadRequestException('Đơn đã có cọc, không sửa được theo luồng này');
+    }
+
+    this.availability.validateDateRange(dto.startDate, dto.endDate);
+    this.availability.validateSlotForRange(
+      dto.startDate,
+      dto.endDate,
+      dto.slot,
+    );
+
+    const { available } = await this.availability.isRangeAvailable(
+      dto.cameraId,
+      dto.startDate,
+      dto.endDate,
+      dto.slot,
+      booking.id,
+    );
+    if (!available) {
+      throw new BadRequestException(
+        'Không còn chỗ trong một hoặc nhiều ngày đã chọn',
+      );
+    }
+
+    const shippingAddress =
+      dto.shippingAddress === undefined
+        ? booking.shippingAddress
+        : dto.shippingAddress?.trim() || null;
+
+    this.assertDeliveryAllowed(booking.customer, shippingAddress);
+
+    const amount = await this.computeBookingAmount(
+      dto.cameraId,
+      dto.startDate,
+      dto.endDate,
+      dto.slot,
+      shippingAddress,
+    );
+
+    const { startBookingDate } = slotWindow(dto.startDate, dto.slot);
+    const { endBookingDate } = slotWindow(dto.endDate, dto.slot);
+    const pickupAt = this.resolvePickupAt(dto.startDate, dto.slot, dto.pickupAt);
+
+    return this.prisma.booking.update({
+      where: { id },
+      data: {
+        cameraId: dto.cameraId,
+        startBookingDate,
+        endBookingDate,
+        slot: dto.slot,
+        pickupAt,
+        amount,
+        note: dto.note !== undefined ? dto.note : booking.note,
+        shippingAddress,
+      },
+      include: bookingInclude,
+    });
+  }
+
   async createCustomerBooking(dto: CreateCustomerBookingDto) {
     const customer = await this.prisma.customer.findUnique({
       where: { id: dto.customerId },
@@ -544,37 +624,49 @@ export class BookingService {
   }
 
   async create(dto: CreateBookingDto) {
-    try {
-      return await this.prisma.booking.create({
-        data: {
-          bookingCode: dto.bookingCode,
-          customerId: dto.customerId,
-          cameraId: dto.cameraId,
-          startBookingDate: new Date(dto.startBookingDate),
-          endBookingDate: new Date(dto.endBookingDate),
-          slot: dto.slot,
-          pickupAt: dto.pickupAt ? new Date(dto.pickupAt) : undefined,
-          amount: dto.amount,
-          note: dto.note,
-          shippingAddress: dto.shippingAddress,
-          paymentStatus: dto.paymentStatus,
-          status: dto.status,
-        },
-        include: bookingInclude,
-      });
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2002') {
-          throw new ConflictException('Mã booking đã tồn tại.');
-        }
-        if (e.code === 'P2003') {
-          throw new ConflictException(
-            'customerId hoặc cameraId không hợp lệ (không tồn tại).',
-          );
-        }
-      }
-      throw e;
+    let bookingCode = dto.bookingCode?.trim();
+    if (!bookingCode) {
+      bookingCode = await this.generateBookingCode();
     }
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await this.prisma.booking.create({
+          data: {
+            bookingCode,
+            customerId: dto.customerId,
+            cameraId: dto.cameraId,
+            startBookingDate: new Date(dto.startBookingDate),
+            endBookingDate: new Date(dto.endBookingDate),
+            slot: dto.slot,
+            pickupAt: dto.pickupAt ? new Date(dto.pickupAt) : undefined,
+            amount: dto.amount,
+            note: dto.note,
+            shippingAddress: dto.shippingAddress,
+            paymentStatus: dto.paymentStatus,
+            status: dto.status,
+          },
+          include: bookingInclude,
+        });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError) {
+          if (e.code === 'P2002' && !dto.bookingCode?.trim()) {
+            bookingCode = await this.generateBookingCode();
+            continue;
+          }
+          if (e.code === 'P2002') {
+            throw new ConflictException('Mã booking đã tồn tại.');
+          }
+          if (e.code === 'P2003') {
+            throw new ConflictException(
+              'customerId hoặc cameraId không hợp lệ (không tồn tại).',
+            );
+          }
+        }
+        throw e;
+      }
+    }
+    throw new ConflictException('Mã booking đã tồn tại, thử lại.');
   }
 
   async update(id: string, dto: UpdateBookingDto) {

@@ -23,6 +23,7 @@ import { Public } from '../auth/public.decorator';
 import { BookingService } from './booking.service';
 import { CancelCustomerBookingDto } from './dto/cancel-customer-booking.dto';
 import { RequestChangeCustomerBookingDto } from './dto/request-change-customer-booking.dto';
+import { UpdatePendingCustomerBookingDto } from './dto/update-pending-customer-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCustomerBookingDto } from './dto/create-customer-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
@@ -86,6 +87,18 @@ export class BookingController {
     @Body() dto: RequestChangeCustomerBookingDto,
   ) {
     return this.bookingService.requestChangeCustomerBooking(id, dto);
+  }
+
+  @Public()
+  @Post('customer/:id/update-pending')
+  @ApiOperation({ summary: 'Khách sửa đơn chờ cọc (trước khi thanh toán)' })
+  @ApiOkResponse()
+  @ApiNotFoundResponse()
+  updatePending(
+    @Param('id') id: string,
+    @Body() dto: UpdatePendingCustomerBookingDto,
+  ) {
+    return this.bookingService.updatePendingCustomerBooking(id, dto);
   }
 
   @Get(':id')

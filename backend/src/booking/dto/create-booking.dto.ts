@@ -16,10 +16,14 @@ import {
 import { IsEndBookingAfterStart } from './booking-date-range.validator';
 
 export class CreateBookingDto {
-  @ApiProperty({ example: 'DH-2026-0001' })
+  @ApiPropertyOptional({
+    example: 'DH-2026-0001',
+    description: 'Bỏ trống để hệ thống tự sinh mã',
+  })
+  @IsOptional()
   @IsString()
   @MaxLength(64)
-  bookingCode: string;
+  bookingCode?: string;
 
   @ApiProperty()
   @IsString()
