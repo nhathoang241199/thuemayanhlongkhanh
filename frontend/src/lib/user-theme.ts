@@ -56,3 +56,20 @@ export const userStickyBarProps = {
   borderTopWidth: "1px",
   borderColor: "cerulean.300",
 };
+
+/** Lưu ý quan trọng (vd. sạc pin) — nền vàng nhạt */
+export const userWarningNoteProps = {
+  bg: "yellow.50",
+  borderWidth: "1px",
+  borderColor: "yellow.200",
+  borderRadius: "md",
+  px: 3,
+  py: 2,
+  w: "full",
+} as const;
+
+export const userWarningNoteTextProps = {
+  fontSize: "xs",
+  lineHeight: "tall",
+  color: "yellow.900",
+} as const;

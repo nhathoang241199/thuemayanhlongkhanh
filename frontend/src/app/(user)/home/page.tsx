@@ -56,6 +56,8 @@ import {
   userBookingCardProps,
   userFieldInputProps,
   userOutlineButtonProps,
+  userWarningNoteProps,
+  userWarningNoteTextProps,
 } from "@/lib/user-theme";
 
 const GUIDE_STATUSES = new Set(["CONFIRMED", "RENTING", "LATE_RETURN"]);
@@ -320,10 +322,12 @@ export default function UserHomePage() {
                         {formatPickupAtVi(b.pickupAt)}
                       </Text>
                     </Text>
-                    <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-                      Lưu ý: Vui lòng tự sạc pin khoảng 20 phút sau khi nhận máy
-                      để sử dụng.
-                    </Text>
+                    <Box {...userWarningNoteProps}>
+                      <Text {...userWarningNoteTextProps}>
+                        Lưu ý: Vui lòng tự sạc pin khoảng 20 phút sau khi nhận
+                        máy để sử dụng.
+                      </Text>
+                    </Box>
                   </Stack>
                 ) : null}
                 <Text fontSize="sm" fontWeight="medium">

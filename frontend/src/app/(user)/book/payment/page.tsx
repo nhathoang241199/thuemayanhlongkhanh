@@ -30,6 +30,8 @@ import {
   titleColor,
   userCardProps,
   userOutlineButtonProps,
+  userWarningNoteProps,
+  userWarningNoteTextProps,
 } from "@/lib/user-theme";
 
 const vnd = new Intl.NumberFormat("vi-VN", {
@@ -256,9 +258,13 @@ function PaymentContent() {
                 </Text>
               ) : null}
               <Text fontSize="xs" color="fg.muted" lineHeight="tall" textAlign="left">
-                Bạn có thể đến sớm hơn giờ nhận máy đã chọn (nếu phù hợp). Vui
-                lòng tự sạc pin sau khi nhận máy.
+                Bạn có thể đến sớm hơn giờ nhận máy đã chọn (nếu phù hợp).
               </Text>
+              <Box {...userWarningNoteProps} textAlign="left">
+                <Text {...userWarningNoteTextProps}>
+                  Lưu ý: Vui lòng tự sạc pin sau khi nhận máy.
+                </Text>
+              </Box>
             </Stack>
             {tutorialVideoUrl ? (
               <Stack gap={2} w="full" textAlign="left">
