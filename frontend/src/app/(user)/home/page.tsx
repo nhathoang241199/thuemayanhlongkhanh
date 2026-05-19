@@ -324,7 +324,7 @@ export default function UserHomePage() {
                     </Text>
                     <Box {...userWarningNoteProps}>
                       <Text {...userWarningNoteTextProps}>
-                        Lưu ý: Vui lòng tự sạc pin khoảng 20 phút sau khi nhận
+                        Lưu ý: Vui lòng sạc pin khoảng 20 phút sau khi nhận
                         máy để sử dụng.
                       </Text>
                     </Box>

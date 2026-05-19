@@ -262,7 +262,7 @@ function PaymentContent() {
               </Text>
               <Box {...userWarningNoteProps} textAlign="left">
                 <Text {...userWarningNoteTextProps}>
-                  Lưu ý: Vui lòng tự sạc pin sau khi nhận máy.
+                  Lưu ý: Vui lòng sạc pin sau khi nhận máy.
                 </Text>
               </Box>
             </Stack>

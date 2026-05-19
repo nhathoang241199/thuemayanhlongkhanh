@@ -66,6 +66,7 @@ export const userWarningNoteProps = {
   px: 3,
   py: 2,
   w: "full",
+  mt: 2
 } as const;
 
 export const userWarningNoteTextProps = {
