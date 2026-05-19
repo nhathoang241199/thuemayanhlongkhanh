@@ -1463,7 +1463,7 @@ export default function AdminBookingsPage() {
                             {cameraFilterLabel(c)}
                           </option>
                         ))}
-                      </NativeSelectRoot>
+                      </NativeSelectField>
                       <NativeSelectIndicator />
                     </NativeSelectRoot>
                   </Stack>
