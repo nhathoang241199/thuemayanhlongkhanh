@@ -115,6 +115,29 @@ export function validatePickupAtLocal(
   }
 }
 
+/** Ngày thuê (YYYY-MM-DD) + buổi → ISO bắt đầu/kết thúc (đồng bộ backend slotWindow). */
+export function slotBookingRangeToIso(
+  rangeStart: string,
+  rangeEnd: string,
+  slot: BookingSlot,
+): { startBookingDate: string; endBookingDate: string } {
+  const w = SLOT_TIME_WINDOWS[slot];
+  return {
+    startBookingDate: datetimeLocalToIso(
+      toDatetimeLocalValue(rangeStart, w.startHour, 0),
+    ),
+    endBookingDate: datetimeLocalToIso(
+      toDatetimeLocalValue(rangeEnd, w.endHour, 0),
+    ),
+  };
+}
+
+/** ISO UTC → YYYY-MM-DD theo lịch VN. */
+export function isoToCalendarDateKey(iso: string): string {
+  const local = isoToDatetimeLocal(iso);
+  return local ? local.slice(0, 10) : "";
+}
+
 /** Coi chuỗi datetime-local là giờ VN (UTC+7) → ISO UTC. */
 export function datetimeLocalToIso(local: string): string {
   const { datePart, totalMinutes } = pickupLocalParts(local);

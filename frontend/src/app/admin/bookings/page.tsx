@@ -50,16 +50,35 @@ import {
   Textarea,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
+import { MonthCalendar } from "@/components/booking/month-calendar";
 import {
   getQuickAdvancePatch,
   quickAdvanceToastMessages,
 } from "@/lib/admin-booking-quick-advance";
-import { datetimeLocalToIso, isoToDatetimeLocal } from "@/lib/datetime-vn";
+import { identifyCustomer } from "@/lib/api";
+import {
+  dayCountInclusive,
+  fetchCalendarMonth,
+  type CalendarDay,
+} from "@/lib/booking-api";
+import {
+  datetimeLocalToIso,
+  isoToCalendarDateKey,
+  isoToDatetimeLocal,
+  slotBookingRangeToIso,
+} from "@/lib/datetime-vn";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
+import type { BookingSlot } from "@/lib/booking-api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { BRAND_LABEL } from "@/lib/camera-brands";
 import { apiBase } from "@/lib/api-base";
-import { APP_COLOR_PALETTE, cardSurfaceProps, fieldInputProps } from "@/lib/app-theme";
+import {
+  APP_COLOR_PALETTE,
+  cardSurfaceProps,
+  fieldInputProps,
+  titleColor,
+} from "@/lib/app-theme";
 import { toaster } from "@/lib/toaster";
 
 type BookingCustomer = {
@@ -319,7 +338,11 @@ const BOOKING_PAYMENT_EDIT_OPTIONS: {
 type BookingEditForm = {
   bookingCode: string;
   customerId: string;
+  customerName: string;
+  customerPhone: string;
   cameraId: string;
+  rangeStart: string;
+  rangeEnd: string;
   startBookingDateLocal: string;
   endBookingDateLocal: string;
   slot: string;
@@ -331,11 +354,21 @@ type BookingEditForm = {
   status: BookingStatusValue;
 };
 
+function nowCalendarYm(): { year: number; month: number } {
+  const t = new Date();
+  const vn = new Date(t.getTime() + 7 * 60 * 60 * 1000);
+  return { year: vn.getUTCFullYear(), month: vn.getUTCMonth() + 1 };
+}
+
 function bookingToEditForm(b: Booking): BookingEditForm {
   return {
     bookingCode: b.bookingCode,
     customerId: b.customerId,
+    customerName: b.customer.name,
+    customerPhone: b.customer.phone,
     cameraId: b.cameraId,
+    rangeStart: isoToCalendarDateKey(b.startBookingDate),
+    rangeEnd: isoToCalendarDateKey(b.endBookingDate),
     startBookingDateLocal: isoToDatetimeLocal(b.startBookingDate),
     endBookingDateLocal: isoToDatetimeLocal(b.endBookingDate),
     slot: b.slot,
@@ -352,7 +385,11 @@ function emptyBookingForm(): BookingEditForm {
   return {
     bookingCode: "",
     customerId: "",
+    customerName: "",
+    customerPhone: "",
     cameraId: "",
+    rangeStart: "",
+    rangeEnd: "",
     startBookingDateLocal: "",
     endBookingDateLocal: "",
     slot: "FULL_DAY",
@@ -375,6 +412,14 @@ const PAYMENT_FILTER_OPTIONS: { value: PaymentStatusFilter; label: string }[] =
   ];
 
 type SearchField = "phone" | "name" | "bookingCode";
+
+type CameraFilter = "ALL" | string;
+
+function cameraFilterLabel(c: AdminCameraOption): string {
+  const brand =
+    BRAND_LABEL[c.brand as keyof typeof BRAND_LABEL] ?? c.brand;
+  return `${brand} — ${c.name}`;
+}
 
 function normalizePhoneDigits(s: string): string {
   return s.replace(/\D/g, "");
@@ -588,6 +633,10 @@ export default function AdminBookingsPage() {
   const [editCustomers, setEditCustomers] = useState<AdminCustomerOption[]>([]);
   const [editCameras, setEditCameras] = useState<AdminCameraOption[]>([]);
   const [editOptionsLoading, setEditOptionsLoading] = useState(false);
+  const [createCalendarYm, setCreateCalendarYm] = useState(nowCalendarYm);
+  const [createCalendarDays, setCreateCalendarDays] = useState<
+    CalendarDay[] | undefined
+  >(undefined);
   const [searchField, setSearchField] = useState<SearchField>("phone");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDateKey, setFilterDateKey] = useState(todayLocalDateKey);
@@ -597,6 +646,8 @@ export default function AdminBookingsPage() {
   const [paymentStatusFilter, setPaymentStatusFilter] =
     useState<PaymentStatusFilter>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [cameraFilter, setCameraFilter] = useState<CameraFilter>("ALL");
+  const [filterCameras, setFilterCameras] = useState<AdminCameraOption[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(30);
 
@@ -715,21 +766,30 @@ export default function AdminBookingsPage() {
     [patchBooking],
   );
 
-  const loadBookingFormOptions = useCallback(async () => {
+  const loadBookingFormOptions = useCallback(async (mode: "create" | "edit") => {
     setEditOptionsLoading(true);
     setEditError(null);
     try {
-      const [custRes, camRes] = await Promise.all([
-        fetch(`${apiBase()}/api/customers`, { credentials: "include" }),
-        fetch(`${apiBase()}/api/cameras`, { credentials: "include" }),
-      ]);
-      if (!custRes.ok || !camRes.ok) {
-        throw new Error("Không tải được danh sách khách hoặc máy");
+      const camRes = await fetch(`${apiBase()}/api/cameras`, {
+        credentials: "include",
+      });
+      if (!camRes.ok) {
+        throw new Error("Không tải được danh sách máy");
       }
-      const customers = (await custRes.json()) as AdminCustomerOption[];
       const cameras = (await camRes.json()) as AdminCameraOption[];
-      setEditCustomers(customers);
       setEditCameras(cameras);
+      if (mode === "edit") {
+        const custRes = await fetch(`${apiBase()}/api/customers`, {
+          credentials: "include",
+        });
+        if (!custRes.ok) {
+          throw new Error("Không tải được danh sách khách");
+        }
+        const customers = (await custRes.json()) as AdminCustomerOption[];
+        setEditCustomers(customers);
+      } else {
+        setEditCustomers([]);
+      }
     } catch (e) {
       setEditError(
         e instanceof Error ? e.message : "Không tải được dữ liệu form",
@@ -744,7 +804,9 @@ export default function AdminBookingsPage() {
     setEditingBooking(null);
     setEditForm(emptyBookingForm());
     setEditError(null);
-    void loadBookingFormOptions();
+    setCreateCalendarYm(nowCalendarYm());
+    setCreateCalendarDays(undefined);
+    void loadBookingFormOptions("create");
   }, [loadBookingFormOptions]);
 
   const openEditBooking = useCallback(
@@ -753,7 +815,7 @@ export default function AdminBookingsPage() {
       setEditingBooking(booking);
       setEditForm(bookingToEditForm(booking));
       setEditError(null);
-      void loadBookingFormOptions();
+      void loadBookingFormOptions("edit");
     },
     [loadBookingFormOptions],
   );
@@ -765,7 +827,29 @@ export default function AdminBookingsPage() {
     setEditError(null);
     setEditCustomers([]);
     setEditCameras([]);
+    setCreateCalendarDays(undefined);
   }, []);
+
+  const createFormDayCount = useMemo(() => {
+    if (!editForm?.rangeStart || !editForm.rangeEnd) return 0;
+    return dayCountInclusive(editForm.rangeStart, editForm.rangeEnd);
+  }, [editForm]);
+
+  const createFormForceFullDay = createFormDayCount >= 2;
+
+  useEffect(() => {
+    if (bookingFormMode !== "create" || !editForm?.cameraId) {
+      setCreateCalendarDays(undefined);
+      return;
+    }
+    void fetchCalendarMonth(
+      editForm.cameraId,
+      createCalendarYm.year,
+      createCalendarYm.month,
+    )
+      .then((data) => setCreateCalendarDays(data.days))
+      .catch(() => setCreateCalendarDays(undefined));
+  }, [bookingFormMode, editForm?.cameraId, createCalendarYm]);
 
   const createBooking = useCallback(
     async (body: Record<string, unknown>) => {
@@ -790,35 +874,61 @@ export default function AdminBookingsPage() {
     if (!bookingFormMode || !editForm) return;
     const amount = Number.parseInt(editForm.amount, 10);
     const isCreate = bookingFormMode === "create";
-    if (
-      (!isCreate && !editForm.bookingCode.trim()) ||
-      !editForm.customerId ||
-      !editForm.cameraId
-    ) {
-      setEditError(
-        isCreate
-          ? "Vui lòng chọn khách và máy."
-          : "Vui lòng điền đủ mã đơn, khách và máy.",
-      );
-      return;
+
+    if (isCreate) {
+      if (!editForm.customerName.trim() || !editForm.customerPhone.trim()) {
+        setEditError("Vui lòng nhập tên và số điện thoại khách.");
+        return;
+      }
+      if (!editForm.cameraId) {
+        setEditError("Vui lòng chọn máy ảnh.");
+        return;
+      }
+      if (!editForm.rangeStart || !editForm.rangeEnd) {
+        setEditError("Vui lòng chọn ngày sử dụng máy.");
+        return;
+      }
+    } else {
+      if (
+        !editForm.bookingCode.trim() ||
+        !editForm.customerId ||
+        !editForm.cameraId
+      ) {
+        setEditError("Vui lòng điền đủ mã đơn, khách và máy.");
+        return;
+      }
+      if (!editForm.startBookingDateLocal || !editForm.endBookingDateLocal) {
+        setEditError("Vui lòng chọn ngày bắt đầu và kết thúc.");
+        return;
+      }
     }
-    if (!editForm.startBookingDateLocal || !editForm.endBookingDateLocal) {
-      setEditError("Vui lòng chọn ngày bắt đầu và kết thúc.");
-      return;
-    }
+
     if (!Number.isFinite(amount) || amount < 0) {
       setEditError("Số tiền không hợp lệ.");
       return;
     }
+
     let startBookingDate: string;
     let endBookingDate: string;
     try {
-      startBookingDate = datetimeLocalToIso(editForm.startBookingDateLocal);
-      endBookingDate = datetimeLocalToIso(editForm.endBookingDateLocal);
+      if (isCreate) {
+        const slot = (
+          createFormForceFullDay ? "FULL_DAY" : editForm.slot
+        ) as BookingSlot;
+        ({ startBookingDate, endBookingDate } = slotBookingRangeToIso(
+          editForm.rangeStart,
+          editForm.rangeEnd,
+          slot,
+        ));
+      } else {
+        startBookingDate = datetimeLocalToIso(editForm.startBookingDateLocal);
+        endBookingDate = datetimeLocalToIso(editForm.endBookingDateLocal);
+      }
     } catch {
       setEditError("Ngày/giờ thuê không hợp lệ.");
       return;
     }
+
     let pickupAt: string | null = null;
     if (editForm.pickupAtLocal.trim()) {
       try {
@@ -828,30 +938,40 @@ export default function AdminBookingsPage() {
         return;
       }
     }
-    const payload = {
-      customerId: editForm.customerId,
-      cameraId: editForm.cameraId,
-      startBookingDate,
-      endBookingDate,
-      slot: editForm.slot,
-      pickupAt,
-      amount,
-      note: editForm.note.trim() || null,
-      shippingAddress: editForm.shippingAddress.trim() || null,
-      paymentStatus: editForm.paymentStatus,
-      status: editForm.status,
-    };
+
+    const slot = (createFormForceFullDay && isCreate
+      ? "FULL_DAY"
+      : editForm.slot) as BookingSlot;
 
     void (async () => {
       setEditSaving(true);
       setEditError(null);
       try {
+        let customerId = editForm.customerId;
         if (isCreate) {
-          const code = editForm.bookingCode.trim();
-          const created = await createBooking({
-            ...payload,
-            ...(code ? { bookingCode: code } : {}),
-          });
+          const identified = await identifyCustomer(
+            editForm.customerName.trim(),
+            editForm.customerPhone.trim(),
+          );
+          customerId = identified.customer.id;
+        }
+
+        const payload = {
+          customerId,
+          cameraId: editForm.cameraId,
+          startBookingDate,
+          endBookingDate,
+          slot,
+          pickupAt,
+          amount,
+          note: editForm.note.trim() || null,
+          shippingAddress: editForm.shippingAddress.trim() || null,
+          paymentStatus: editForm.paymentStatus,
+          status: editForm.status,
+        };
+
+        if (isCreate) {
+          const created = await createBooking(payload);
           toaster.success({ title: `Đã tạo đơn ${created.bookingCode}` });
         } else if (editingBooking) {
           const updated = await patchBooking(editingBooking.id, {
@@ -880,6 +1000,7 @@ export default function AdminBookingsPage() {
     patchBooking,
     createBooking,
     closeBookingForm,
+    createFormForceFullDay,
   ]);
 
   const handleBookingDelete = useCallback((booking: Booking) => {
@@ -935,6 +1056,9 @@ export default function AdminBookingsPage() {
       ) {
         return false;
       }
+      if (cameraFilter !== "ALL" && b.cameraId !== cameraFilter) {
+        return false;
+      }
       return bookingMatchesSearch(b, searchField, searchQuery);
     });
     if (filterByPickupTime && !showAllDates) {
@@ -954,6 +1078,7 @@ export default function AdminBookingsPage() {
     filterByPickupTime,
     statusFilter,
     paymentStatusFilter,
+    cameraFilter,
   ]);
 
   const totalFiltered = filteredBookings.length;
@@ -993,6 +1118,21 @@ export default function AdminBookingsPage() {
     void loadBookings(ac.signal);
     return () => ac.abort();
   }, [loadBookings]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(`${apiBase()}/api/cameras`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          setFilterCameras((await res.json()) as AdminCameraOption[]);
+        }
+      } catch {
+        setFilterCameras([]);
+      }
+    })();
+  }, []);
 
   return (
     <Stack gap={6}>
@@ -1037,6 +1177,7 @@ export default function AdminBookingsPage() {
                     showAllDates &&
                     statusFilter === "ALL" &&
                     paymentStatusFilter === "ALL" &&
+                    cameraFilter === "ALL" &&
                     searchQuery.trim() === ""
                       ? "solid"
                       : "outline"
@@ -1046,6 +1187,7 @@ export default function AdminBookingsPage() {
                     setShowAllDates(true);
                     setStatusFilter("ALL");
                     setPaymentStatusFilter("ALL");
+                    setCameraFilter("ALL");
                     setSearchQuery("");
                     setPage(1);
                   }}
@@ -1061,6 +1203,7 @@ export default function AdminBookingsPage() {
                     filterDateKey === todayLocalDateKey() &&
                     statusFilter === "ALL" &&
                     paymentStatusFilter === "ALL" &&
+                    cameraFilter === "ALL" &&
                     searchQuery.trim() === ""
                       ? "solid"
                       : "outline"
@@ -1072,6 +1215,7 @@ export default function AdminBookingsPage() {
                     setFilterDateKey(todayLocalDateKey());
                     setStatusFilter("ALL");
                     setPaymentStatusFilter("ALL");
+                    setCameraFilter("ALL");
                     setSearchQuery("");
                     setPage(1);
                   }}
@@ -1085,6 +1229,7 @@ export default function AdminBookingsPage() {
                     showAllDates &&
                     statusFilter === "RENTING" &&
                     paymentStatusFilter === "ALL" &&
+                    cameraFilter === "ALL" &&
                     searchQuery.trim() === ""
                       ? "solid"
                       : "outline"
@@ -1094,6 +1239,7 @@ export default function AdminBookingsPage() {
                     setShowAllDates(true);
                     setStatusFilter("RENTING");
                     setPaymentStatusFilter("ALL");
+                    setCameraFilter("ALL");
                     setSearchQuery("");
                     setPage(1);
                   }}
@@ -1107,6 +1253,7 @@ export default function AdminBookingsPage() {
                     showAllDates &&
                     statusFilter === "PENDING_PAYMENT" &&
                     paymentStatusFilter === "ALL" &&
+                    cameraFilter === "ALL" &&
                     searchQuery.trim() === ""
                       ? "solid"
                       : "outline"
@@ -1116,6 +1263,7 @@ export default function AdminBookingsPage() {
                     setShowAllDates(true);
                     setStatusFilter("PENDING_PAYMENT");
                     setPaymentStatusFilter("ALL");
+                    setCameraFilter("ALL");
                     setSearchQuery("");
                     setPage(1);
                   }}
@@ -1289,6 +1437,36 @@ export default function AdminBookingsPage() {
                       <NativeSelectIndicator />
                     </NativeSelectRoot>
                   </Stack>
+                  <Stack gap={2} align="flex-start" minW="11rem">
+                    <Text
+                      fontSize="sm"
+                      fontWeight="medium"
+                      color="fg.muted"
+                    >
+                      Máy ảnh
+                    </Text>
+                    <NativeSelectRoot size="sm" w="full" minW="11rem">
+                      <NativeSelectField
+                        value={cameraFilter}
+                        bg="white"
+                        borderWidth="1px"
+                        borderColor="gray.200"
+                        onChange={(e) => {
+                          setCameraFilter(e.target.value);
+                          setPage(1);
+                        }}
+                        aria-label="Lọc theo máy ảnh"
+                      >
+                        <option value="ALL">Tất cả</option>
+                        {filterCameras.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {cameraFilterLabel(c)}
+                          </option>
+                        ))}
+                      </NativeSelectRoot>
+                      <NativeSelectIndicator />
+                    </NativeSelectRoot>
+                  </Stack>
                 </HStack>
                 <Stack
                   gap={2}
@@ -1398,8 +1576,8 @@ export default function AdminBookingsPage() {
               <Box px={4} py={8}>
                 <Text color="fg.muted" textAlign="center">
                   {showAllDates
-                    ? "Không có đơn phù hợp bộ lọc trạng thái hoặc tìm kiếm."
-                    : "Không có đơn trong ngày đã chọn, bộ lọc trạng thái đơn/thanh toán hoặc khớp tìm kiếm."}
+                    ? "Không có đơn phù hợp bộ lọc trạng thái, máy ảnh hoặc tìm kiếm."
+                    : "Không có đơn trong ngày đã chọn, bộ lọc trạng thái/thanh toán/máy hoặc khớp tìm kiếm."}
                 </Text>
               </Box>
             ) : (
@@ -1727,58 +1905,82 @@ export default function AdminBookingsPage() {
                       {editError}
                     </Text>
                   ) : null}
-                  <Box>
-                    <Text fontSize="sm" fontWeight="medium" mb={1}>
-                      Mã đơn
-                      {bookingFormMode === "create" ? (
-                        <Text as="span" fontWeight="normal" color="fg.muted">
-                          {" "}
-                          (tuỳ chọn)
-                        </Text>
-                      ) : null}
-                    </Text>
-                    <Input
-                      value={editForm.bookingCode}
-                      maxLength={64}
-                      placeholder={
-                        bookingFormMode === "create"
-                          ? "Để trống — hệ thống tự sinh"
-                          : undefined
-                      }
-                      {...fieldInputProps}
-                      onChange={(e) =>
-                        setEditForm((f) =>
-                          f ? { ...f, bookingCode: e.target.value } : f,
-                        )
-                      }
-                    />
-                  </Box>
-                  <Box>
-                    <Text fontSize="sm" fontWeight="medium" mb={1}>
-                      Khách hàng
-                    </Text>
-                    <NativeSelectRoot size="md">
-                      <NativeSelectField
-                        value={editForm.customerId}
+                  {bookingFormMode === "edit" ? (
+                    <Box>
+                      <Text fontSize="sm" fontWeight="medium" mb={1}>
+                        Mã đơn
+                      </Text>
+                      <Input
+                        value={editForm.bookingCode}
+                        maxLength={64}
                         {...fieldInputProps}
                         onChange={(e) =>
                           setEditForm((f) =>
-                            f ? { ...f, customerId: e.target.value } : f,
+                            f ? { ...f, bookingCode: e.target.value } : f,
                           )
                         }
-                      >
-                        {bookingFormMode === "create" ? (
-                          <option value="">— Chọn khách —</option>
-                        ) : null}
-                        {editCustomers.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} — {c.phone}
-                          </option>
-                        ))}
-                      </NativeSelectField>
-                      <NativeSelectIndicator />
-                    </NativeSelectRoot>
-                  </Box>
+                      />
+                    </Box>
+                  ) : null}
+                  {bookingFormMode === "create" ? (
+                    <HStack gap={3} align="flex-start" flexWrap="wrap">
+                      <Box flex="1" minW="10rem">
+                        <Text fontSize="sm" fontWeight="medium" mb={1}>
+                          Tên khách
+                        </Text>
+                        <Input
+                          value={editForm.customerName}
+                          maxLength={120}
+                          {...fieldInputProps}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f ? { ...f, customerName: e.target.value } : f,
+                            )
+                          }
+                        />
+                      </Box>
+                      <Box flex="1" minW="10rem">
+                        <Text fontSize="sm" fontWeight="medium" mb={1}>
+                          Số điện thoại
+                        </Text>
+                        <Input
+                          type="tel"
+                          value={editForm.customerPhone}
+                          maxLength={20}
+                          {...fieldInputProps}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f ? { ...f, customerPhone: e.target.value } : f,
+                            )
+                          }
+                        />
+                      </Box>
+                    </HStack>
+                  ) : (
+                    <Box>
+                      <Text fontSize="sm" fontWeight="medium" mb={1}>
+                        Khách hàng
+                      </Text>
+                      <NativeSelectRoot size="md">
+                        <NativeSelectField
+                          value={editForm.customerId}
+                          {...fieldInputProps}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f ? { ...f, customerId: e.target.value } : f,
+                            )
+                          }
+                        >
+                          {editCustomers.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} — {c.phone}
+                            </option>
+                          ))}
+                        </NativeSelectField>
+                        <NativeSelectIndicator />
+                      </NativeSelectRoot>
+                    </Box>
+                  )}
                   <Box>
                     <Text fontSize="sm" fontWeight="medium" mb={1}>
                       Máy ảnh
@@ -1789,7 +1991,15 @@ export default function AdminBookingsPage() {
                         {...fieldInputProps}
                         onChange={(e) =>
                           setEditForm((f) =>
-                            f ? { ...f, cameraId: e.target.value } : f,
+                            f
+                              ? {
+                                  ...f,
+                                  cameraId: e.target.value,
+                                  ...(bookingFormMode === "create"
+                                    ? { rangeStart: "", rangeEnd: "" }
+                                    : {}),
+                                }
+                              : f,
                           )
                         }
                       >
@@ -1805,47 +2015,111 @@ export default function AdminBookingsPage() {
                       <NativeSelectIndicator />
                     </NativeSelectRoot>
                   </Box>
-                  <HStack gap={3} align="flex-start" flexWrap="wrap">
-                    <Box flex="1" minW="12rem">
-                      <Text fontSize="sm" fontWeight="medium" mb={1}>
-                        Bắt đầu thuê
-                      </Text>
-                      <Input
-                        type="datetime-local"
-                        value={editForm.startBookingDateLocal}
-                        {...fieldInputProps}
-                        onChange={(e) =>
-                          setEditForm((f) =>
-                            f
-                              ? { ...f, startBookingDateLocal: e.target.value }
-                              : f,
-                          )
-                        }
-                      />
+                  {bookingFormMode === "create" ? (
+                    <Box>
+                      <Stack gap={1} mb={2}>
+                        <Text fontSize="sm" fontWeight="medium" color={titleColor}>
+                          Ngày sử dụng máy
+                        </Text>
+                        <Text fontSize="xs" color="fg.muted" lineHeight="tall">
+                          Chọn ngày khách thực sự dùng máy (không tính đêm nhận
+                          sớm). Giờ bắt đầu/kết thúc thuê theo buổi bên dưới.
+                        </Text>
+                      </Stack>
+                      {editForm.cameraId ? (
+                        <MonthCalendar
+                          year={createCalendarYm.year}
+                          month={createCalendarYm.month}
+                          days={createCalendarDays}
+                          startDate={editForm.rangeStart || null}
+                          endDate={editForm.rangeEnd || null}
+                          onViewChange={(y, m) =>
+                            setCreateCalendarYm({ year: y, month: m })
+                          }
+                          onRangeChange={(start, end) => {
+                            setEditForm((f) => {
+                              if (!f) return f;
+                              const dc = dayCountInclusive(start, end);
+                              return {
+                                ...f,
+                                rangeStart: start,
+                                rangeEnd: end,
+                                slot: dc >= 2 ? "FULL_DAY" : f.slot,
+                              };
+                            });
+                          }}
+                        />
+                      ) : (
+                        <Text fontSize="sm" color="fg.muted">
+                          Chọn máy ảnh để hiển thị lịch.
+                        </Text>
+                      )}
+                      {createFormDayCount >= 2 ? (
+                        <Text fontSize="sm" color="fg.muted" mt={2}>
+                          {createFormDayCount} ngày — tự chọn buổi Cả ngày
+                        </Text>
+                      ) : null}
                     </Box>
-                    <Box flex="1" minW="12rem">
-                      <Text fontSize="sm" fontWeight="medium" mb={1}>
-                        Kết thúc thuê
-                      </Text>
-                      <Input
-                        type="datetime-local"
-                        value={editForm.endBookingDateLocal}
-                        {...fieldInputProps}
-                        onChange={(e) =>
-                          setEditForm((f) =>
-                            f
-                              ? { ...f, endBookingDateLocal: e.target.value }
-                              : f,
-                          )
-                        }
-                      />
-                    </Box>
-                  </HStack>
+                  ) : (
+                    <HStack gap={3} align="flex-start" flexWrap="wrap">
+                      <Box flex="1" minW="12rem">
+                        <Text fontSize="sm" fontWeight="medium" mb={1}>
+                          Bắt đầu thuê
+                        </Text>
+                        <Input
+                          type="datetime-local"
+                          value={editForm.startBookingDateLocal}
+                          {...fieldInputProps}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f
+                                ? {
+                                    ...f,
+                                    startBookingDateLocal: e.target.value,
+                                  }
+                                : f,
+                            )
+                          }
+                        />
+                      </Box>
+                      <Box flex="1" minW="12rem">
+                        <Text fontSize="sm" fontWeight="medium" mb={1}>
+                          Kết thúc thuê
+                        </Text>
+                        <Input
+                          type="datetime-local"
+                          value={editForm.endBookingDateLocal}
+                          {...fieldInputProps}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f
+                                ? {
+                                    ...f,
+                                    endBookingDateLocal: e.target.value,
+                                  }
+                                : f,
+                            )
+                          }
+                        />
+                      </Box>
+                    </HStack>
+                  )}
                   <Box>
                     <Text fontSize="sm" fontWeight="medium" mb={1}>
                       Buổi
+                      {bookingFormMode === "create" ? (
+                        <Text as="span" fontWeight="normal" color="fg.muted">
+                          {" "}
+                          ({slotTimeRangeLabel(editForm.slot)})
+                        </Text>
+                      ) : null}
                     </Text>
-                    <NativeSelectRoot size="md">
+                    <NativeSelectRoot
+                      size="md"
+                      disabled={
+                        bookingFormMode === "create" && createFormForceFullDay
+                      }
+                    >
                       <NativeSelectField
                         value={editForm.slot}
                         {...fieldInputProps}
