@@ -53,6 +53,7 @@ import {
 import { DELIVERY_FEE_VND } from "@/lib/booking-status";
 import {
   datetimeLocalToIso,
+  formatPickupAtLocalVi,
   isSundayYmd,
   slotPickupBounds,
   validatePickupAtLocal,
@@ -737,9 +738,59 @@ function BookPageContent() {
     return !!slot && slotAvailability[slot] === true;
   }
 
+  function renderPickupTimeFields() {
+    if (!startDate || !effectiveSlot || !pickupBounds) return null;
+    if (!forceFullDay && (!slot || slotAvailability?.[slot] !== true)) {
+      return null;
+    }
+    return (
+      <Stack gap={1} align="stretch">
+        <Text fontSize="sm" fontWeight="medium" color={titleColor}>
+          Thời gian nhận máy{" "}
+          <Text as="span" color="red.500">
+            *
+          </Text>
+        </Text>
+        <Input
+          type="datetime-local"
+          size="md"
+          required
+          value={pickupAtLocal}
+          min={pickupBounds.minLocal}
+          max={pickupBounds.maxLocal}
+          onChange={(e) => setPickupAtLocal(e.target.value)}
+          {...userFieldInputProps}
+        />
+        {effectiveSlot === "FULL_DAY" ? (
+          <Text fontSize="xs" color="fg.muted" lineHeight="tall">
+            Khi thuê tối thiểu 1 ngày, bạn có thể nhận máy sớm từ tối đêm trước
+            ngày thuê. Đối với tối thứ 7 vui lòng nhận sau 21h.
+          </Text>
+        ) : null}
+        <Text fontSize="xs" color="fg.muted" lineHeight="tall">
+          Trước khi qua lấy máy, xin nhắn tin cho mình trước để mình kiểm tra máy
+          đã sẵn sàng nhé.
+        </Text>
+        {isSundayYmd(startDate) ? (
+          <Text fontSize="xs" color="fg.muted" lineHeight="tall">
+            Lưu ý: Nếu thuê Chủ nhật, không nên lấy máy quá sớm vì cần chờ khách
+            thứ Bảy trả máy.
+          </Text>
+        ) : null}
+      </Stack>
+    );
+  }
+
+  function slotStepCanContinueWithPickup(): boolean {
+    return slotStepCanContinue() && !!pickupAtLocal.trim();
+  }
+
   function renderSummary() {
     const isChange = !!changeSource;
     const isEditPending = !!editSource;
+    const pickupDisplay = pickupAtLocal.trim()
+      ? formatPickupAtLocalVi(pickupAtLocal)
+      : null;
     return (
       <Stack gap={4}>
         <Stack gap={1} fontSize="sm">
@@ -764,6 +815,18 @@ function BookPageContent() {
           ) : (
             <Text fontSize="sm">
               <strong>Thời gian:</strong> —
+            </Text>
+          )}
+          {pickupDisplay ? (
+            <Text fontSize="sm">
+              <strong>Thời gian nhận máy:</strong>{" "}
+              <Text as="span" fontWeight="medium" color={titleColor}>
+                {pickupDisplay}
+              </Text>
+            </Text>
+          ) : (
+            <Text fontSize="sm" color="red.fg">
+              Chưa chọn thời gian nhận máy — vui lòng quay lại bước Buổi.
             </Text>
           )}
           {isChange ? (
@@ -798,39 +861,6 @@ function BookPageContent() {
             Một hoặc nhiều ngày trong khoảng đã hết chỗ.
           </Text>
         ) : null}
-        <Stack gap={1} align="stretch">
-          <Text fontSize="sm" fontWeight="medium" color={titleColor}>
-            Thời gian nhận máy{" "}
-            <Text as="span" color="red.500">
-              *
-            </Text>
-          </Text>
-          <Input
-            type="datetime-local"
-            size="md"
-            required
-            value={pickupAtLocal}
-            min={pickupBounds?.minLocal}
-            max={pickupBounds?.maxLocal}
-            onChange={(e) => setPickupAtLocal(e.target.value)}
-            {...userFieldInputProps}
-          />
-          {effectiveSlot === "FULL_DAY" ? (
-            <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-              Khi thuê tối thiểu 1 ngày, bạn có thể nhận máy sớm từ tối đêm trước ngày thuê. Đối với tối thứ 7 vui lòng nhận sau 21h.
-            </Text>
-          ) : null}
-          <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-            Trước khi qua lấy máy, xin nhắn tin cho mình trước để mình kiểm tra
-            máy đã sẵn sàng nhé.
-          </Text>
-          {startDate && isSundayYmd(startDate) ? (
-            <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-              Lưu ý: Nếu thuê Chủ nhật, không nên lấy máy quá sớm vì cần chờ
-              khách thứ Bảy trả máy.
-            </Text>
-          ) : null}
-        </Stack>
         <Textarea
           placeholder="Ghi chú thêm (nếu có)"
           value={note}
@@ -879,9 +909,7 @@ function BookPageContent() {
           size="lg"
           w="full"
           loading={paying}
-          disabled={
-            !effectiveSlot || rangeOk === false || !pickupAtLocal.trim()
-          }
+          disabled={!effectiveSlot || rangeOk === false || !pickupAtLocal.trim()}
           onClick={() =>
             void (
               isChange
@@ -1110,7 +1138,7 @@ function BookPageContent() {
               <Button
                 {...userSolidButtonProps}
                 disabled={!startDate || !endDate || !fullDayCanContinue}
-                onClick={() => setStep(forceFullDay ? 4 : 3)}
+                onClick={() => setStep(3)}
               >
                 Tiếp tục
               </Button>
@@ -1120,9 +1148,10 @@ function BookPageContent() {
           {mode === "BY_CAMERA" && step === 3 && (
             <Stack gap={4}>
               {renderSlotPicker()}
+              {renderPickupTimeFields()}
               <Button
                 {...userSolidButtonProps}
-                disabled={!slotStepCanContinue()}
+                disabled={!slotStepCanContinueWithPickup()}
                 onClick={() => setStep(4)}
               >
                 Tiếp tục
@@ -1164,7 +1193,7 @@ function BookPageContent() {
               <Button
                 {...userSolidButtonProps}
                 disabled={!startDate || !endDate || !fullDayCanContinue}
-                onClick={() => setStep(forceFullDay ? 2 : 1)}
+                onClick={() => setStep(1)}
               >
                 Tiếp tục
               </Button>
@@ -1174,9 +1203,10 @@ function BookPageContent() {
           {mode === "BY_DATE" && step === 1 && (
             <Stack gap={4}>
               {renderSlotPicker()}
+              {renderPickupTimeFields()}
               <Button
                 {...userSolidButtonProps}
-                disabled={!slotStepCanContinue()}
+                disabled={!slotStepCanContinueWithPickup()}
                 onClick={() => setStep(2)}
               >
                 Tiếp tục

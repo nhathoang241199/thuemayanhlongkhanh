@@ -313,12 +313,18 @@ export default function UserHomePage() {
                   </Text>
                 </HStack>
                 {b.pickupAt ? (
-                  <Text fontSize="sm" color="fg.muted">
-                    Nhận máy:{" "}
-                    <Text as="span" fontWeight="medium" color={titleColor}>
-                      {formatPickupAtVi(b.pickupAt)}
+                  <Stack gap={0.5} align="stretch">
+                    <Text fontSize="sm" color="fg.muted">
+                      Nhận máy:{" "}
+                      <Text as="span" fontWeight="medium" color={titleColor}>
+                        {formatPickupAtVi(b.pickupAt)}
+                      </Text>
                     </Text>
-                  </Text>
+                    <Text fontSize="xs" color="fg.muted" lineHeight="tall">
+                      Lưu ý: Vui lòng tự sạc pin khoảng 20 phút sau khi nhận máy
+                      để sử dụng.
+                    </Text>
+                  </Stack>
                 ) : null}
                 <Text fontSize="sm" fontWeight="medium">
                   Tổng: {vnd.format(b.amount)}
@@ -407,7 +413,7 @@ export default function UserHomePage() {
                         router.push(`/book?changeBookingId=${b.id}`)
                       }
                     >
-                      Đổi lịch
+                      Thay đổi
                     </Button>
                   </HStack>
                 ) : null}

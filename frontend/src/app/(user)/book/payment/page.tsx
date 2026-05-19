@@ -255,6 +255,10 @@ function PaymentContent() {
                   hoặc tiền mặt).
                 </Text>
               ) : null}
+              <Text fontSize="xs" color="fg.muted" lineHeight="tall" textAlign="left">
+                Bạn có thể đến sớm hơn giờ nhận máy đã chọn (nếu phù hợp). Vui
+                lòng tự sạc pin sau khi nhận máy.
+              </Text>
             </Stack>
             {tutorialVideoUrl ? (
               <Stack gap={2} w="full" textAlign="left">

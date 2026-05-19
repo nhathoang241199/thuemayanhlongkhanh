@@ -184,3 +184,16 @@ export function formatPickupAtVi(iso: string): string {
   if (Number.isNaN(d.getTime())) return iso;
   return pickupFmt.format(d);
 }
+
+/** datetime-local (VN) → hiển thị dd/mm/yyyy, HH:mm. */
+export function formatPickupAtLocalVi(local: string): string {
+  try {
+    const { datePart, totalMinutes } = pickupLocalParts(local);
+    const [y, m, d] = datePart.split("-");
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+    return `${d}/${m}/${y}, ${pad2(hour)}:${pad2(minute)}`;
+  } catch {
+    return local.replace("T", ", ");
+  }
+}
