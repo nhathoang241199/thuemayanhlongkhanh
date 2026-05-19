@@ -118,6 +118,8 @@ function BookPageContent() {
   const [slot, setSlot] = useState<BookingSlot | null>("FULL_DAY");
   const [note, setNote] = useState("");
   const [pickupAtLocal, setPickupAtLocal] = useState("");
+  const [pickupAtError, setPickupAtError] = useState<string | null>(null);
+  const [pickupValidated, setPickupValidated] = useState(false);
   const [shippingAddress, setShippingAddress] = useState("");
   const [canRequestDelivery, setCanRequestDelivery] = useState(false);
   const [wantDelivery, setWantDelivery] = useState(false);
@@ -274,6 +276,8 @@ function BookPageContent() {
 
   useEffect(() => {
     setPickupAtLocal("");
+    setPickupAtError(null);
+    setPickupValidated(false);
   }, [startDate, effectiveSlot]);
 
   const pickupBounds = useMemo(() => {
@@ -432,6 +436,8 @@ function BookPageContent() {
     setShippingAddress("");
     setNote("");
     setPickupAtLocal("");
+    setPickupAtError(null);
+    setPickupValidated(false);
   }
 
   function handleRangeChange(s: string, e: string) {
@@ -444,6 +450,38 @@ function BookPageContent() {
     () => balanceDueVnd(estimatedAmount),
     [estimatedAmount],
   );
+
+  function getPickupAtValidationError(): string | null {
+    if (!startDate || !effectiveSlot) return null;
+    if (!pickupAtLocal.trim()) {
+      return "Vui lòng chọn thời gian nhận máy.";
+    }
+    return validatePickupAtLocal(startDate, effectiveSlot, pickupAtLocal);
+  }
+
+  function resolvePickupAtIso(): string | null {
+    if (!pickupValidated || !pickupAtLocal.trim()) return null;
+    if (!startDate || !effectiveSlot) return null;
+    if (getPickupAtValidationError()) return null;
+    try {
+      return datetimeLocalToIso(pickupAtLocal);
+    } catch {
+      return null;
+    }
+  }
+
+  function tryAdvanceFromSlotStep(nextStep: number) {
+    const err = getPickupAtValidationError();
+    if (err) {
+      setPickupAtError(err);
+      setPickupValidated(false);
+      return;
+    }
+    setPickupAtError(null);
+    setPickupValidated(true);
+    setError(null);
+    setStep(nextStep);
+  }
 
   async function handleChangeSubmit() {
     const session = getSession();
@@ -461,24 +499,12 @@ function BookPageContent() {
       setError("Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại.");
       return;
     }
-    if (!pickupAtLocal.trim()) {
-      setError("Vui lòng chọn thời gian nhận máy.");
-      return;
-    }
-    const pickupErr = validatePickupAtLocal(
-      startDate,
-      effectiveSlot,
-      pickupAtLocal,
-    );
-    if (pickupErr) {
-      setError(pickupErr);
-      return;
-    }
-    let pickupAt: string;
-    try {
-      pickupAt = datetimeLocalToIso(pickupAtLocal);
-    } catch {
-      setError("Thời gian nhận máy không hợp lệ.");
+    const pickupAt = resolvePickupAtIso();
+    if (!pickupAt) {
+      setError(
+        pickupAtError ??
+          "Thời gian nhận máy không hợp lệ. Vui lòng quay lại bước Buổi.",
+      );
       return;
     }
     setPaying(true);
@@ -528,24 +554,12 @@ function BookPageContent() {
       setError("Vui lòng nhập địa chỉ giao máy.");
       return;
     }
-    if (!pickupAtLocal.trim()) {
-      setError("Vui lòng chọn thời gian nhận máy.");
-      return;
-    }
-    const pickupErr = validatePickupAtLocal(
-      startDate,
-      effectiveSlot,
-      pickupAtLocal,
-    );
-    if (pickupErr) {
-      setError(pickupErr);
-      return;
-    }
-    let pickupAt: string;
-    try {
-      pickupAt = datetimeLocalToIso(pickupAtLocal);
-    } catch {
-      setError("Thời gian nhận máy không hợp lệ.");
+    const pickupAt = resolvePickupAtIso();
+    if (!pickupAt) {
+      setError(
+        pickupAtError ??
+          "Thời gian nhận máy không hợp lệ. Vui lòng quay lại bước Buổi.",
+      );
       return;
     }
     setPaying(true);
@@ -586,24 +600,12 @@ function BookPageContent() {
       setError("Vui lòng nhập địa chỉ giao máy.");
       return;
     }
-    if (!pickupAtLocal.trim()) {
-      setError("Vui lòng chọn thời gian nhận máy.");
-      return;
-    }
-    const pickupErr = validatePickupAtLocal(
-      startDate,
-      effectiveSlot,
-      pickupAtLocal,
-    );
-    if (pickupErr) {
-      setError(pickupErr);
-      return;
-    }
-    let pickupAt: string;
-    try {
-      pickupAt = datetimeLocalToIso(pickupAtLocal);
-    } catch {
-      setError("Thời gian nhận máy không hợp lệ.");
+    const pickupAt = resolvePickupAtIso();
+    if (!pickupAt) {
+      setError(
+        pickupAtError ??
+          "Thời gian nhận máy không hợp lệ. Vui lòng quay lại bước Buổi.",
+      );
       return;
     }
     setPaying(true);
@@ -758,9 +760,18 @@ function BookPageContent() {
           value={pickupAtLocal}
           min={pickupBounds.minLocal}
           max={pickupBounds.maxLocal}
-          onChange={(e) => setPickupAtLocal(e.target.value)}
+          onChange={(e) => {
+            setPickupAtLocal(e.target.value);
+            setPickupAtError(null);
+            setPickupValidated(false);
+          }}
           {...userFieldInputProps}
         />
+        {pickupAtError ? (
+          <Text fontSize="sm" color="red.fg">
+            {pickupAtError}
+          </Text>
+        ) : null}
         {effectiveSlot === "FULL_DAY" ? (
           <Text fontSize="xs" color="fg.muted" lineHeight="tall">
             Khi thuê tối thiểu 1 ngày, bạn có thể nhận máy sớm từ tối đêm trước
@@ -824,11 +835,7 @@ function BookPageContent() {
                 {pickupDisplay}
               </Text>
             </Text>
-          ) : (
-            <Text fontSize="sm" color="red.fg">
-              Chưa chọn thời gian nhận máy — vui lòng quay lại bước Buổi.
-            </Text>
-          )}
+          ) : null}
           {isChange ? (
             <>
               <Text fontWeight="bold" fontSize="md" color={titleColor}>
@@ -909,7 +916,9 @@ function BookPageContent() {
           size="lg"
           w="full"
           loading={paying}
-          disabled={!effectiveSlot || rangeOk === false || !pickupAtLocal.trim()}
+          disabled={
+            !effectiveSlot || rangeOk === false || !pickupValidated
+          }
           onClick={() =>
             void (
               isChange
@@ -1152,7 +1161,7 @@ function BookPageContent() {
               <Button
                 {...userSolidButtonProps}
                 disabled={!slotStepCanContinueWithPickup()}
-                onClick={() => setStep(4)}
+                onClick={() => tryAdvanceFromSlotStep(4)}
               >
                 Tiếp tục
               </Button>
@@ -1207,7 +1216,7 @@ function BookPageContent() {
               <Button
                 {...userSolidButtonProps}
                 disabled={!slotStepCanContinueWithPickup()}
-                onClick={() => setStep(2)}
+                onClick={() => tryAdvanceFromSlotStep(2)}
               >
                 Tiếp tục
               </Button>

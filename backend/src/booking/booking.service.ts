@@ -656,15 +656,15 @@ export class BookingService {
           }
           if (e.code === 'P2002') {
             throw new ConflictException('Mã booking đã tồn tại.');
-          }
-          if (e.code === 'P2003') {
-            throw new ConflictException(
-              'customerId hoặc cameraId không hợp lệ (không tồn tại).',
-            );
-          }
         }
-        throw e;
+        if (e.code === 'P2003') {
+          throw new ConflictException(
+            'customerId hoặc cameraId không hợp lệ (không tồn tại).',
+          );
+        }
       }
+      throw e;
+    }
     }
     throw new ConflictException('Mã booking đã tồn tại, thử lại.');
   }

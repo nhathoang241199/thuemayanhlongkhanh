@@ -36,6 +36,13 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 
+import {
+  AdminDataCard,
+  AdminDataCardActions,
+  AdminDataCardHeader,
+  AdminDataCardRow,
+} from "@/components/admin/admin-data-card";
+import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table";
 import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
@@ -157,6 +164,87 @@ const TrashIcon = createIcon({
     </>
   ),
 });
+
+function CameraMobileCard({
+  camera: c,
+  deleting,
+  onEdit,
+  onDelete,
+}: {
+  camera: Camera;
+  deleting: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <AdminDataCard>
+      <AdminDataCardHeader>
+        <HStack gap={3} align="center">
+          {c.imageUrl ? (
+            <Image
+              src={c.imageUrl}
+              alt={c.name}
+              boxSize="12"
+              objectFit="cover"
+              borderRadius="md"
+              flexShrink={0}
+            />
+          ) : (
+            <Box
+              boxSize="12"
+              bg="ocean.100"
+              borderRadius="md"
+              flexShrink={0}
+              aria-hidden
+            />
+          )}
+          <Stack gap={0} minW={0}>
+            <Text fontWeight="semibold" lineClamp={2}>
+              {c.name}
+            </Text>
+            <Text fontSize="sm" color="fg.muted">
+              {c.brand}
+            </Text>
+          </Stack>
+        </HStack>
+      </AdminDataCardHeader>
+      <AdminDataCardRow label="Số lượng">{c.quantity}</AdminDataCardRow>
+      <AdminDataCardRow label="Giá / ngày">
+        {vnd.format(c.dayPrice)}
+      </AdminDataCardRow>
+      <AdminDataCardRow label="Giá / buổi">
+        {vnd.format(c.shiftPrice)}
+      </AdminDataCardRow>
+      <AdminDataCardActions>
+        <Button
+          size="sm"
+          variant="outline"
+          flex={1}
+          colorPalette={APP_COLOR_PALETTE}
+          onClick={onEdit}
+        >
+          <HStack gap={1}>
+            <PencilIcon boxSize="1.1em" />
+            <Text>Sửa</Text>
+          </HStack>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          flex={1}
+          colorPalette="red"
+          loading={deleting}
+          onClick={onDelete}
+        >
+          <HStack gap={1}>
+            <TrashIcon boxSize="1.1em" />
+            <Text>Xóa</Text>
+          </HStack>
+        </Button>
+      </AdminDataCardActions>
+    </AdminDataCard>
+  );
+}
 
 function parseNonNegInt(raw: string): number | null {
   const n = Number.parseInt(raw, 10);
@@ -480,113 +568,128 @@ export default function AdminCamerasPage() {
       {cameras && cameras.length > 0 ? (
         <CardRoot {...cardSurfaceProps}>
           <CardBody p={0}>
-            <TableScrollArea rounded="l2">
-              <TableRoot size="sm" native>
-                <TableHeader>
-                  <TableRow>
-                    <TableColumnHeader w="4rem" {...tableCellPad}>
-                      Ảnh
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
-                      Thương hiệu
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>Tên</TableColumnHeader>
-                    <TableColumnHeader textAlign="end" {...tableCellPad}>
-                      Số lượng
-                    </TableColumnHeader>
-                    <TableColumnHeader textAlign="end" {...tableCellPad}>
-                      Giá / ngày
-                    </TableColumnHeader>
-                    <TableColumnHeader textAlign="end" {...tableCellPad}>
-                      Giá / buổi
-                    </TableColumnHeader>
-                    <TableColumnHeader
-                      minW="10.5rem"
-                      textAlign="end"
-                      {...tableCellPad}
-                    >
-                      Thao tác
-                    </TableColumnHeader>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cameras.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell {...tableCellPad}>
-                        {c.imageUrl ? (
-                          <Image
-                            src={c.imageUrl}
-                            alt={c.name}
-                            boxSize="10"
-                            objectFit="cover"
-                            borderRadius="md"
-                          />
-                        ) : (
-                          <Box
-                            boxSize="10"
-                            bg="ocean.100"
-                            borderRadius="md"
-                            aria-hidden
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell {...tableCellPad}>{c.brand}</TableCell>
-                      <TableCell fontWeight="medium" {...tableCellPad}>
-                        {c.name}
-                      </TableCell>
-                      <TableCell textAlign="end" {...tableCellPad}>
-                        {c.quantity}
-                      </TableCell>
-                      <TableCell
-                        textAlign="end"
-                        whiteSpace="nowrap"
-                        {...tableCellPad}
-                      >
-                        {vnd.format(c.dayPrice)}
-                      </TableCell>
-                      <TableCell
-                        textAlign="end"
-                        whiteSpace="nowrap"
-                        {...tableCellPad}
-                      >
-                        {vnd.format(c.shiftPrice)}
-                      </TableCell>
-                      <TableCell textAlign="end" {...tableCellPad}>
-                        <HStack
-                          gap={2}
-                          flexWrap="wrap"
-                          justify="flex-end"
+            <AdminResponsiveTable
+              table={
+                <TableScrollArea rounded="l2">
+                  <TableRoot size="sm" native>
+                    <TableHeader>
+                      <TableRow>
+                        <TableColumnHeader w="4rem" {...tableCellPad}>
+                          Ảnh
+                        </TableColumnHeader>
+                        <TableColumnHeader {...tableCellPad}>
+                          Thương hiệu
+                        </TableColumnHeader>
+                        <TableColumnHeader {...tableCellPad}>
+                          Tên
+                        </TableColumnHeader>
+                        <TableColumnHeader textAlign="end" {...tableCellPad}>
+                          Số lượng
+                        </TableColumnHeader>
+                        <TableColumnHeader textAlign="end" {...tableCellPad}>
+                          Giá / ngày
+                        </TableColumnHeader>
+                        <TableColumnHeader textAlign="end" {...tableCellPad}>
+                          Giá / buổi
+                        </TableColumnHeader>
+                        <TableColumnHeader
+                          minW="10.5rem"
+                          textAlign="end"
+                          {...tableCellPad}
                         >
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            colorPalette={APP_COLOR_PALETTE}
-                            onClick={() => openEdit(c)}
+                          Thao tác
+                        </TableColumnHeader>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cameras.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell {...tableCellPad}>
+                            {c.imageUrl ? (
+                              <Image
+                                src={c.imageUrl}
+                                alt={c.name}
+                                boxSize="10"
+                                objectFit="cover"
+                                borderRadius="md"
+                              />
+                            ) : (
+                              <Box
+                                boxSize="10"
+                                bg="ocean.100"
+                                borderRadius="md"
+                                aria-hidden
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell {...tableCellPad}>{c.brand}</TableCell>
+                          <TableCell fontWeight="medium" {...tableCellPad}>
+                            {c.name}
+                          </TableCell>
+                          <TableCell textAlign="end" {...tableCellPad}>
+                            {c.quantity}
+                          </TableCell>
+                          <TableCell
+                            textAlign="end"
+                            whiteSpace="nowrap"
+                            {...tableCellPad}
                           >
-                            <HStack gap={1}>
-                              <PencilIcon boxSize="1.1em" />
-                              <Text>Sửa</Text>
-                            </HStack>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            colorPalette="red"
-                            loading={deletingId === c.id}
-                            onClick={() => deleteCamera(c)}
+                            {vnd.format(c.dayPrice)}
+                          </TableCell>
+                          <TableCell
+                            textAlign="end"
+                            whiteSpace="nowrap"
+                            {...tableCellPad}
                           >
-                            <HStack gap={1}>
-                              <TrashIcon boxSize="1.1em" />
-                              <Text>Xóa</Text>
+                            {vnd.format(c.shiftPrice)}
+                          </TableCell>
+                          <TableCell textAlign="end" {...tableCellPad}>
+                            <HStack
+                              gap={2}
+                              flexWrap="wrap"
+                              justify="flex-end"
+                            >
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                colorPalette={APP_COLOR_PALETTE}
+                                onClick={() => openEdit(c)}
+                              >
+                                <HStack gap={1}>
+                                  <PencilIcon boxSize="1.1em" />
+                                  <Text>Sửa</Text>
+                                </HStack>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                colorPalette="red"
+                                loading={deletingId === c.id}
+                                onClick={() => deleteCamera(c)}
+                              >
+                                <HStack gap={1}>
+                                  <TrashIcon boxSize="1.1em" />
+                                  <Text>Xóa</Text>
+                                </HStack>
+                              </Button>
                             </HStack>
-                          </Button>
-                        </HStack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </TableRoot>
-            </TableScrollArea>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </TableRoot>
+                </TableScrollArea>
+              }
+              cards={cameras.map((c) => (
+                <CameraMobileCard
+                  key={c.id}
+                  camera={c}
+                  deleting={deletingId === c.id}
+                  onEdit={() => openEdit(c)}
+                  onDelete={() => deleteCamera(c)}
+                />
+              ))}
+            />
           </CardBody>
         </CardRoot>
       ) : null}
@@ -601,7 +704,7 @@ export default function AdminCamerasPage() {
       >
         <DialogBackdrop />
         <DialogPositioner>
-          <DialogContent maxW="lg">
+          <DialogContent maxW="lg" w="full" mx={4}>
             <DialogHeader>
               <DialogTitle>Sửa máy ảnh</DialogTitle>
               <DialogCloseTrigger />
@@ -786,7 +889,7 @@ export default function AdminCamerasPage() {
       >
         <DialogBackdrop />
         <DialogPositioner>
-          <DialogContent maxW="lg">
+          <DialogContent maxW="lg" w="full" mx={4}>
             <DialogHeader>
               <DialogTitle>Thêm máy ảnh</DialogTitle>
               <DialogCloseTrigger />

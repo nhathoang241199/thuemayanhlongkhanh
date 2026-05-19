@@ -290,7 +290,7 @@ export default function AdminPage() {
         </CardHeader>
         <CardBody pt={4}>
           <HStack gap={4} flexWrap="wrap" align="flex-end">
-            <Box minW="12rem">
+            <Box minW={{ md: "12rem" }} w={{ base: "full", md: "auto" }}>
               <Text fontSize="sm" mb={1} fontWeight="medium">
                 Tháng
               </Text>
@@ -316,7 +316,7 @@ export default function AdminPage() {
                 <NativeSelectIndicator />
               </NativeSelectRoot>
             </Box>
-            <Box minW="8rem">
+            <Box minW={{ md: "8rem" }} w={{ base: "full", md: "auto" }}>
               <Text fontSize="sm" mb={1} fontWeight="medium">
                 Năm
               </Text>
@@ -406,7 +406,7 @@ export default function AdminPage() {
       >
         <DialogBackdrop />
         <DialogPositioner>
-          <DialogContent maxW="md">
+          <DialogContent maxW="md" w="full" mx={4}>
             <DialogHeader>
               <DialogTitle>Thêm chi phí</DialogTitle>
               <DialogCloseTrigger />

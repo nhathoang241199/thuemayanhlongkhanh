@@ -93,6 +93,7 @@ export default function AdminLayout({
         maxW={
           pathname === "/admin/bookings" ? "container.2xl" : "container.lg"
         }
+        px={{ base: 3, md: 4 }}
       >
         <Stack gap={6}>
           <BreadcrumbRoot size="sm" colorPalette={ADMIN_COLOR_PALETTE}>
@@ -120,69 +121,77 @@ export default function AdminLayout({
           </BreadcrumbRoot>
           <CardRoot {...cardSurfaceProps}>
             <CardBody py={3}>
-              <HStack gap={2} flexWrap="wrap">
-                <Button
-                  asChild
-                  variant={pathname === "/admin" ? "solid" : "ghost"}
-                  colorPalette={ADMIN_COLOR_PALETTE}
-                  size="sm"
-                >
-                  <NextLink href="/admin">Tổng quan</NextLink>
-                </Button>
-                <Button
-                  asChild
-                  variant={
-                    pathname === "/admin/bookings" ? "solid" : "ghost"
-                  }
-                  colorPalette={ADMIN_COLOR_PALETTE}
-                  size="sm"
-                >
-                  <NextLink href="/admin/bookings">Đơn thuê</NextLink>
-                </Button>
-                <Button
-                  asChild
-                  variant={
-                    pathname === "/admin/expenses" ? "solid" : "ghost"
-                  }
-                  colorPalette={ADMIN_COLOR_PALETTE}
-                  size="sm"
-                >
-                  <NextLink href="/admin/expenses">Chi tiêu</NextLink>
-                </Button>
-                <Button
-                  asChild
-                  variant={
-                    pathname === "/admin/customers" ||
-                    pathname.startsWith("/admin/customers/")
-                      ? "solid"
-                      : "ghost"
-                  }
-                  colorPalette={ADMIN_COLOR_PALETTE}
-                  size="sm"
-                >
-                  <NextLink href="/admin/customers">Khách hàng</NextLink>
-                </Button>
-                <Button
-                  asChild
-                  variant={
-                    pathname === "/admin/cameras" ? "solid" : "ghost"
-                  }
-                  colorPalette={ADMIN_COLOR_PALETTE}
-                  size="sm"
-                >
-                  <NextLink href="/admin/cameras">Máy ảnh</NextLink>
-                </Button>
+              <Stack gap={2}>
+                <HStack gap={1.5} flexWrap="wrap" w="full">
+                  <Button
+                    asChild
+                    variant={pathname === "/admin" ? "solid" : "ghost"}
+                    colorPalette={ADMIN_COLOR_PALETTE}
+                    size="sm"
+                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
+                  >
+                    <NextLink href="/admin">Tổng quan</NextLink>
+                  </Button>
+                  <Button
+                    asChild
+                    variant={
+                      pathname === "/admin/bookings" ? "solid" : "ghost"
+                    }
+                    colorPalette={ADMIN_COLOR_PALETTE}
+                    size="sm"
+                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
+                  >
+                    <NextLink href="/admin/bookings">Đơn thuê</NextLink>
+                  </Button>
+                  <Button
+                    asChild
+                    variant={
+                      pathname === "/admin/expenses" ? "solid" : "ghost"
+                    }
+                    colorPalette={ADMIN_COLOR_PALETTE}
+                    size="sm"
+                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
+                  >
+                    <NextLink href="/admin/expenses">Chi tiêu</NextLink>
+                  </Button>
+                  <Button
+                    asChild
+                    variant={
+                      pathname === "/admin/customers" ||
+                      pathname.startsWith("/admin/customers/")
+                        ? "solid"
+                        : "ghost"
+                    }
+                    colorPalette={ADMIN_COLOR_PALETTE}
+                    size="sm"
+                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
+                  >
+                    <NextLink href="/admin/customers">Khách hàng</NextLink>
+                  </Button>
+                  <Button
+                    asChild
+                    variant={
+                      pathname === "/admin/cameras" ? "solid" : "ghost"
+                    }
+                    colorPalette={ADMIN_COLOR_PALETTE}
+                    size="sm"
+                    flex={{ base: "1 1 calc(50% - 6px)", sm: "0 0 auto" }}
+                  >
+                    <NextLink href="/admin/cameras">Máy ảnh</NextLink>
+                  </Button>
+                </HStack>
                 <Button
                   type="button"
                   variant="outline"
                   colorPalette={ADMIN_COLOR_PALETTE}
                   size="sm"
-                  ml="auto"
+                  w={{ base: "full", sm: "auto" }}
+                  alignSelf={{ sm: "flex-end" }}
                   onClick={handleLogout}
                 >
                   Đăng xuất
                 </Button>
-              </HStack>
+              </Stack>
             </CardBody>
           </CardRoot>
           {children}

@@ -36,6 +36,13 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  AdminDataCard,
+  AdminDataCardActions,
+  AdminDataCardHeader,
+  AdminDataCardRow,
+} from "@/components/admin/admin-data-card";
+import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table";
+import {
   currentUtcYearMonth,
   dateInPeriod,
   defaultExpenseDateInput,
@@ -47,6 +54,7 @@ import {
   APP_COLOR_PALETTE,
   cardSurfaceProps,
   fieldInputProps,
+  titleColor,
 } from "@/lib/app-theme";
 import { apiBase } from "@/lib/api-base";
 import { toaster } from "@/lib/toaster";
@@ -102,6 +110,61 @@ function formatExpenseDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return expenseDateFmt.format(d);
+}
+
+function ExpenseMobileCard({
+  expense: e,
+  onEdit,
+  onDelete,
+}: {
+  expense: Expense;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <AdminDataCard>
+      <AdminDataCardHeader>
+        <Text fontWeight="semibold">{e.title}</Text>
+      </AdminDataCardHeader>
+      <AdminDataCardRow label="Số tiền">
+        <Text fontWeight="semibold" color={titleColor}>
+          {vnd.format(e.amount)}
+        </Text>
+      </AdminDataCardRow>
+      <AdminDataCardRow label="Ngày chi">
+        {formatExpenseDate(e.expenseDate)}
+      </AdminDataCardRow>
+      <AdminDataCardRow label="Ghi chú">
+        {e.note ? (
+          <Text whiteSpace="pre-wrap">{e.note}</Text>
+        ) : (
+          <Text color="fg.muted">—</Text>
+        )}
+      </AdminDataCardRow>
+      <AdminDataCardActions>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          flex={1}
+          colorPalette={APP_COLOR_PALETTE}
+          onClick={onEdit}
+        >
+          Sửa
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          flex={1}
+          colorPalette="red"
+          onClick={onDelete}
+        >
+          Xóa
+        </Button>
+      </AdminDataCardActions>
+    </AdminDataCard>
+  );
 }
 
 function emptyForm(periodYear: number, periodMonth: number): ExpenseForm {
@@ -330,8 +393,8 @@ export default function AdminExpensesPage() {
           </HStack>
         </CardHeader>
         <CardBody>
-          <HStack gap={4} flexWrap="wrap" align="flex-end">
-            <Box minW="12rem">
+          <HStack gap={4} flexWrap="wrap" align="flex-end" w="full">
+            <Box minW={{ md: "12rem" }} w={{ base: "full", md: "auto" }}>
               <Text fontSize="sm" mb={1} fontWeight="medium">
                 Tháng
               </Text>
@@ -352,7 +415,7 @@ export default function AdminExpensesPage() {
                 <NativeSelectIndicator />
               </NativeSelectRoot>
             </Box>
-            <Box minW="8rem">
+            <Box minW={{ md: "8rem" }} w={{ base: "full", md: "auto" }}>
               <Text fontSize="sm" mb={1} fontWeight="medium">
                 Năm
               </Text>
@@ -411,74 +474,86 @@ export default function AdminExpensesPage() {
                     Tổng: {vnd.format(totalAmount)} ({expenses.length} khoản)
                   </Text>
                 </Box>
-                <TableScrollArea rounded="l2">
-                  <TableRoot size="sm" native>
-                    <TableHeader>
-                      <TableRow>
-                        <TableColumnHeader {...tableCellPad}>
-                          Tiêu đề
-                        </TableColumnHeader>
-                        <TableColumnHeader maxW="14rem" {...tableCellPad}>
-                          Ghi chú
-                        </TableColumnHeader>
-                        <TableColumnHeader {...tableCellPad}>
-                          Ngày chi
-                        </TableColumnHeader>
-                        <TableColumnHeader {...tableCellPad} textAlign="end">
-                          Số tiền
-                        </TableColumnHeader>
-                        <TableColumnHeader {...tableCellPad} textAlign="end">
-                          Thao tác
-                        </TableColumnHeader>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {expenses.map((e) => (
-                        <TableRow key={e.id}>
-                          <TableCell fontWeight="medium" {...tableCellPad}>
-                            {e.title}
-                          </TableCell>
-                          <TableCell maxW="14rem" {...tableCellPad}>
-                            {e.note ? (
-                              <Text lineClamp={2} title={e.note}>
-                                {e.note}
-                              </Text>
-                            ) : (
-                              <Text color="fg.muted">—</Text>
-                            )}
-                          </TableCell>
-                          <TableCell whiteSpace="nowrap" {...tableCellPad}>
-                            {formatExpenseDate(e.expenseDate)}
-                          </TableCell>
-                          <TableCell {...tableCellPad} textAlign="end">
-                            {vnd.format(e.amount)}
-                          </TableCell>
-                          <TableCell {...tableCellPad} textAlign="end">
-                            <HStack gap={2} justify="flex-end">
-                              <Button
-                                type="button"
-                                size="xs"
-                                variant="outline"
-                                onClick={() => openEdit(e)}
-                              >
-                                Sửa
-                              </Button>
-                              <Button
-                                type="button"
-                                size="xs"
-                                variant="outline"
-                                colorPalette="red"
-                                onClick={() => setDeleteTarget(e)}
-                              >
-                                Xóa
-                              </Button>
-                            </HStack>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </TableRoot>
-                </TableScrollArea>
+                <AdminResponsiveTable
+                  table={
+                    <TableScrollArea rounded="l2">
+                      <TableRoot size="sm" native>
+                        <TableHeader>
+                          <TableRow>
+                            <TableColumnHeader {...tableCellPad}>
+                              Tiêu đề
+                            </TableColumnHeader>
+                            <TableColumnHeader maxW="14rem" {...tableCellPad}>
+                              Ghi chú
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad}>
+                              Ngày chi
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad} textAlign="end">
+                              Số tiền
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad} textAlign="end">
+                              Thao tác
+                            </TableColumnHeader>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {expenses.map((e) => (
+                            <TableRow key={e.id}>
+                              <TableCell fontWeight="medium" {...tableCellPad}>
+                                {e.title}
+                              </TableCell>
+                              <TableCell maxW="14rem" {...tableCellPad}>
+                                {e.note ? (
+                                  <Text lineClamp={2} title={e.note}>
+                                    {e.note}
+                                  </Text>
+                                ) : (
+                                  <Text color="fg.muted">—</Text>
+                                )}
+                              </TableCell>
+                              <TableCell whiteSpace="nowrap" {...tableCellPad}>
+                                {formatExpenseDate(e.expenseDate)}
+                              </TableCell>
+                              <TableCell {...tableCellPad} textAlign="end">
+                                {vnd.format(e.amount)}
+                              </TableCell>
+                              <TableCell {...tableCellPad} textAlign="end">
+                                <HStack gap={2} justify="flex-end">
+                                  <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="outline"
+                                    onClick={() => openEdit(e)}
+                                  >
+                                    Sửa
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="outline"
+                                    colorPalette="red"
+                                    onClick={() => setDeleteTarget(e)}
+                                  >
+                                    Xóa
+                                  </Button>
+                                </HStack>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </TableRoot>
+                    </TableScrollArea>
+                  }
+                  cards={expenses.map((e) => (
+                    <ExpenseMobileCard
+                      key={e.id}
+                      expense={e}
+                      onEdit={() => openEdit(e)}
+                      onDelete={() => setDeleteTarget(e)}
+                    />
+                  ))}
+                />
               </Stack>
             )}
           </CardBody>
@@ -495,7 +570,7 @@ export default function AdminExpensesPage() {
       >
         <DialogBackdrop />
         <DialogPositioner>
-          <DialogContent maxW="md">
+          <DialogContent maxW="md" w="full" mx={4}>
             <DialogHeader>
               <DialogTitle>
                 {editing ? "Sửa chi phí" : "Thêm chi phí"}
@@ -603,7 +678,7 @@ export default function AdminExpensesPage() {
       >
         <DialogBackdrop />
         <DialogPositioner>
-          <DialogContent maxW="sm">
+          <DialogContent maxW="sm" w="full" mx={4}>
             <DialogHeader>
               <DialogTitle>Xóa chi phí?</DialogTitle>
               <DialogCloseTrigger />

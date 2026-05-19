@@ -7,6 +7,7 @@ import {
   CardRoot,
   CardTitle,
   createIcon,
+  HStack,
   Link,
   Stack,
   TableBody,
@@ -21,6 +22,12 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import {
+  AdminDataCard,
+  AdminDataCardHeader,
+  AdminDataCardRow,
+} from "@/components/admin/admin-data-card";
+import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table";
 import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
@@ -64,6 +71,71 @@ function formatCreatedAt(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return createdAtFmt.format(d);
+}
+
+function CustomerMobileCard({
+  customer: c,
+  onOpen,
+}: {
+  customer: Customer;
+  onOpen: () => void;
+}) {
+  return (
+    <AdminDataCard
+      cursor="pointer"
+      hoverBg="ocean.100"
+      onClick={onOpen}
+    >
+      <AdminDataCardHeader>
+        <HStack justify="space-between" align="center" gap={2}>
+          <Text fontWeight="semibold">{c.name}</Text>
+          <CustomerTagBadge tag={c.customerTag} />
+        </HStack>
+      </AdminDataCardHeader>
+      <AdminDataCardRow label="SĐT">{c.phone}</AdminDataCardRow>
+      <AdminDataCardRow label="Xác minh">
+        {c.isVerified ? (
+          <VerifiedCheckIcon
+            boxSize="1.35em"
+            color="green.600"
+            aria-label="Đã xác minh"
+          />
+        ) : (
+          <Text color="fg.muted">—</Text>
+        )}
+      </AdminDataCardRow>
+      <AdminDataCardRow label="Ảnh minh chứng">
+        {c.verificationImageUrls.length}
+      </AdminDataCardRow>
+      <AdminDataCardRow label="Facebook">
+        {c.facebookUrl ? (
+          <Link
+            href={c.facebookUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            colorPalette={APP_COLOR_PALETTE}
+            onClick={(e) => e.stopPropagation()}
+          >
+            Mở
+          </Link>
+        ) : (
+          <Text color="fg.muted">—</Text>
+        )}
+      </AdminDataCardRow>
+      <AdminDataCardRow label="Ghi chú">
+        {c.note ? (
+          <Text lineClamp={3} title={c.note}>
+            {c.note}
+          </Text>
+        ) : (
+          <Text color="fg.muted">—</Text>
+        )}
+      </AdminDataCardRow>
+      <AdminDataCardRow label="Ngày tạo">
+        {formatCreatedAt(c.createdAt)}
+      </AdminDataCardRow>
+    </AdminDataCard>
+  );
 }
 
 export default function AdminCustomersPage() {
@@ -145,93 +217,110 @@ export default function AdminCustomersPage() {
       {customers && customers.length > 0 ? (
         <CardRoot {...cardSurfaceProps}>
           <CardBody p={0}>
-            <TableScrollArea rounded="l2">
-              <TableRoot size="sm" native>
-                <TableHeader>
-                  <TableRow>
-                    <TableColumnHeader {...tableCellPad}>Tên</TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>SĐT</TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>Tag</TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
-                      Xác minh
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
-                      Ảnh minh chứng
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
-                      Facebook
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
-                      Ghi chú
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
-                      Ngày tạo
-                    </TableColumnHeader>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {customers.map((c) => (
-                    <TableRow
-                      key={c.id}
-                      cursor="pointer"
-                      _hover={{ bg: "ocean.100" }}
-                      onClick={() => {
-                        router.push(`/admin/customers/${c.id}`);
-                      }}
-                    >
-                      <TableCell fontWeight="medium" {...tableCellPad}>
-                        {c.name}
-                      </TableCell>
-                      <TableCell {...tableCellPad}>{c.phone}</TableCell>
-                      <TableCell {...tableCellPad}>
-                        <CustomerTagBadge tag={c.customerTag} />
-                      </TableCell>
-                      <TableCell {...tableCellPad}>
-                        {c.isVerified ? (
-                          <VerifiedCheckIcon
-                            boxSize="1.35em"
-                            color="green.600"
-                            aria-label="Đã xác minh"
-                          />
-                        ) : (
-                          <Text color="fg.muted">—</Text>
-                        )}
-                      </TableCell>
-                      <TableCell {...tableCellPad}>
-                        {c.verificationImageUrls.length}
-                      </TableCell>
-                      <TableCell {...tableCellPad}>
-                        {c.facebookUrl ? (
-                          <Link
-                            href={c.facebookUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            colorPalette={APP_COLOR_PALETTE}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Mở
-                          </Link>
-                        ) : (
-                          <Text color="fg.muted">—</Text>
-                        )}
-                      </TableCell>
-                      <TableCell maxW="14rem" {...tableCellPad}>
-                        {c.note ? (
-                          <Text lineClamp={2} title={c.note}>
-                            {c.note}
-                          </Text>
-                        ) : (
-                          <Text color="fg.muted">—</Text>
-                        )}
-                      </TableCell>
-                      <TableCell whiteSpace="nowrap" {...tableCellPad}>
-                        {formatCreatedAt(c.createdAt)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </TableRoot>
-            </TableScrollArea>
+            <AdminResponsiveTable
+              table={
+                <TableScrollArea rounded="l2">
+                  <TableRoot size="sm" native>
+                    <TableHeader>
+                      <TableRow>
+                        <TableColumnHeader {...tableCellPad}>
+                          Tên
+                        </TableColumnHeader>
+                        <TableColumnHeader {...tableCellPad}>
+                          SĐT
+                        </TableColumnHeader>
+                        <TableColumnHeader {...tableCellPad}>
+                          Tag
+                        </TableColumnHeader>
+                        <TableColumnHeader {...tableCellPad}>
+                          Xác minh
+                        </TableColumnHeader>
+                        <TableColumnHeader {...tableCellPad}>
+                          Ảnh minh chứng
+                        </TableColumnHeader>
+                        <TableColumnHeader {...tableCellPad}>
+                          Facebook
+                        </TableColumnHeader>
+                        <TableColumnHeader {...tableCellPad}>
+                          Ghi chú
+                        </TableColumnHeader>
+                        <TableColumnHeader {...tableCellPad}>
+                          Ngày tạo
+                        </TableColumnHeader>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {customers.map((c) => (
+                        <TableRow
+                          key={c.id}
+                          cursor="pointer"
+                          _hover={{ bg: "ocean.100" }}
+                          onClick={() => {
+                            router.push(`/admin/customers/${c.id}`);
+                          }}
+                        >
+                          <TableCell fontWeight="medium" {...tableCellPad}>
+                            {c.name}
+                          </TableCell>
+                          <TableCell {...tableCellPad}>{c.phone}</TableCell>
+                          <TableCell {...tableCellPad}>
+                            <CustomerTagBadge tag={c.customerTag} />
+                          </TableCell>
+                          <TableCell {...tableCellPad}>
+                            {c.isVerified ? (
+                              <VerifiedCheckIcon
+                                boxSize="1.35em"
+                                color="green.600"
+                                aria-label="Đã xác minh"
+                              />
+                            ) : (
+                              <Text color="fg.muted">—</Text>
+                            )}
+                          </TableCell>
+                          <TableCell {...tableCellPad}>
+                            {c.verificationImageUrls.length}
+                          </TableCell>
+                          <TableCell {...tableCellPad}>
+                            {c.facebookUrl ? (
+                              <Link
+                                href={c.facebookUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                colorPalette={APP_COLOR_PALETTE}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Mở
+                              </Link>
+                            ) : (
+                              <Text color="fg.muted">—</Text>
+                            )}
+                          </TableCell>
+                          <TableCell maxW="14rem" {...tableCellPad}>
+                            {c.note ? (
+                              <Text lineClamp={2} title={c.note}>
+                                {c.note}
+                              </Text>
+                            ) : (
+                              <Text color="fg.muted">—</Text>
+                            )}
+                          </TableCell>
+                          <TableCell whiteSpace="nowrap" {...tableCellPad}>
+                            {formatCreatedAt(c.createdAt)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </TableRoot>
+                </TableScrollArea>
+              }
+              cards={customers.map((c) => (
+                <CustomerMobileCard
+                  key={c.id}
+                  customer={c}
+                  onOpen={() => router.push(`/admin/customers/${c.id}`)}
+                />
+              ))}
+            />
           </CardBody>
         </CardRoot>
       ) : null}

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Badge,
   Box,
   Button,
   createIcon,
@@ -26,21 +25,12 @@ import {
   DialogTitle,
   HStack,
   Input,
-  Link,
-  MenuContent,
-  MenuItem,
-  MenuItemText,
-  MenuPositioner,
-  MenuRoot,
-  MenuTrigger,
   NativeSelectField,
   NativeSelectIndicator,
   NativeSelectRoot,
-  Portal,
   Spinner,
   Stack,
   TableBody,
-  TableCell,
   TableColumnHeader,
   TableHeader,
   TableRoot,
@@ -49,8 +39,21 @@ import {
   Text,
   Textarea,
 } from "@chakra-ui/react";
-import NextLink from "next/link";
+import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table";
 import { MonthCalendar } from "@/components/booking/month-calendar";
+import { BookingListCard } from "@/app/admin/bookings/booking-list-card";
+import { BookingListRow } from "@/app/admin/bookings/booking-list-row";
+import type {
+  Booking,
+  BookingStatusValue,
+  PaymentStatusValue,
+} from "@/app/admin/bookings/booking-types";
+import { tableCellPad } from "@/app/admin/bookings/booking-types";
+import {
+  BOOKING_PAYMENT_EDIT_OPTIONS,
+  BOOKING_STATUS_EDIT_OPTIONS,
+  bookingLocalDateKey,
+} from "@/app/admin/bookings/booking-list-utils";
 import {
   getQuickAdvancePatch,
   quickAdvanceToastMessages,
@@ -81,40 +84,6 @@ import {
 } from "@/lib/app-theme";
 import { toaster } from "@/lib/toaster";
 
-type BookingCustomer = {
-  id: string;
-  name: string;
-  phone: string;
-};
-
-type BookingCamera = {
-  id: string;
-  name: string;
-  brand: string;
-};
-
-type Booking = {
-  id: string;
-  bookingCode: string;
-  customerId: string;
-  cameraId: string;
-  startBookingDate: string;
-  endBookingDate: string;
-  pickupAt: string | null;
-  slot: string;
-  amount: number;
-  note: string | null;
-  shippingAddress: string | null;
-  paymentStatus: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  customer: BookingCustomer;
-  camera: BookingCamera;
-};
-
-const tableCellPad = { px: 4, py: 3 };
-
 const PAGE_SIZE_OPTIONS = [10, 30, 50] as const;
 
 const RefreshIcon = createIcon({
@@ -141,58 +110,6 @@ const RefreshIcon = createIcon({
   ),
 });
 
-const TrashIcon = createIcon({
-  displayName: "TrashIcon",
-  path: (
-    <>
-      <path
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3 6h18"
-      />
-      <path
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-      />
-    </>
-  ),
-});
-
-const PencilIcon = createIcon({
-  displayName: "PencilIcon",
-  path: (
-    <path
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
-    />
-  ),
-});
-
-const ChevronRightIcon = createIcon({
-  displayName: "ChevronRightIcon",
-  path: (
-    <path
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M9 18l6-6-6-6"
-    />
-  ),
-});
-
 type AdminCustomerOption = { id: string; name: string; phone: string };
 type AdminCameraOption = { id: string; brand: string; name: string };
 
@@ -202,94 +119,6 @@ const BOOKING_SLOT_OPTIONS = [
   "AFTERNOON",
   "EVENING",
 ] as const;
-
-const vnd = new Intl.NumberFormat("vi-VN", {
-  style: "currency",
-  currency: "VND",
-  maximumFractionDigits: 0,
-});
-
-const vnDateTimeZone = "Asia/Ho_Chi_Minh";
-
-const bookingDateFmt = new Intl.DateTimeFormat("vi-VN", {
-  day: "2-digit",
-  month: "2-digit",
-  timeZone: vnDateTimeZone,
-});
-
-const pickupAtTableFmt = new Intl.DateTimeFormat("vi-VN", {
-  day: "2-digit",
-  month: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-  timeZone: vnDateTimeZone,
-});
-
-function formatBookingDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return bookingDateFmt.format(d);
-}
-
-function formatPickupAtTable(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return pickupAtTableFmt.format(d);
-}
-
-function paymentBadgeProps(
-  s: string,
-): {
-  label: string;
-  colorPalette: "gray" | "green" | "red" | "orange" | "ocean" | "cerulean";
-} {
-  switch (s) {
-    case "PENDING":
-      return { label: "Chưa cọc", colorPalette: "orange" };
-    case "DEPOSITED":
-      return { label: "Đã cọc", colorPalette: "cerulean" };
-    case "PAID":
-      return { label: "Đã thanh toán", colorPalette: "green" };
-    case "REFUNDED":
-      return { label: "Đã hoàn tiền", colorPalette: "gray" };
-    default:
-      return { label: s, colorPalette: "gray" };
-  }
-}
-
-function statusBadgeProps(
-  s: string,
-): {
-  label: string;
-  colorPalette:
-    | "gray"
-    | "green"
-    | "red"
-    | "orange"
-    | "ocean"
-    | "cerulean"
-    | "purple";
-} {
-  switch (s) {
-    case "PENDING_PAYMENT":
-      return { label: "Chờ cọc", colorPalette: "orange" };
-    case "CONFIRMED":
-      return { label: "Chờ lấy máy", colorPalette: "purple" };
-    case "RENTING":
-      return { label: "Đang thuê", colorPalette: "cerulean" };
-    case "LATE_RETURN":
-      return { label: "Trả trễ", colorPalette: "red" };
-    case "COMPLETED":
-      return { label: "Hoàn tất", colorPalette: "green" };
-    case "PENDING_REFUND_CANCEL":
-      return { label: "Chờ hoàn tiền", colorPalette: "orange" };
-    case "CANCELLED":
-      return { label: "Đã hủy", colorPalette: "red" };
-    default:
-      return { label: s, colorPalette: "gray" };
-  }
-}
 
 /** Lọc theo trạng thái đơn (API `status`) */
 type StatusFilter =
@@ -311,28 +140,6 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "COMPLETED", label: "Hoàn tất" },
   { value: "PENDING_REFUND_CANCEL", label: "Chờ hoàn tiền" },
   { value: "CANCELLED", label: "Đã hủy" },
-];
-
-type BookingStatusValue = Exclude<StatusFilter, "ALL">;
-
-const BOOKING_STATUS_EDIT_OPTIONS = STATUS_FILTER_OPTIONS.filter(
-  (o): o is { value: BookingStatusValue; label: string } => o.value !== "ALL",
-);
-
-type PaymentStatusValue =
-  | "PENDING"
-  | "DEPOSITED"
-  | "PAID"
-  | "REFUNDED";
-
-const BOOKING_PAYMENT_EDIT_OPTIONS: {
-  value: PaymentStatusValue;
-  label: string;
-}[] = [
-  { value: "PENDING", label: "Chưa cọc" },
-  { value: "DEPOSITED", label: "Đã cọc" },
-  { value: "PAID", label: "Đã thanh toán" },
-  { value: "REFUNDED", label: "Đã hoàn tiền" },
 ];
 
 type BookingEditForm = {
@@ -408,7 +215,10 @@ type PaymentStatusFilter = "ALL" | PaymentStatusValue;
 const PAYMENT_FILTER_OPTIONS: { value: PaymentStatusFilter; label: string }[] =
   [
     { value: "ALL", label: "Tất cả" },
-    ...BOOKING_PAYMENT_EDIT_OPTIONS,
+    { value: "PENDING", label: "Chưa cọc" },
+    { value: "DEPOSITED", label: "Đã cọc" },
+    { value: "PAID", label: "Đã thanh toán" },
+    { value: "REFUNDED", label: "Đã hoàn tiền" },
   ];
 
 type SearchField = "phone" | "name" | "bookingCode";
@@ -455,161 +265,8 @@ function toLocalDateKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function bookingLocalDateKey(bookingIso: string): string {
-  return toLocalDateKey(new Date(bookingIso));
-}
-
 function todayLocalDateKey(): string {
   return toLocalDateKey(new Date());
-}
-
-function BookingStatusMenuCell({
-  booking,
-  saving,
-  onChangeStatus,
-  onMenuOpenChange,
-}: {
-  booking: Booking;
-  saving: boolean;
-  onChangeStatus: (id: string, status: BookingStatusValue) => void;
-  onMenuOpenChange: (open: boolean) => void;
-}) {
-  const st = statusBadgeProps(booking.status);
-  return (
-    <MenuRoot
-      positioning={{ placement: "bottom-start", gutter: 4 }}
-      onOpenChange={({ open }) => onMenuOpenChange(open)}
-    >
-      <MenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          h="auto"
-          minH="unset"
-          px={1}
-          py={0.5}
-          gap={1.5}
-          fontWeight="normal"
-          cursor={saving ? "wait" : "pointer"}
-          disabled={saving}
-          opacity={saving ? 0.75 : 1}
-          aria-haspopup="menu"
-          aria-label={`Trạng thái: ${st.label}. Nhấn để đổi trạng thái`}
-        >
-          {saving ? <Spinner size="xs" /> : null}
-          <Badge variant="subtle" colorPalette={st.colorPalette}>
-            {st.label}
-          </Badge>
-        </Button>
-      </MenuTrigger>
-      <Portal>
-        <MenuPositioner>
-          <MenuContent minW="12rem">
-            {BOOKING_STATUS_EDIT_OPTIONS.map((opt) => (
-              <MenuItem
-                key={opt.value}
-                value={opt.value}
-                disabled={saving}
-                onSelect={() => {
-                  if (opt.value !== booking.status) {
-                    onChangeStatus(booking.id, opt.value);
-                  }
-                }}
-              >
-                <HStack justify="space-between" w="full" gap={2}>
-                  <MenuItemText>{opt.label}</MenuItemText>
-                  {booking.status === opt.value ? (
-                    <Text fontSize="sm" color="fg.muted" aria-hidden>
-                      ✓
-                    </Text>
-                  ) : (
-                    <Box w="4" flexShrink={0} aria-hidden />
-                  )}
-                </HStack>
-              </MenuItem>
-            ))}
-          </MenuContent>
-        </MenuPositioner>
-      </Portal>
-    </MenuRoot>
-  );
-}
-
-function BookingPaymentMenuCell({
-  booking,
-  saving,
-  onChangePaymentStatus,
-  onMenuOpenChange,
-}: {
-  booking: Booking;
-  saving: boolean;
-  onChangePaymentStatus: (
-    id: string,
-    paymentStatus: PaymentStatusValue,
-  ) => void;
-  onMenuOpenChange: (open: boolean) => void;
-}) {
-  const pay = paymentBadgeProps(booking.paymentStatus);
-  return (
-    <MenuRoot
-      positioning={{ placement: "bottom-start", gutter: 4 }}
-      onOpenChange={({ open }) => onMenuOpenChange(open)}
-    >
-      <MenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          h="auto"
-          minH="unset"
-          px={1}
-          py={0.5}
-          gap={1.5}
-          fontWeight="normal"
-          cursor={saving ? "wait" : "pointer"}
-          disabled={saving}
-          opacity={saving ? 0.75 : 1}
-          aria-haspopup="menu"
-          aria-label={`Thanh toán: ${pay.label}. Nhấn để đổi trạng thái`}
-        >
-          {saving ? <Spinner size="xs" /> : null}
-          <Badge variant="subtle" colorPalette={pay.colorPalette}>
-            {pay.label}
-          </Badge>
-        </Button>
-      </MenuTrigger>
-      <Portal>
-        <MenuPositioner>
-          <MenuContent minW="12rem">
-            {BOOKING_PAYMENT_EDIT_OPTIONS.map((opt) => (
-              <MenuItem
-                key={opt.value}
-                value={opt.value}
-                disabled={saving}
-                onSelect={() => {
-                  if (opt.value !== booking.paymentStatus) {
-                    onChangePaymentStatus(booking.id, opt.value);
-                  }
-                }}
-              >
-                <HStack justify="space-between" w="full" gap={2}>
-                  <MenuItemText>{opt.label}</MenuItemText>
-                  {booking.paymentStatus === opt.value ? (
-                    <Text fontSize="sm" color="fg.muted" aria-hidden>
-                      ✓
-                    </Text>
-                  ) : (
-                    <Box w="4" flexShrink={0} aria-hidden />
-                  )}
-                </HStack>
-              </MenuItem>
-            ))}
-          </MenuContent>
-        </MenuPositioner>
-      </Portal>
-    </MenuRoot>
-  );
 }
 
 export default function AdminBookingsPage() {
@@ -1090,6 +747,32 @@ export default function AdminBookingsPage() {
     return filteredBookings.slice(start, start + pageSize);
   }, [filteredBookings, clampedPage, pageSize]);
 
+  const getBookingListProps = useCallback(
+    (b: Booking) => ({
+      booking: b,
+      isRowSaving: isRowSaving(b.id),
+      quickAdvanceSaving: quickAdvanceSavingId === b.id,
+      deleteSaving: deleteSavingId === b.id,
+      canQuickAdvance: getQuickAdvancePatch(b) !== null,
+      onCopyPhone: (phone: string) => void copyToClipboard(phone),
+      onPaymentChange: handleBookingPaymentChange,
+      onStatusChange: handleBookingStatusChange,
+      onMenuOpenChange: () => setPatchError(null),
+      onQuickAdvance: () => void handleQuickAdvance(b),
+      onEdit: () => openEditBooking(b),
+      onDelete: () => void handleBookingDelete(b),
+    }),
+    [
+      isRowSaving,
+      quickAdvanceSavingId,
+      deleteSavingId,
+      copyToClipboard,
+      handleBookingPaymentChange,
+      handleBookingStatusChange,
+      handleQuickAdvance,
+    ],
+  );
+
   const loadBookings = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
@@ -1297,7 +980,12 @@ export default function AdminBookingsPage() {
                   flexWrap="wrap"
                   flexShrink={0}
                 >
-                  <Stack gap={2} align="flex-start">
+                  <Stack
+                    gap={2}
+                    align="flex-start"
+                    w={{ base: "full", md: "auto" }}
+                    minW={{ md: "11rem" }}
+                  >
                     <Text
                       fontSize="sm"
                       fontWeight="medium"
@@ -1308,8 +996,8 @@ export default function AdminBookingsPage() {
                     <Input
                       type="date"
                       size="sm"
-                      w="auto"
-                      minW="11rem"
+                      w={{ base: "full", md: "auto" }}
+                      minW={{ md: "11rem" }}
                       bg="white"
                       borderWidth="1px"
                       borderColor="gray.200"
@@ -1379,7 +1067,12 @@ export default function AdminBookingsPage() {
                       </CheckboxLabel>
                     </CheckboxRoot>
                   </Stack>
-                  <Stack gap={2} align="flex-start" minW="11rem">
+                  <Stack
+                    gap={2}
+                    align="flex-start"
+                    w={{ base: "full", md: "auto" }}
+                    minW={{ md: "11rem" }}
+                  >
                     <Text
                       fontSize="sm"
                       fontWeight="medium"
@@ -1387,7 +1080,7 @@ export default function AdminBookingsPage() {
                     >
                       Thanh toán
                     </Text>
-                    <NativeSelectRoot size="sm" w="full" minW="11rem">
+                    <NativeSelectRoot size="sm" w="full" minW={{ md: "11rem" }}>
                       <NativeSelectField
                         value={paymentStatusFilter}
                         bg="white"
@@ -1409,7 +1102,12 @@ export default function AdminBookingsPage() {
                       <NativeSelectIndicator />
                     </NativeSelectRoot>
                   </Stack>
-                  <Stack gap={2} align="flex-start" minW="11rem">
+                  <Stack
+                    gap={2}
+                    align="flex-start"
+                    w={{ base: "full", md: "auto" }}
+                    minW={{ md: "11rem" }}
+                  >
                     <Text
                       fontSize="sm"
                       fontWeight="medium"
@@ -1417,7 +1115,7 @@ export default function AdminBookingsPage() {
                     >
                       Trạng thái đơn
                     </Text>
-                    <NativeSelectRoot size="sm" w="full" minW="11rem">
+                    <NativeSelectRoot size="sm" w="full" minW={{ md: "11rem" }}>
                       <NativeSelectField
                         value={statusFilter}
                         bg="white"
@@ -1437,7 +1135,12 @@ export default function AdminBookingsPage() {
                       <NativeSelectIndicator />
                     </NativeSelectRoot>
                   </Stack>
-                  <Stack gap={2} align="flex-start" minW="11rem">
+                  <Stack
+                    gap={2}
+                    align="flex-start"
+                    w={{ base: "full", md: "auto" }}
+                    minW={{ md: "11rem" }}
+                  >
                     <Text
                       fontSize="sm"
                       fontWeight="medium"
@@ -1445,7 +1148,7 @@ export default function AdminBookingsPage() {
                     >
                       Máy ảnh
                     </Text>
-                    <NativeSelectRoot size="sm" w="full" minW="11rem">
+                    <NativeSelectRoot size="sm" w="full" minW={{ md: "11rem" }}>
                       <NativeSelectField
                         value={cameraFilter}
                         bg="white"
@@ -1589,239 +1292,83 @@ export default function AdminBookingsPage() {
                     </Text>
                   </Box>
                 ) : null}
-                <TableScrollArea rounded="l2">
-              <TableRoot size="sm" native>
-                <TableHeader>
-                  <TableRow>
-                    <TableColumnHeader {...tableCellPad}>
-                      Ngày thuê
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
-                      Nhận máy
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>Buổi</TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>Khách</TableColumnHeader>
-                    <TableColumnHeader maxW="14rem" {...tableCellPad}>
-                      Địa chỉ
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>Máy</TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad} textAlign="end">
-                      Số tiền
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
-                      Thanh toán
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad}>
-                      Trạng thái
-                    </TableColumnHeader>
-                    <TableColumnHeader maxW="12rem" {...tableCellPad}>
-                      Ghi chú
-                    </TableColumnHeader>
-                    <TableColumnHeader {...tableCellPad} w="7.5rem">
-                      Hành động
-                    </TableColumnHeader>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagedBookings.map((b) => {
-                    return (
-                      <TableRow key={b.id}>
-                        <TableCell whiteSpace="nowrap" {...tableCellPad}>
-                          <Stack gap={0} align="flex-start">
-                            <Text fontSize="sm">
-                              {formatBookingDate(b.startBookingDate)}
-                            </Text>
-                            {bookingLocalDateKey(b.startBookingDate) !==
-                            bookingLocalDateKey(b.endBookingDate) ? (
-                              <Text fontSize="sm" color="fg.muted">
-                                Trả: {formatBookingDate(b.endBookingDate)}
-                              </Text>
-                            ) : null}
-                          </Stack>
-                        </TableCell>
-                        <TableCell whiteSpace="nowrap" {...tableCellPad}>
-                          <Text fontSize="sm">
-                            {b.pickupAt
-                              ? formatPickupAtTable(b.pickupAt)
-                              : "—"}
-                          </Text>
-                        </TableCell>
-                        <TableCell {...tableCellPad}>
-                          <Stack gap={0} align="flex-start">
-                            <Text fontSize="sm">{slotLabelVi(b.slot)}</Text>
-                            <Text fontSize="xs" color="fg.muted">
-                              {slotTimeRangeLabel(b.slot)}
-                            </Text>
-                          </Stack>
-                        </TableCell>
-                        <TableCell {...tableCellPad}>
-                          <Stack gap={1} align="flex-start" w="full">
-                            <Link
-                              asChild
-                              fontWeight="medium"
-                              colorPalette={APP_COLOR_PALETTE}
-                              _hover={{ textDecoration: "underline" }}
-                            >
-                              <NextLink
-                                href={`/admin/customers/${encodeURIComponent(b.customer.id)}`}
-                                aria-label={`Chi tiết khách ${b.customer.name}`}
-                              >
-                                {b.customer.name}
-                              </NextLink>
-                            </Link>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="xs"
-                              h="auto"
-                              minH={0}
-                              px={1}
-                              py={0}
-                              fontSize="sm"
-                              color="fg.muted"
-                              fontWeight="normal"
-                              justifyContent="flex-start"
-                              title="Nhấn để sao chép số điện thoại"
-                              _hover={{ textDecoration: "underline" }}
-                              onClick={() =>
-                                void copyToClipboard(b.customer.phone)
-                              }
-                            >
-                              {b.customer.phone}
-                            </Button>
-                          </Stack>
-                        </TableCell>
-                        <TableCell maxW="14rem" {...tableCellPad}>
-                          {b.shippingAddress?.trim() ? (
-                            <Text
-                              fontSize="sm"
-                              lineClamp={3}
-                              title={b.shippingAddress.trim()}
-                              whiteSpace="pre-wrap"
-                            >
-                              {b.shippingAddress.trim()}
-                            </Text>
-                          ) : (
-                            <Text fontSize="sm" color="fg.muted">
-                              Tự lấy
-                            </Text>
-                          )}
-                        </TableCell>
-                        <TableCell {...tableCellPad}>
-                          <Text fontSize="sm" color="fg.muted">
-                            {b.camera.brand}
-                          </Text>
-                          <Text fontWeight="medium">{b.camera.name}</Text>
-                        </TableCell>
-                        <TableCell {...tableCellPad} textAlign="end">
-                          <Text fontSize="sm">{vnd.format(b.amount)}</Text>
-                          {b.paymentStatus === "DEPOSITED" ? (
-                            <Text fontSize="xs" color="fg.muted">
-                              Còn lại:{" "}
-                              {vnd.format(
-                                Math.max(0, b.amount - 50_000),
-                              )}
-                            </Text>
-                          ) : null}
-                        </TableCell>
-                        <TableCell {...tableCellPad}>
-                          <BookingPaymentMenuCell
-                            booking={b}
-                            saving={isRowSaving(b.id)}
-                            onChangePaymentStatus={handleBookingPaymentChange}
-                            onMenuOpenChange={(open) => {
-                              if (open) setPatchError(null);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell {...tableCellPad}>
-                          <BookingStatusMenuCell
-                            booking={b}
-                            saving={isRowSaving(b.id)}
-                            onChangeStatus={handleBookingStatusChange}
-                            onMenuOpenChange={(open) => {
-                              if (open) setPatchError(null);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell maxW="12rem" {...tableCellPad}>
-                          {b.note ? (
-                            <Text
-                              lineClamp={3}
-                              title={b.note}
-                              whiteSpace="pre-wrap"
-                            >
-                              {b.note}
-                            </Text>
-                          ) : (
-                            <Text color="fg.muted">—</Text>
-                          )}
-                        </TableCell>
-                        <TableCell {...tableCellPad}>
-                          <HStack gap={1} justify="flex-end">
-                            <IconButton
-                              type="button"
-                              size="sm"
-                              variant="subtle"
-                              colorPalette="green"
-                              aria-label="Chuyển tiếp trạng thái"
-                              disabled={
-                                isRowSaving(b.id) ||
-                                getQuickAdvancePatch(b) === null
-                              }
-                              loading={quickAdvanceSavingId === b.id}
-                              onClick={() => handleQuickAdvance(b)}
-                            >
-                              <ChevronRightIcon />
-                            </IconButton>
-                            <IconButton
-                              type="button"
-                              size="sm"
-                              variant="subtle"
-                              colorPalette="blue"
-                              aria-label={`Sửa đơn ${b.bookingCode}`}
-                              disabled={isRowSaving(b.id)}
-                              onClick={() => openEditBooking(b)}
-                            >
-                              <PencilIcon />
-                            </IconButton>
-                            <IconButton
-                              type="button"
-                              size="sm"
-                              variant="subtle"
-                              colorPalette="red"
-                              aria-label={`Xóa đơn ${b.bookingCode}`}
-                              loading={deleteSavingId === b.id}
-                              disabled={isRowSaving(b.id)}
-                              onClick={() => handleBookingDelete(b)}
-                            >
-                              <TrashIcon />
-                            </IconButton>
-                          </HStack>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </TableRoot>
-            </TableScrollArea>
-                <HStack
+                <AdminResponsiveTable
+                  breakpoint="lg"
+                  table={
+                    <TableScrollArea rounded="l2">
+                      <TableRoot size="sm" native>
+                        <TableHeader>
+                          <TableRow>
+                            <TableColumnHeader {...tableCellPad}>
+                              Ngày thuê
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad}>
+                              Nhận máy
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad}>
+                              Buổi
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad}>
+                              Khách
+                            </TableColumnHeader>
+                            <TableColumnHeader maxW="14rem" {...tableCellPad}>
+                              Địa chỉ
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad}>
+                              Máy
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad} textAlign="end">
+                              Số tiền
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad}>
+                              Thanh toán
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad}>
+                              Trạng thái
+                            </TableColumnHeader>
+                            <TableColumnHeader maxW="12rem" {...tableCellPad}>
+                              Ghi chú
+                            </TableColumnHeader>
+                            <TableColumnHeader {...tableCellPad} w="7.5rem">
+                              Hành động
+                            </TableColumnHeader>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pagedBookings.map((b) => (
+                            <BookingListRow
+                              key={b.id}
+                              {...getBookingListProps(b)}
+                            />
+                          ))}
+                        </TableBody>
+                      </TableRoot>
+                    </TableScrollArea>
+                  }
+                  cards={pagedBookings.map((b) => (
+                    <BookingListCard
+                      key={b.id}
+                      {...getBookingListProps(b)}
+                    />
+                  ))}
+                />
+                <Stack
                   px={4}
                   py={3}
-                  flexWrap="wrap"
                   gap={3}
+                  direction={{ base: "column", sm: "row" }}
                   justify="space-between"
-                  align="center"
+                  align={{ base: "stretch", sm: "center" }}
                   borderTopWidth="1px"
                   borderTopColor="gray.200"
                   bg="white"
                 >
-                  <Text fontSize="sm" color="fg.muted">
+                  <Text fontSize="sm" color="fg.muted" textAlign={{ base: "center", sm: "left" }}>
                     {totalFiltered === 0
                       ? "0 đơn"
                       : `Hiển thị ${(clampedPage - 1) * pageSize + 1}–${Math.min(clampedPage * pageSize, totalFiltered)} / ${totalFiltered} đơn`}
                   </Text>
-                  <HStack gap={2} flexWrap="wrap" align="center">
+                  <HStack gap={2} flexWrap="wrap" align="center" justify={{ base: "center", sm: "flex-end" }}>
                     <Text fontSize="sm" color="fg.muted" flexShrink={0}>
                       Mỗi trang
                     </Text>
@@ -1867,7 +1414,7 @@ export default function AdminBookingsPage() {
                       Sau
                     </Button>
                   </HStack>
-                </HStack>
+                </Stack>
               </Stack>
             )}
           </CardBody>
@@ -1884,7 +1431,7 @@ export default function AdminBookingsPage() {
       >
         <DialogBackdrop />
         <DialogPositioner>
-          <DialogContent maxW="lg" mx={4}>
+          <DialogContent maxW="lg" w="full" mx={4}>
             <DialogHeader>
               <DialogTitle>
                 {bookingFormMode === "create"
