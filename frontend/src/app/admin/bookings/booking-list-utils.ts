@@ -8,9 +8,7 @@ const bookingDateFmt = new Intl.DateTimeFormat("vi-VN", {
   timeZone: vnDateTimeZone,
 });
 
-const pickupAtTableFmt = new Intl.DateTimeFormat("vi-VN", {
-  day: "2-digit",
-  month: "2-digit",
+const pickupTimeFmt = new Intl.DateTimeFormat("vi-VN", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
@@ -29,10 +27,59 @@ export function formatBookingDate(iso: string): string {
   return bookingDateFmt.format(d);
 }
 
-export function formatPickupAtTable(iso: string): string {
+export function bookingVnDateKey(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return pickupAtTableFmt.format(d);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: vnDateTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+function parseDateKey(key: string): Date {
+  const [y, m, day] = key.split("-").map(Number);
+  return new Date(y, m - 1, day);
+}
+
+function relativeDayLabelVn(dateKey: string, refKey: string): string | null {
+  const diff = Math.round(
+    (parseDateKey(dateKey).getTime() - parseDateKey(refKey).getTime()) /
+      86_400_000,
+  );
+  if (diff === 0) return "Hôm nay";
+  if (diff === -1) return "Hôm qua";
+  if (diff === 1) return "Ngày mai";
+  return null;
+}
+
+/** Ngày thuê: Hôm nay / Hôm qua / Ngày mai, hoặc dd/mm theo múi VN. */
+export function formatBookingDateRelative(
+  iso: string,
+  refDate: Date = new Date(),
+): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const key = bookingVnDateKey(iso);
+  const refKey = bookingVnDateKey(refDate.toISOString());
+  return relativeDayLabelVn(key, refKey) ?? formatBookingDate(iso);
+}
+
+/** Nhận máy: Hôm nay/Hôm qua/Ngày mai + giờ, hoặc dd/mm + giờ (múi VN). */
+export function formatPickupAtRelative(
+  iso: string,
+  refDate: Date = new Date(),
+): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const time = pickupTimeFmt.format(d);
+  const dayPart = formatBookingDateRelative(iso, refDate);
+  return `${time} ${dayPart}`;
+}
+
+export function formatPickupAtTable(iso: string): string {
+  return formatPickupAtRelative(iso);
 }
 
 export function paymentBadgeProps(s: string): {

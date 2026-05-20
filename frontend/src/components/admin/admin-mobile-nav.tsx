@@ -10,12 +10,15 @@ import {
   Text,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import {
   ADMIN_COLOR_PALETTE,
   cardSurfaceProps,
 } from "@/lib/app-theme";
+
+const PANEL_TRANSITION_MS = 280;
+const BACKDROP_TRANSITION_MS = 250;
 
 const MenuIcon = createIcon({
   displayName: "AdminMenuIcon",
@@ -74,7 +77,7 @@ export function AdminMobileNavBar({
       <IconButton
         type="button"
         size="sm"
-        variant="outline"
+        variant="solid"
         colorPalette={ADMIN_COLOR_PALETTE}
         aria-label="Mở menu điều hướng"
         onClick={onOpenMenu}
@@ -94,18 +97,40 @@ export function AdminMobileNavDrawer({
   onOpenChange,
   onLogout,
 }: Omit<AdminMobileNavProps, "pageTitle">) {
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
+
   useEffect(() => {
-    if (!open) return;
+    if (open) {
+      setMounted(true);
+      setVisible(false);
+      return;
+    }
+    setVisible(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!mounted || !open) return;
+    const id = window.setTimeout(() => setVisible(true), 20);
+    return () => window.clearTimeout(id);
+  }, [mounted, open]);
+
+  useEffect(() => {
+    if (!mounted || !visible) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onOpenChange(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onOpenChange]);
-
-  if (!open) return null;
+  }, [mounted, visible, onOpenChange]);
 
   const close = () => onOpenChange(false);
+
+  const handlePanelTransitionEnd = () => {
+    if (!visible && !open) setMounted(false);
+  };
+
+  if (!mounted) return null;
 
   return (
     <Box position="fixed" inset={0} zIndex={1400}>
@@ -113,6 +138,9 @@ export function AdminMobileNavDrawer({
         position="absolute"
         inset={0}
         bg="blackAlpha.600"
+        opacity={visible ? 1 : 0}
+        pointerEvents={visible ? "auto" : "none"}
+        transition={`opacity ${BACKDROP_TRANSITION_MS}ms ease`}
         onClick={close}
         aria-hidden
       />
@@ -127,6 +155,10 @@ export function AdminMobileNavDrawer({
         borderRightWidth="1px"
         borderColor="ocean.200"
         p={4}
+        transform={visible ? "translateX(0)" : "translateX(-100%)"}
+        transition={`transform ${PANEL_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`}
+        willChange="transform"
+        onTransitionEnd={handlePanelTransitionEnd}
         onClick={(e) => e.stopPropagation()}
       >
         <Stack gap={4} h="full">

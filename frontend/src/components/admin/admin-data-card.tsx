@@ -76,11 +76,18 @@ export function AdminDataCardRow({
   );
 }
 
-export function AdminDataCardActions({ children }: { children: ReactNode }) {
+export function AdminDataCardActions({
+  children,
+  justify = "flex-start",
+}: {
+  children: ReactNode;
+  justify?: "flex-start" | "flex-end" | "center" | "space-between";
+}) {
   return (
     <HStack
       gap={2}
       flexWrap="wrap"
+      justify={justify}
       pt={2}
       mt={1}
       borderTopWidth="1px"

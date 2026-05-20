@@ -29,27 +29,33 @@ export function BookingStatusMenuCell({
   saving,
   onChangeStatus,
   onMenuOpenChange,
+  size = "compact",
 }: {
   booking: Booking;
   saving: boolean;
   onChangeStatus: (id: string, status: BookingStatusValue) => void;
   onMenuOpenChange: (open: boolean) => void;
+  size?: "compact" | "prominent";
 }) {
   const st = statusBadgeProps(booking.status);
+  const prominent = size === "prominent";
   return (
     <MenuRoot
-      positioning={{ placement: "bottom-start", gutter: 4 }}
+      positioning={{
+        placement: prominent ? "bottom-end" : "bottom-start",
+        gutter: 4,
+      }}
       onOpenChange={({ open }) => onMenuOpenChange(open)}
     >
       <MenuTrigger asChild>
         <Button
           type="button"
           variant="ghost"
-          size="xs"
+          size={prominent ? "sm" : "xs"}
           h="auto"
           minH="unset"
-          px={1}
-          py={0.5}
+          px={prominent ? 0 : 1}
+          py={prominent ? 0 : 0.5}
           gap={1.5}
           fontWeight="normal"
           cursor={saving ? "wait" : "pointer"}
@@ -57,9 +63,14 @@ export function BookingStatusMenuCell({
           opacity={saving ? 0.75 : 1}
           aria-haspopup="menu"
           aria-label={`Trạng thái: ${st.label}. Nhấn để đổi trạng thái`}
+          ml={prominent ? "auto" : undefined}
         >
-          {saving ? <Spinner size="xs" /> : null}
-          <Badge variant="subtle" colorPalette={st.colorPalette}>
+          {saving ? <Spinner size={prominent ? "sm" : "xs"} /> : null}
+          <Badge
+            variant="subtle"
+            colorPalette={st.colorPalette}
+            fontSize={prominent ? "sm" : undefined}
+          >
             {st.label}
           </Badge>
         </Button>

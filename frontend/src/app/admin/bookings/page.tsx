@@ -42,7 +42,11 @@ import {
 import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table";
 import { MonthCalendar } from "@/components/booking/month-calendar";
 import { BookingListCard } from "@/app/admin/bookings/booking-list-card";
-import { PlusIcon } from "@/app/admin/bookings/booking-list-icons";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CloseIcon,
+} from "@/app/admin/bookings/booking-list-icons";
 import { BookingListRow } from "@/app/admin/bookings/booking-list-row";
 import type {
   Booking,
@@ -355,8 +359,8 @@ export default function AdminBookingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDateKey, setFilterDateKey] = useState(todayLocalDateKey);
   /** Bật = không lọc theo ngày, hiển thị mọi đơn (theo các bộ lọc khác). */
-  const [showAllDates, setShowAllDates] = useState(true);
-  const [filterByPickupTime, setFilterByPickupTime] = useState(false);
+  const [showAllDates, setShowAllDates] = useState(false);
+  const [filterByPickupTime, setFilterByPickupTime] = useState(true);
   const [paymentStatusFilter, setPaymentStatusFilter] =
     useState<PaymentStatusFilter>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -945,51 +949,18 @@ export default function AdminBookingsPage() {
           >
             <HStack justify="space-between" align="center" w="full">
               <CardTitle textStyle="xl">Đơn thuê</CardTitle>
-              <HStack gap={2}>
-                <IconButton
-                  type="button"
-                  size="sm"
-                  variant="solid"
-                  colorPalette={APP_COLOR_PALETTE}
-                  loading={loading}
-                  onClick={() => void loadBookings()}
-                  aria-label="Làm mới danh sách đơn thuê"
-                >
-                  <RefreshIcon />
-                </IconButton>
-                <IconButton
-                  type="button"
-                  size="sm"
-                  variant="solid"
-                  colorPalette={APP_COLOR_PALETTE}
-                  onClick={openCreateBooking}
-                  aria-label="Thêm đơn"
-                >
-                  <PlusIcon />
-                </IconButton>
-              </HStack>
+              <IconButton
+                type="button"
+                size="sm"
+                variant="solid"
+                colorPalette={APP_COLOR_PALETTE}
+                loading={loading}
+                onClick={() => void loadBookings()}
+                aria-label="Làm mới danh sách đơn thuê"
+              >
+                <RefreshIcon />
+              </IconButton>
             </HStack>
-            {bookings !== null ? (
-              <NativeSelectRoot size="sm" w="full">
-                <NativeSelectField
-                  value={activeQuickFilter}
-                  bg="white"
-                  borderWidth="1px"
-                  borderColor="gray.200"
-                  aria-label="Lọc nhanh đơn thuê"
-                  onChange={(e) =>
-                    applyQuickFilter(e.target.value as QuickFilterKey)
-                  }
-                >
-                  {QUICK_FILTER_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </NativeSelectField>
-                <NativeSelectIndicator />
-              </NativeSelectRoot>
-            ) : null}
           </Stack>
 
           {/* Desktop toolbar */}
@@ -1057,20 +1028,44 @@ export default function AdminBookingsPage() {
                 <Text fontSize="sm" fontWeight="medium" color="fg.muted">
                   Số điện thoại
                 </Text>
-                <Input
-                  size="sm"
-                  bg="white"
-                  borderWidth="1px"
-                  borderColor="gray.200"
-                  _focusVisible={{ borderColor: "ocean.500" }}
-                  placeholder="Ví dụ: 0901…"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchField("phone");
-                    setSearchQuery(e.target.value);
-                  }}
-                  aria-label="Tìm theo số điện thoại"
-                />
+                <Box position="relative" w="full">
+                  <Input
+                    w="full"
+                    size="sm"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    bg="white"
+                    borderWidth="1px"
+                    borderColor="gray.200"
+                    pe={searchQuery.trim() ? "2.25rem" : undefined}
+                    _focusVisible={{ borderColor: "ocean.500" }}
+                    placeholder="Ví dụ: 0901…"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchField("phone");
+                      setSearchQuery(normalizePhoneDigits(e.target.value));
+                    }}
+                    aria-label="Tìm theo số điện thoại"
+                  />
+                  {searchQuery.trim() ? (
+                    <IconButton
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      colorPalette={APP_COLOR_PALETTE}
+                      position="absolute"
+                      right={1}
+                      top="50%"
+                      transform="translateY(-50%)"
+                      zIndex={1}
+                      aria-label="Xóa số điện thoại"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      <CloseIcon boxSize="1rem" />
+                    </IconButton>
+                  ) : null}
+                </Box>
               </Stack>
             ) : null}
 
@@ -1468,23 +1463,93 @@ export default function AdminBookingsPage() {
                     />
                   ))}
                 />
-                <Stack
+                {/* Mobile pagination */}
+                <Box
+                  display={{ base: "block", lg: "none" }}
+                  position="relative"
                   px={4}
                   py={3}
-                  gap={3}
-                  direction={{ base: "column", sm: "row" }}
-                  justify="space-between"
-                  align={{ base: "stretch", sm: "center" }}
+                  minH="3.25rem"
                   borderTopWidth="1px"
                   borderTopColor="gray.200"
                   bg="white"
                 >
-                  <Text fontSize="sm" color="fg.muted" textAlign={{ base: "center", sm: "left" }}>
+                  <Text
+                    position="absolute"
+                    left={4}
+                    bottom={3}
+                    fontSize="sm"
+                    fontWeight="semibold"
+                    color="fg.muted"
+                    lineHeight="1"
+                  >
+                    {clampedPage}/{totalPages}
+                  </Text>
+                  <HStack gap={2} justify="flex-end" align="center" w="full">
+                    <NativeSelectRoot size="sm" w="3.75rem" minW="3.75rem">
+                      <NativeSelectField
+                        value={String(pageSize)}
+                        bg="white"
+                        borderWidth="1px"
+                        borderColor="gray.200"
+                        aria-label="Số đơn mỗi trang"
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setPage(1);
+                        }}
+                      >
+                        {PAGE_SIZE_OPTIONS.map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </NativeSelectField>
+                      <NativeSelectIndicator />
+                    </NativeSelectRoot>
+                    <IconButton
+                      type="button"
+                      size="md"
+                      variant="outline"
+                      colorPalette={APP_COLOR_PALETTE}
+                      aria-label="Trang trước"
+                      disabled={clampedPage <= 1}
+                      onClick={() => setPage(clampedPage - 1)}
+                    >
+                      <ChevronLeftIcon boxSize="1.25rem" />
+                    </IconButton>
+                    <IconButton
+                      type="button"
+                      size="md"
+                      variant="outline"
+                      colorPalette={APP_COLOR_PALETTE}
+                      aria-label="Trang sau"
+                      disabled={clampedPage >= totalPages}
+                      onClick={() => setPage(clampedPage + 1)}
+                    >
+                      <ChevronRightIcon boxSize="1.25rem" />
+                    </IconButton>
+                  </HStack>
+                </Box>
+
+                {/* Desktop pagination */}
+                <Stack
+                  display={{ base: "none", lg: "flex" }}
+                  px={4}
+                  py={3}
+                  gap={3}
+                  direction="row"
+                  justify="space-between"
+                  align="center"
+                  borderTopWidth="1px"
+                  borderTopColor="gray.200"
+                  bg="white"
+                >
+                  <Text fontSize="sm" color="fg.muted">
                     {totalFiltered === 0
                       ? "0 đơn"
                       : `Hiển thị ${(clampedPage - 1) * pageSize + 1}–${Math.min(clampedPage * pageSize, totalFiltered)} / ${totalFiltered} đơn`}
                   </Text>
-                  <HStack gap={2} flexWrap="wrap" align="center" justify={{ base: "center", sm: "flex-end" }}>
+                  <HStack gap={2} flexWrap="wrap" align="center" justify="flex-end">
                     <Text fontSize="sm" color="fg.muted" flexShrink={0}>
                       Mỗi trang
                     </Text>

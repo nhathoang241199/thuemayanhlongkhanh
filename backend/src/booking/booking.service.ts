@@ -161,31 +161,6 @@ export class BookingService {
     return block;
   }
 
-  private formatChangeAppliedNote(
-    newAmount: number,
-    existingNote: string | null,
-  ): string {
-    const vnd = new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-      maximumFractionDigits: 0,
-    });
-    const at = new Intl.DateTimeFormat('vi-VN', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date());
-    const block = [
-      '--- Đã thay đổi lịch ---',
-      `Thời gian: ${at}`,
-      `Tổng tiền thuê: ${vnd.format(newAmount)}`,
-      `Còn lại khi lấy máy: ${vnd.format(balanceDueVnd(newAmount))}`,
-    ].join('\n');
-    if (existingNote?.trim()) {
-      return `${existingNote.trim()}\n\n${block}`;
-    }
-    return block;
-  }
-
   private resolvePickupAt(
     startDate: string,
     slot: BookingSlot,
@@ -425,14 +400,11 @@ export class BookingService {
         slot: dto.slot,
         pickupAt,
         amount: newAmount,
-        note: this.formatChangeAppliedNote(
-          newAmount,
-          dto.note?.trim()
-            ? booking.note?.trim()
-              ? `${booking.note.trim()}\n${dto.note.trim()}`
-              : dto.note.trim()
-            : booking.note,
-        ),
+        note: dto.note?.trim()
+          ? booking.note?.trim()
+            ? `${booking.note.trim()}\n${dto.note.trim()}`
+            : dto.note.trim()
+          : booking.note,
         shippingAddress: dto.shippingAddress ?? booking.shippingAddress,
         pendingChange: Prisma.DbNull,
         status: BookingStatus.CONFIRMED,
