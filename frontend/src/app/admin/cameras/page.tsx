@@ -4,8 +4,6 @@ import {
   Box,
   Button,
   CardBody,
-  CardDescription,
-  CardHeader,
   CardRoot,
   CardTitle,
   createIcon,
@@ -496,22 +494,9 @@ export default function AdminCamerasPage() {
   return (
     <Stack gap={6}>
       <CardRoot {...cardSurfaceProps}>
-        <CardHeader>
-          <HStack justify="space-between" align="flex-start" gap={4} flexWrap="wrap">
-            <Box>
-              <CardTitle textStyle="2xl">Quản lý máy ảnh</CardTitle>
-              <CardDescription>
-                Danh sách máy trong kho.{" "}
-                <Text as="span" fontWeight="semibold">
-                  Sửa
-                </Text>{" "}
-                (PATCH{" "}
-                <Text as="span" fontWeight="semibold">
-                  /api/cameras/:id
-                </Text>
-                ).
-              </CardDescription>
-            </Box>
+        <CardBody>
+          <HStack justify="space-between" align="center" gap={4} flexWrap="wrap">
+            <CardTitle textStyle="2xl">Quản lý máy ảnh</CardTitle>
             <Button
               type="button"
               size="sm"
@@ -521,7 +506,7 @@ export default function AdminCamerasPage() {
               Thêm máy ảnh
             </Button>
           </HStack>
-        </CardHeader>
+        </CardBody>
       </CardRoot>
 
       {error ? (

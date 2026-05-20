@@ -4,8 +4,6 @@ import {
   Box,
   Button,
   CardBody,
-  CardDescription,
-  CardHeader,
   CardRoot,
   CardTitle,
   DialogBackdrop,
@@ -245,39 +243,15 @@ export default function AdminPage() {
   return (
     <Stack gap={6}>
       <CardRoot {...cardSurfaceProps}>
-        <CardHeader>
-          <CardTitle textStyle="2xl">Admin</CardTitle>
-        </CardHeader>
         <CardBody>
-          <Text>
-            Doanh thu (booking{" "}
-            <Text as="span" fontWeight="semibold">
-              PAID
-            </Text>{" "}
-            theo{" "}
-            <Text as="span" fontWeight="semibold">
-              startBookingDate
-            </Text>
-            ), chi phí theo{" "}
-            <Text as="span" fontWeight="semibold">
-              expenseDate
-            </Text>{" "}
-            —{" "}
-            <Text as="span" fontWeight="semibold">
-              UTC
-            </Text>
-            . Mặc định: tháng và năm hiện tại.
-          </Text>
-        </CardBody>
-      </CardRoot>
-
-      <CardRoot {...cardSurfaceProps}>
-        <CardHeader pb={0}>
-          <HStack justify="space-between" align="flex-start" gap={4} flexWrap="wrap">
-            <Box>
-              <CardTitle textStyle="lg">Chọn kỳ</CardTitle>
-              <CardDescription>Tháng và năm để xem số liệu</CardDescription>
-            </Box>
+          <HStack
+            justify="space-between"
+            align="center"
+            gap={4}
+            flexWrap="wrap"
+            mb={4}
+          >
+            <CardTitle textStyle="lg">Chọn kỳ</CardTitle>
             <Button
               type="button"
               size="sm"
@@ -287,8 +261,6 @@ export default function AdminPage() {
               Thêm chi phí
             </Button>
           </HStack>
-        </CardHeader>
-        <CardBody pt={4}>
           <HStack gap={4} flexWrap="wrap" align="flex-end">
             <Box minW={{ md: "12rem" }} w={{ base: "full", md: "auto" }}>
               <Text fontSize="sm" mb={1} fontWeight="medium">

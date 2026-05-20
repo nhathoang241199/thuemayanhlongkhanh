@@ -33,6 +33,26 @@ export class CustomerService {
     });
   }
 
+  async findPage(page: number, pageSize: number) {
+    const safePage = Math.max(1, page);
+    const safeSize = Math.min(100, Math.max(1, pageSize));
+    const skip = (safePage - 1) * safeSize;
+    const [items, total] = await Promise.all([
+      this.prisma.customer.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: safeSize,
+      }),
+      this.prisma.customer.count(),
+    ]);
+    return {
+      items,
+      total,
+      page: safePage,
+      pageSize: safeSize,
+    };
+  }
+
   async findOne(id: string) {
     const row = await this.prisma.customer.findUnique({ where: { id } });
     if (!row) {

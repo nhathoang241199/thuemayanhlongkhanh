@@ -4,8 +4,6 @@ import {
   Box,
   Button,
   CardBody,
-  CardDescription,
-  CardHeader,
   CardRoot,
   CardTitle,
   DialogBackdrop,
@@ -379,20 +377,19 @@ export default function AdminExpensesPage() {
   return (
     <Stack gap={6}>
       <CardRoot {...cardSurfaceProps}>
-        <CardHeader>
-          <HStack justify="space-between" align="flex-start" gap={4} flexWrap="wrap">
-            <Box>
-              <CardTitle textStyle="2xl">Chi tiêu</CardTitle>
-              <CardDescription>
-                Danh sách chi phí theo ngày chi (expenseDate, UTC).
-              </CardDescription>
-            </Box>
+        <CardBody>
+          <HStack
+            justify="space-between"
+            align="center"
+            gap={4}
+            flexWrap="wrap"
+            mb={4}
+          >
+            <CardTitle textStyle="2xl">Chi tiêu</CardTitle>
             <Button type="button" size="sm" colorPalette={APP_COLOR_PALETTE} onClick={openCreate}>
               Thêm chi phí
             </Button>
           </HStack>
-        </CardHeader>
-        <CardBody>
           <HStack gap={4} flexWrap="wrap" align="flex-end" w="full">
             <Box minW={{ md: "12rem" }} w={{ base: "full", md: "auto" }}>
               <Text fontSize="sm" mb={1} fontWeight="medium">

@@ -42,8 +42,21 @@ export class CustomerController {
 
   @Get()
   @ApiOperation({ summary: 'Danh sách khách hàng' })
-  @ApiOkResponse({ description: 'Mảng Customer' })
-  findAll() {
+  @ApiOkResponse({
+    description:
+      'Không query: mảng Customer. Có ?page=&pageSize=: { items, total, page, pageSize }',
+  })
+  findAll(
+    @Query('page') pageStr?: string,
+    @Query('pageSize') pageSizeStr?: string,
+  ) {
+    const hasPage = pageStr !== undefined && pageStr !== '';
+    const hasSize = pageSizeStr !== undefined && pageSizeStr !== '';
+    if (hasPage || hasSize) {
+      const page = Math.max(1, Number.parseInt(pageStr ?? '1', 10) || 1);
+      const pageSize = Number.parseInt(pageSizeStr ?? '30', 10) || 30;
+      return this.customerService.findPage(page, pageSize);
+    }
     return this.customerService.findAll();
   }
 

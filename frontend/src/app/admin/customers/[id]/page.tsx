@@ -4,8 +4,6 @@ import {
   Box,
   Button,
   CardBody,
-  CardDescription,
-  CardHeader,
   CardRoot,
   CardTitle,
   HStack,
@@ -260,14 +258,10 @@ export default function AdminCustomerDetailPage() {
           </CardRoot>
 
           <CardRoot {...cardSurfaceProps}>
-            <CardHeader pb={0}>
-              <CardTitle textStyle="lg">Ảnh CCCD / xác minh</CardTitle>
-              <CardDescription>
-                Copy ảnh từ tin nhắn rồi dán (Ctrl+V) hoặc chọn file — không cần
-                tải về máy
-              </CardDescription>
-            </CardHeader>
             <CardBody>
+              <CardTitle textStyle="lg" mb={4}>
+                Ảnh CCCD / xác minh
+              </CardTitle>
               <VerificationImageManager
                 customerId={customer.id}
                 urls={customer.verificationImageUrls}

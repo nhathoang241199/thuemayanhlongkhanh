@@ -67,6 +67,7 @@ export function BookingListCard({
   const pay = paymentBadgeProps(b.paymentStatus);
   const showTotal = b.paymentStatus === "PENDING";
   const showBalanceDue = b.paymentStatus === "DEPOSITED";
+  const hideCardActions = b.status === "COMPLETED";
 
   return (
     <AdminDataCard>
@@ -186,34 +187,36 @@ export function BookingListCard({
         ) : null}
       </HStack>
 
-      <AdminDataCardActions justify="space-between">
-        {noteText ? (
+      {!hideCardActions ? (
+        <AdminDataCardActions justify="space-between">
+          {noteText ? (
+            <IconButton
+              type="button"
+              size="lg"
+              variant="subtle"
+              colorPalette={APP_COLOR_PALETTE}
+              aria-label="Xem ghi chú"
+              onClick={() => setNoteOpen(true)}
+            >
+              <NoteIcon boxSize="1.25rem" />
+            </IconButton>
+          ) : (
+            <Box flexShrink={0} />
+          )}
           <IconButton
             type="button"
             size="lg"
             variant="subtle"
-            colorPalette={APP_COLOR_PALETTE}
-            aria-label="Xem ghi chú"
-            onClick={() => setNoteOpen(true)}
+            colorPalette="green"
+            aria-label="Chuyển tiếp trạng thái"
+            disabled={isRowSaving || !canQuickAdvance}
+            loading={quickAdvanceSaving}
+            onClick={onQuickAdvance}
           >
-            <NoteIcon boxSize="1.25rem" />
+            <ChevronRightIcon boxSize="1.35rem" />
           </IconButton>
-        ) : (
-          <Box flexShrink={0} />
-        )}
-        <IconButton
-          type="button"
-          size="lg"
-          variant="subtle"
-          colorPalette="green"
-          aria-label="Chuyển tiếp trạng thái"
-          disabled={isRowSaving || !canQuickAdvance}
-          loading={quickAdvanceSaving}
-          onClick={onQuickAdvance}
-        >
-          <ChevronRightIcon boxSize="1.35rem" />
-        </IconButton>
-      </AdminDataCardActions>
+        </AdminDataCardActions>
+      ) : null}
 
       {noteText ? (
         <DialogRoot

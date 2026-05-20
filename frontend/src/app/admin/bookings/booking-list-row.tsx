@@ -176,18 +176,20 @@ export function BookingListRow({
       </TableCell>
       <TableCell {...tableCellPad}>
         <HStack gap={1} justify="flex-end">
-          <IconButton
-            type="button"
-            size="sm"
-            variant="subtle"
-            colorPalette="green"
-            aria-label="Chuyển tiếp trạng thái"
-            disabled={isRowSaving || !canQuickAdvance}
-            loading={quickAdvanceSaving}
-            onClick={onQuickAdvance}
-          >
-            <ChevronRightIcon />
-          </IconButton>
+          {canQuickAdvance ? (
+            <IconButton
+              type="button"
+              size="sm"
+              variant="subtle"
+              colorPalette="green"
+              aria-label="Chuyển tiếp trạng thái"
+              disabled={isRowSaving}
+              loading={quickAdvanceSaving}
+              onClick={onQuickAdvance}
+            >
+              <ChevronRightIcon />
+            </IconButton>
+          ) : null}
           <IconButton
             type="button"
             size="sm"

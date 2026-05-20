@@ -260,9 +260,9 @@ export function AdminDesktopNav({
 }) {
   return (
     <Box display={{ base: "none", lg: "block" }}>
-      <Box {...cardSurfaceProps} borderRadius="md">
-        <Stack gap={2} p={3}>
-          <HStack gap={1.5} flexWrap="wrap" w="full">
+      <Box {...cardSurfaceProps} borderRadius="md" p={3}>
+        <HStack justify="space-between" align="center" gap={3} w="full">
+          <HStack gap={1.5} flexWrap="wrap" flex="1" minW={0}>
             <Button
               asChild
               variant={navVariant(pathname === "/admin")}
@@ -312,12 +312,12 @@ export function AdminDesktopNav({
             variant="outline"
             colorPalette={ADMIN_COLOR_PALETTE}
             size="sm"
-            alignSelf="flex-end"
+            flexShrink={0}
             onClick={onLogout}
           >
             Đăng xuất
           </Button>
-        </Stack>
+        </HStack>
       </Box>
     </Box>
   );

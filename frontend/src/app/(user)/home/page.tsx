@@ -40,8 +40,12 @@ import {
   slotLabelVi,
   slotTimeRangeLabel,
 } from "@/lib/booking-status";
-import { formatPickupAtVi } from "@/lib/datetime-vn";
-import type { CameraBrand } from "@/lib/booking-api";
+import {
+  fetchRangeAvailability,
+  type BookingSlot,
+  type CameraBrand,
+} from "@/lib/booking-api";
+import { formatPickupAtVi, isoToCalendarDateKey } from "@/lib/datetime-vn";
 import {
   BOOKING_CANCEL_REFUND_VND,
   balanceDueVnd,
@@ -141,6 +145,10 @@ export default function UserHomePage() {
     id: string;
     name: string;
   } | null>(null);
+  /** null = đang kiểm tra; true/false = còn/hết chỗ cho cọc */
+  const [depositSlotAvailable, setDepositSlotAvailable] = useState<
+    Record<string, boolean | null>
+  >({});
 
   const cancelRefundEligible = useMemo(() => {
     if (!cancelTarget) return false;
@@ -152,8 +160,43 @@ export default function UserHomePage() {
     try {
       const list = await fetchMyBookings(phone);
       setBookings(list);
+
+      const pending = list.filter((b) => b.status === "PENDING_PAYMENT");
+      if (pending.length === 0) {
+        setDepositSlotAvailable({});
+        return;
+      }
+      setDepositSlotAvailable(
+        Object.fromEntries(pending.map((b) => [b.id, null])),
+      );
+
+      const results = await Promise.all(
+        pending.map(async (b) => {
+          const startDate = isoToCalendarDateKey(b.startBookingDate);
+          const endDate = isoToCalendarDateKey(b.endBookingDate);
+          if (!startDate || !endDate) {
+            return { id: b.id, available: false as const };
+          }
+          try {
+            const r = await fetchRangeAvailability(
+              b.camera.id,
+              startDate,
+              endDate,
+              b.slot as BookingSlot,
+              b.id,
+            );
+            return { id: b.id, available: r.available };
+          } catch {
+            return { id: b.id, available: false as const };
+          }
+        }),
+      );
+      setDepositSlotAvailable(
+        Object.fromEntries(results.map((r) => [r.id, r.available])),
+      );
     } catch (e) {
       setBookings(null);
+      setDepositSlotAvailable({});
       setError(e instanceof Error ? e.message : "Không tải được đơn thuê.");
     }
   }, []);
@@ -381,16 +424,33 @@ export default function UserHomePage() {
                     >
                       <PencilIcon />
                     </IconButton>
-                    <Button
-                      asChild
-                      flex={1}
-                      size="sm"
-                      colorPalette={APP_COLOR_PALETTE}
-                    >
-                      <NextLink href={`/book/payment?bookingId=${b.id}`}>
-                        Thanh toán cọc
-                      </NextLink>
-                    </Button>
+                    {depositSlotAvailable[b.id] === true ? (
+                      <Button
+                        asChild
+                        flex={1}
+                        size="sm"
+                        colorPalette={APP_COLOR_PALETTE}
+                      >
+                        <NextLink href={`/book/payment?bookingId=${b.id}`}>
+                          Thanh toán cọc
+                        </NextLink>
+                      </Button>
+                    ) : (
+                      <Button
+                        flex={1}
+                        size="sm"
+                        colorPalette={
+                          depositSlotAvailable[b.id] === false
+                            ? "gray"
+                            : APP_COLOR_PALETTE
+                        }
+                        disabled
+                      >
+                        {depositSlotAvailable[b.id] === false
+                          ? "Hết chỗ"
+                          : "Đang kiểm tra…"}
+                      </Button>
+                    )}
                   </HStack>
                 ) : null}
                 {canModify ? (

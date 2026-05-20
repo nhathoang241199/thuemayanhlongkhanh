@@ -1,4 +1,8 @@
-import type { BookingStatusValue, PaymentStatusValue } from "./booking-types";
+import type {
+  Booking,
+  BookingStatusValue,
+  PaymentStatusValue,
+} from "./booking-types";
 
 const vnDateTimeZone = "Asia/Ho_Chi_Minh";
 
@@ -140,6 +144,109 @@ function toLocalDateKey(d: Date): string {
 
 export function bookingLocalDateKey(bookingIso: string): string {
   return toLocalDateKey(new Date(bookingIso));
+}
+
+const MOBILE_TODAY_PICKUP_STATUSES = new Set<BookingStatusValue>([
+  "PENDING_PAYMENT",
+  "CONFIRMED",
+]);
+
+const MOBILE_TODAY_RENTING_STATUSES = new Set<BookingStatusValue>(["RENTING"]);
+
+const SEARCH_RENTING_STATUSES = new Set<BookingStatusValue>([
+  "RENTING",
+  "LATE_RETURN",
+]);
+
+function pickupSortTimeMs(b: Booking): number {
+  return new Date(b.pickupAt ?? b.startBookingDate).getTime();
+}
+
+function returnSortTimeMs(b: Booking): number {
+  return new Date(b.endBookingDate).getTime();
+}
+
+function startBookingSortTimeMs(b: Booking): number {
+  return new Date(b.startBookingDate).getTime();
+}
+
+/** Mobile — đơn hôm nay: chờ cọc/lấy máy (theo ngày nhận) rồi đang thuê (theo ngày trả). */
+export function isMobileTodayBookingsMode(params: {
+  isMobileViewport: boolean;
+  showAllDates: boolean;
+  filterByPickupTime: boolean;
+  filterDateKey: string;
+  todayKey: string;
+  searchQuery: string;
+}): boolean {
+  return (
+    params.isMobileViewport &&
+    !params.showAllDates &&
+    params.filterByPickupTime &&
+    params.filterDateKey === params.todayKey &&
+    params.searchQuery.trim() === ""
+  );
+}
+
+export function filterAndSortMobileTodayBookings(
+  bookings: Booking[],
+  todayKey: string,
+): Booking[] {
+  const pickupQueue: Booking[] = [];
+  const rentingQueue: Booking[] = [];
+
+  for (const b of bookings) {
+    const status = b.status as BookingStatusValue;
+    if (MOBILE_TODAY_PICKUP_STATUSES.has(status)) {
+      if (bookingVnDateKey(b.pickupAt ?? b.startBookingDate) === todayKey) {
+        pickupQueue.push(b);
+      }
+    } else if (MOBILE_TODAY_RENTING_STATUSES.has(status)) {
+      if (bookingVnDateKey(b.endBookingDate) === todayKey) {
+        rentingQueue.push(b);
+      }
+    }
+  }
+
+  pickupQueue.sort((a, b) => pickupSortTimeMs(a) - pickupSortTimeMs(b));
+  rentingQueue.sort((a, b) => returnSortTimeMs(a) - returnSortTimeMs(b));
+
+  return [...pickupQueue, ...rentingQueue];
+}
+
+/**
+ * Khi admin tìm SĐT/tên/mã — ưu tiên đơn cần xử lý (nhận máy / trả máy gần nhất),
+ * sau đó chờ hoàn tiền, cuối cùng đơn đã xong hoặc đã hủy (mới nhất trước).
+ */
+export function sortAdminSearchBookings(bookings: Booking[]): Booking[] {
+  const pickupQueue: Booking[] = [];
+  const rentingQueue: Booking[] = [];
+  const refundQueue: Booking[] = [];
+  const archiveQueue: Booking[] = [];
+
+  for (const b of bookings) {
+    const status = b.status as BookingStatusValue;
+    if (MOBILE_TODAY_PICKUP_STATUSES.has(status)) {
+      pickupQueue.push(b);
+    } else if (SEARCH_RENTING_STATUSES.has(status)) {
+      rentingQueue.push(b);
+    } else if (status === "PENDING_REFUND_CANCEL") {
+      refundQueue.push(b);
+    } else {
+      archiveQueue.push(b);
+    }
+  }
+
+  pickupQueue.sort((a, b) => pickupSortTimeMs(a) - pickupSortTimeMs(b));
+  rentingQueue.sort((a, b) => returnSortTimeMs(a) - returnSortTimeMs(b));
+  refundQueue.sort(
+    (a, b) => startBookingSortTimeMs(b) - startBookingSortTimeMs(a),
+  );
+  archiveQueue.sort(
+    (a, b) => startBookingSortTimeMs(b) - startBookingSortTimeMs(a),
+  );
+
+  return [...pickupQueue, ...rentingQueue, ...refundQueue, ...archiveQueue];
 }
 
 export const BOOKING_STATUS_EDIT_OPTIONS: {
