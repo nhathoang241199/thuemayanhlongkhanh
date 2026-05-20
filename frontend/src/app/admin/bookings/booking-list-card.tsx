@@ -186,7 +186,7 @@ export function BookingListCard({
         ) : null}
       </HStack>
 
-      <AdminDataCardActions justify="space-between" align="center">
+      <AdminDataCardActions justify="space-between">
         {noteText ? (
           <IconButton
             type="button"
