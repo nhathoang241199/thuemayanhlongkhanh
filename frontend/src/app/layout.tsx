@@ -5,6 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Thuê máy ảnh Long Khánh",
   description: "Đặt lịch thuê máy ảnh",
+  themeColor: "#5c3d29",
 };
 
 export default function RootLayout({
