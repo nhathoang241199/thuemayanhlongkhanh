@@ -22,7 +22,7 @@ export class CameraService {
   findPublic(brand?: CameraBrand) {
     return this.prisma.camera.findMany({
       where: brand ? { brand } : undefined,
-      orderBy: { name: 'asc' },
+      orderBy: [{ dayPrice: 'desc' }, { shiftPrice: 'desc' }, { name: 'asc' }],
       select: {
         id: true,
         brand: true,

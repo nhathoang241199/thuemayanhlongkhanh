@@ -302,7 +302,7 @@ export class AvailabilityService {
     this.validateSlotForRange(startDate, endDate, slot);
     const cameras = await this.prisma.camera.findMany({
       where: brand ? { brand } : undefined,
-      orderBy: { name: 'asc' },
+      orderBy: [{ dayPrice: 'desc' }, { shiftPrice: 'desc' }, { name: 'asc' }],
     });
     const result: {
       id: string;
