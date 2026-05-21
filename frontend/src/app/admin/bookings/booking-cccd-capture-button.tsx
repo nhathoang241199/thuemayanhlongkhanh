@@ -40,6 +40,57 @@ function stopMediaStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((t) => t.stop());
 }
 
+function hasVideoFrame(video: HTMLVideoElement): boolean {
+  return video.videoWidth > 0 && video.videoHeight > 0;
+}
+
+/** iOS Safari: videoWidth/Height chỉ có sau loadedmetadata / playing. */
+function waitForVideoFrame(
+  video: HTMLVideoElement,
+  timeoutMs = 8000,
+): Promise<boolean> {
+  if (hasVideoFrame(video)) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(hasVideoFrame(video));
+    };
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      video.removeEventListener("loadedmetadata", finish);
+      video.removeEventListener("loadeddata", finish);
+      video.removeEventListener("playing", finish);
+      video.removeEventListener("resize", finish);
+    };
+
+    video.addEventListener("loadedmetadata", finish);
+    video.addEventListener("loadeddata", finish);
+    video.addEventListener("playing", finish);
+    video.addEventListener("resize", finish);
+
+    const timer = window.setTimeout(finish, timeoutMs);
+  });
+}
+
+async function bindStreamToVideo(
+  video: HTMLVideoElement,
+  stream: MediaStream,
+): Promise<void> {
+  video.srcObject = stream;
+  video.setAttribute("playsinline", "true");
+  video.muted = true;
+  try {
+    await video.play();
+  } catch {
+    /* Safari có thể chặn play() cho đến khi user tương tác thêm */
+  }
+}
+
 export function BookingCccdCaptureButton({
   customerId,
   customerName,
@@ -48,13 +99,14 @@ export function BookingCccdCaptureButton({
   onUploaded,
 }: BookingCccdCaptureButtonProps) {
   const isMobileLayout = useAdminMobileLayout();
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const [streamVersion, setStreamVersion] = useState(0);
 
   const closeCamera = useCallback(() => {
@@ -62,18 +114,75 @@ export function BookingCccdCaptureButton({
     streamRef.current = null;
     setDialogOpen(false);
     setCameraStarting(false);
+    setVideoReady(false);
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
   }, []);
 
-  useEffect(() => {
-    if (!dialogOpen) return;
+  const syncVideoReady = useCallback(() => {
     const video = videoRef.current;
+    setVideoReady(!!video && hasVideoFrame(video));
+  }, []);
+
+  const attachStreamWhenPossible = useCallback(async () => {
     const stream = streamRef.current;
-    if (!video || !stream) return;
-    video.srcObject = stream;
-    void video.play().catch(() => undefined);
+    if (!stream || !dialogOpen) return;
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    await bindStreamToVideo(video, stream);
+    const ready = await waitForVideoFrame(video);
+    setVideoReady(ready);
+  }, [dialogOpen]);
+
+  useEffect(() => {
+    if (!dialogOpen || !streamRef.current) {
+      setVideoReady(false);
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 60;
+
+    const tryAttach = () => {
+      if (cancelled) return;
+      attempts += 1;
+      const video = videoRef.current;
+      const stream = streamRef.current;
+      if (video && stream) {
+        void (async () => {
+          await bindStreamToVideo(video, stream);
+          if (cancelled) return;
+          const ready = await waitForVideoFrame(video);
+          if (!cancelled) setVideoReady(ready);
+        })();
+        return;
+      }
+      if (attempts < maxAttempts) {
+        requestAnimationFrame(tryAttach);
+      }
+    };
+
+    tryAttach();
+    return () => {
+      cancelled = true;
+    };
   }, [dialogOpen, streamVersion]);
 
   useEffect(() => () => stopMediaStream(streamRef.current), []);
+
+  const setVideoNode = useCallback(
+    (node: HTMLVideoElement | null) => {
+      videoRef.current = node;
+      if (node && streamRef.current && dialogOpen) {
+        void attachStreamWhenPossible();
+      }
+    },
+    [dialogOpen, attachStreamWhenPossible],
+  );
 
   const uploadOneFile = useCallback(
     async (file: File) => {
@@ -117,14 +226,15 @@ export function BookingCccdCaptureButton({
 
     void (async () => {
       setCameraStarting(true);
+      setVideoReady(false);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
           audio: false,
         });
         streamRef.current = stream;
-        setStreamVersion((v) => v + 1);
         setDialogOpen(true);
+        setStreamVersion((v) => v + 1);
       } catch (e) {
         toaster.error({
           title: "Không mở được camera sau",
@@ -140,34 +250,53 @@ export function BookingCccdCaptureButton({
   };
 
   const capturePhoto = () => {
-    const video = videoRef.current;
-    if (!video || video.videoWidth < 1 || video.videoHeight < 1) {
-      toaster.error({ title: "Camera chưa sẵn sàng", description: "Thử lại." });
-      return;
-    }
+    void (async () => {
+      const video = videoRef.current;
+      if (!video || !streamRef.current) {
+        toaster.error({
+          title: "Camera chưa sẵn sàng",
+          description: "Đợi hình preview hiện rồi thử lại.",
+        });
+        return;
+      }
 
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          toaster.error({ title: "Không chụp được ảnh" });
+      if (!hasVideoFrame(video)) {
+        await bindStreamToVideo(video, streamRef.current);
+        const ready = await waitForVideoFrame(video);
+        if (!ready) {
+          toaster.error({
+            title: "Camera chưa sẵn sàng",
+            description:
+              "Chưa nhận được hình từ camera. Thử đóng và mở lại, hoặc dùng chụp ảnh hệ thống.",
+          });
           return;
         }
-        closeCamera();
-        const file = new File([blob], `cccd-${Date.now()}.jpg`, {
-          type: "image/jpeg",
-        });
-        void uploadOneFile(file);
-      },
-      "image/jpeg",
-      0.92,
-    );
+        setVideoReady(true);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            toaster.error({ title: "Không chụp được ảnh" });
+            return;
+          }
+          closeCamera();
+          const file = new File([blob], `cccd-${Date.now()}.jpg`, {
+            type: "image/jpeg",
+          });
+          void uploadOneFile(file);
+        },
+        "image/jpeg",
+        0.92,
+      );
+    })();
   };
 
   if (!isMobileLayout) {
@@ -228,10 +357,13 @@ export function BookingCccdCaptureButton({
                   overflow="hidden"
                 >
                   <video
-                    ref={videoRef}
+                    ref={setVideoNode}
                     playsInline
                     muted
                     autoPlay
+                    onLoadedMetadata={syncVideoReady}
+                    onLoadedData={syncVideoReady}
+                    onPlaying={syncVideoReady}
                     style={{
                       width: "100%",
                       height: "100%",
@@ -239,7 +371,7 @@ export function BookingCccdCaptureButton({
                       display: "block",
                     }}
                   />
-                  {cameraStarting ? (
+                  {!videoReady ? (
                     <Text
                       position="absolute"
                       inset={0}
@@ -249,8 +381,10 @@ export function BookingCccdCaptureButton({
                       color="white"
                       fontSize="sm"
                       bg="blackAlpha.700"
+                      textAlign="center"
+                      px={3}
                     >
-                      Đang mở camera…
+                      {cameraStarting ? "Đang mở camera…" : "Đang khởi động camera…"}
                     </Text>
                   ) : null}
                 </Box>
@@ -274,7 +408,7 @@ export function BookingCccdCaptureButton({
                 colorPalette={APP_COLOR_PALETTE}
                 flex={1}
                 loading={uploading}
-                disabled={cameraStarting}
+                disabled={cameraStarting || !videoReady}
                 onClick={capturePhoto}
               >
                 Chụp & lưu
