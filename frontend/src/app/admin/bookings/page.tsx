@@ -49,6 +49,7 @@ import {
   BOOKING_STATUS_EDIT_OPTIONS,
   bookingLocalDateKey,
   filterAndSortMobileTodayBookings,
+  isActiveRentingStatus,
   isMobileTodayBookingsMode,
   sortAdminSearchBookings,
 } from "@/app/admin/bookings/booking-list-utils";
@@ -151,6 +152,7 @@ type StatusFilter =
   | "CONFIRMED"
   | "RENTING"
   | "LATE_RETURN"
+  | "RENTING_ACTIVE"
   | "COMPLETED"
   | "PENDING_REFUND_CANCEL"
   | "CANCELLED";
@@ -355,7 +357,7 @@ function deriveQuickFilter(params: {
   ) {
     return "today";
   }
-  if (showAllDates && statusFilter === "RENTING" && baseFiltersDefault) {
+  if (showAllDates && statusFilter === "RENTING_ACTIVE" && baseFiltersDefault) {
     return "renting";
   }
   if (showAllDates && statusFilter === "PENDING_PAYMENT" && baseFiltersDefault) {
@@ -823,7 +825,11 @@ export default function AdminBookingsPage() {
     if (!bookings) return [];
 
     const matchesCommonFilters = (b: Booking) => {
-      if (statusFilter !== "ALL" && b.status !== statusFilter) {
+      if (statusFilter === "RENTING_ACTIVE") {
+        if (!isActiveRentingStatus(b.status as BookingStatusValue)) {
+          return false;
+        }
+      } else if (statusFilter !== "ALL" && b.status !== statusFilter) {
         return false;
       }
       if (
@@ -995,7 +1001,7 @@ export default function AdminBookingsPage() {
       case "renting":
         setSearchField("phone");
         setShowAllDates(true);
-        setStatusFilter("RENTING");
+        setStatusFilter("RENTING_ACTIVE");
         setPaymentStatusFilter("ALL");
         setCameraFilter("ALL");
         setSearchQuery("");
@@ -1135,7 +1141,7 @@ export default function AdminBookingsPage() {
             {bookings && bookings.length > 0 ? (
               <BookingsSearchFields
                 showMobilePhone
-                showDesktop={false}
+                showDesktop
                 appliedField={searchField}
                 appliedQuery={searchQuery}
                 onDebouncedChange={handleDebouncedSearchChange}
@@ -1294,7 +1300,13 @@ export default function AdminBookingsPage() {
                     </Text>
                     <NativeSelectRoot size="sm" w="full" minW={{ md: "11rem" }}>
                       <NativeSelectField
-                        value={statusFilter}
+                        value={
+                          STATUS_FILTER_OPTIONS.some(
+                            (o) => o.value === statusFilter,
+                          )
+                            ? statusFilter
+                            : "ALL"
+                        }
                         bg="white"
                         borderWidth="1px"
                         borderColor="gray.200"
@@ -1348,13 +1360,6 @@ export default function AdminBookingsPage() {
                     </NativeSelectRoot>
                   </Stack>
                 </HStack>
-                <BookingsSearchFields
-                  showMobilePhone={false}
-                  showDesktop
-                  appliedField={searchField}
-                  appliedQuery={searchQuery}
-                  onDebouncedChange={handleDebouncedSearchChange}
-                />
               </HStack>
             ) : null}
           </Stack>

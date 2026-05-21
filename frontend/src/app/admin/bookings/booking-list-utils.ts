@@ -153,10 +153,14 @@ const MOBILE_TODAY_PICKUP_STATUSES = new Set<BookingStatusValue>([
 
 const MOBILE_TODAY_RENTING_STATUSES = new Set<BookingStatusValue>(["RENTING"]);
 
-const SEARCH_RENTING_STATUSES = new Set<BookingStatusValue>([
+export const SEARCH_RENTING_STATUSES = new Set<BookingStatusValue>([
   "RENTING",
   "LATE_RETURN",
 ]);
+
+export function isActiveRentingStatus(status: BookingStatusValue): boolean {
+  return SEARCH_RENTING_STATUSES.has(status);
+}
 
 function pickupSortTimeMs(b: Booking): number {
   return new Date(b.pickupAt ?? b.startBookingDate).getTime();

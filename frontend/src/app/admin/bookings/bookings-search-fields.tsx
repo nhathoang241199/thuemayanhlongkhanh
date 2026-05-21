@@ -11,7 +11,7 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import { CloseIcon } from "@/app/admin/bookings/booking-list-icons";
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
@@ -45,20 +45,30 @@ function BookingsSearchFieldsInner({
 }: BookingsSearchFieldsProps) {
   const [draftField, setDraftField] = useState<BookingsSearchField>(appliedField);
   const [draftQuery, setDraftQuery] = useState(appliedQuery);
+  const debouncedQuery = useDebouncedValue(draftQuery, 300);
+  const lastEmittedRef = useRef<BookingsSearchChange>({
+    field: appliedField,
+    query: appliedQuery,
+  });
 
   useEffect(() => {
     setDraftField(appliedField);
     setDraftQuery(appliedQuery);
+    lastEmittedRef.current = { field: appliedField, query: appliedQuery };
   }, [appliedField, appliedQuery]);
 
-  const debounced = useDebouncedValue(
-    { field: draftField, query: draftQuery },
-    300,
-  );
-
   useEffect(() => {
-    onDebouncedChange(debounced);
-  }, [debounced, onDebouncedChange]);
+    const next: BookingsSearchChange = {
+      field: draftField,
+      query: debouncedQuery,
+    };
+    const prev = lastEmittedRef.current;
+    if (prev.field === next.field && prev.query === next.query) {
+      return;
+    }
+    lastEmittedRef.current = next;
+    onDebouncedChange(next);
+  }, [draftField, debouncedQuery, onDebouncedChange]);
 
   const mobileHasText = draftQuery.trim().length > 0;
 
