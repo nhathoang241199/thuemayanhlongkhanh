@@ -11,6 +11,7 @@ import {
   Spinner,
   Stack,
   Text,
+  createIcon,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -30,9 +31,25 @@ import {
   titleColor,
   userCardProps,
   userOutlineButtonProps,
+  userSolidButtonProps,
   userWarningNoteProps,
   userWarningNoteTextProps,
 } from "@/lib/user-theme";
+
+const CheckIcon = createIcon({
+  displayName: "CheckIcon",
+  viewBox: "0 0 24 24",
+  path: (
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M20 6 9 17l-5-5"
+    />
+  ),
+});
 
 const vnd = new Intl.NumberFormat("vi-VN", {
   style: "currency",
@@ -41,7 +58,8 @@ const vnd = new Intl.NumberFormat("vi-VN", {
 });
 
 const POLL_MS = 4000;
-const MAX_POLL_MS = 180000;
+/** Cho phép khách chuyển khoản muộn (vd. chụp QR rồi CK sau). */
+const MAX_POLL_MS = 2 * 60 * 60 * 1000;
 
 const QR_IMAGE_SIZE = 280;
 const QR_BOX_PADDING = 12;
@@ -238,16 +256,28 @@ function PaymentContent() {
 
   if (phase === "success" || phase === "already") {
     const balanceDue = instructions?.balanceDue ?? 0;
+    const isDepositDone = instructions?.paymentKind === "DEPOSIT_DONE";
+    const successTitle = isDepositDone
+      ? "Đơn đã được cọc"
+      : "Đặt lịch thành công";
+    const shippingLine = instructions?.shippingAddress?.trim();
     return (
       <CardRoot {...userCardProps}>
         <CardBody>
           <Stack gap={4} py={4}>
             <Stack gap={2} textAlign="center">
-              <Text textStyle="xl" fontWeight="bold" color={titleColor}>
-                {instructions?.paymentKind === "DEPOSIT_DONE"
-                  ? "Đơn đã được cọc"
-                  : "Đặt lịch thành công"}
-              </Text>
+              <HStack justify="center" gap={2}>
+                <Text
+                  textStyle="xl"
+                  fontWeight="bold"
+                  color={isDepositDone ? titleColor : "green.600"}
+                >
+                  {successTitle}
+                </Text>
+                {!isDepositDone ? (
+                  <CheckIcon boxSize={6} color="green.600" aria-hidden />
+                ) : null}
+              </HStack>
               <Text fontSize="sm" color="fg.muted">
                 Đơn {instructions?.bookingCode ?? ""} — máy đã được giữ lịch.
               </Text>
@@ -255,6 +285,11 @@ function PaymentContent() {
                 <Text fontSize="sm" color={titleColor} fontWeight="medium">
                   Còn lại khi nhận máy: {vnd.format(balanceDue)} (chuyển khoản
                   hoặc tiền mặt).
+                </Text>
+              ) : null}
+              {shippingLine ? (
+                <Text fontSize="sm" color={titleColor} fontWeight="medium">
+                  Địa chỉ giao máy: {shippingLine}
                 </Text>
               ) : null}
               <Text fontSize="xs" color="fg.muted" lineHeight="tall" textAlign="left">
@@ -277,12 +312,7 @@ function PaymentContent() {
                 />
               </Stack>
             ) : null}
-            <Button
-              asChild
-              {...userOutlineButtonProps}
-              w="full"
-              size="lg"
-            >
+            <Button asChild {...userSolidButtonProps} w="full" size="lg">
               <NextLink href="/home">Về trang chủ</NextLink>
             </Button>
           </Stack>
@@ -300,8 +330,9 @@ function PaymentContent() {
               Chưa nhận được thanh toán cọc
             </Text>
             <Text fontSize="sm" color="fg.muted">
-              Kiểm tra lại số tiền ({vnd.format(BOOKING_DEPOSIT_VND)}) và nội
-              dung chuyển khoản, hoặc liên hệ cửa hàng nếu đã chuyển tiền.
+              Nếu bạn đã chuyển khoản đúng {vnd.format(BOOKING_DEPOSIT_VND)} và
+              nội dung có mã đơn, hệ thống có thể cập nhật chậm vài phút. Bấm
+              kiểm tra lại hoặc liên hệ cửa hàng.
             </Text>
             <Button
               colorPalette={APP_COLOR_PALETTE}
@@ -311,7 +342,7 @@ function PaymentContent() {
                 void loadInstructions();
               }}
             >
-              Thử lại
+              Đã chuyển khoản — kiểm tra lại
             </Button>
             <Button asChild {...userOutlineButtonProps} w="full">
               <NextLink href="/home">Về trang chủ</NextLink>

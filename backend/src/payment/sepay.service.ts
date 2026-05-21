@@ -17,6 +17,7 @@ import { PaymentService } from './payment.service';
 import {
   buildTransferContent,
   compactPaymentRef,
+  extractBookingCodeFromTransferText,
   stripTransferPrefix,
 } from './sepay-transfer';
 
@@ -112,6 +113,7 @@ export class SepayService {
         paymentStatus: booking.paymentStatus,
         paymentKind: 'DEPOSIT' as const,
         alreadyPaid: true,
+        shippingAddress: booking.shippingAddress,
       };
     }
 
@@ -130,6 +132,7 @@ export class SepayService {
         paymentKind: 'DEPOSIT_DONE' as const,
         alreadyPaid: false,
         depositPaid: true,
+        shippingAddress: booking.shippingAddress,
       };
     }
 
@@ -188,6 +191,7 @@ export class SepayService {
       transferContent,
       qrImageUrl: this.buildQrImageUrl(payAmount, transferContent),
       paymentId: payment.id,
+      shippingAddress: booking.shippingAddress,
     };
   }
 
@@ -212,40 +216,69 @@ export class SepayService {
     );
   }
 
-  private async findPaymentForWebhook(body: SePayWebhookBody) {
-    const code = body.code?.trim();
-    if (code) {
-      const byCode = await this.prisma.payment.findUnique({
-        where: { providerTxnRef: code },
-        include: { booking: true },
-      });
-      if (byCode) return byCode;
+  private webhookTextFields(body: SePayWebhookBody): string[] {
+    return [body.code, body.content, body.referenceCode]
+      .map((s) => s?.trim())
+      .filter((s): s is string => !!s);
+  }
 
-      const pending = await this.prisma.payment.findMany({
-        where: { status: PaymentRecordStatus.PENDING, provider: 'SEPAY' },
+  private async findPendingPaymentByBookingCode(bookingCode: string) {
+    const normalized = bookingCode.trim().toUpperCase();
+    return this.prisma.payment.findFirst({
+      where: {
+        provider: 'SEPAY',
+        status: PaymentRecordStatus.PENDING,
+        OR: [
+          { providerTxnRef: normalized },
+          { booking: { bookingCode: normalized } },
+        ],
+      },
+      include: { booking: true },
+    });
+  }
+
+  private async findPaymentForWebhook(body: SePayWebhookBody) {
+    const texts = this.webhookTextFields(body);
+
+    for (const text of texts) {
+      const exact = await this.prisma.payment.findFirst({
+        where: {
+          provider: 'SEPAY',
+          status: PaymentRecordStatus.PENDING,
+          providerTxnRef: text,
+        },
         include: { booking: true },
-        take: 50,
-        orderBy: { createdAt: 'desc' },
       });
-      for (const p of pending) {
-        if (this.paymentMatchesText(p, code)) return p;
+      if (exact) return exact;
+
+      const bookingCode = extractBookingCodeFromTransferText(text);
+      if (bookingCode) {
+        const byBooking = await this.findPendingPaymentByBookingCode(bookingCode);
+        if (byBooking) return byBooking;
       }
     }
 
-    const content = body.content ?? '';
-    if (content) {
+    for (const text of texts) {
       const pending = await this.prisma.payment.findMany({
         where: { status: PaymentRecordStatus.PENDING, provider: 'SEPAY' },
         include: { booking: true },
-        take: 50,
         orderBy: { createdAt: 'desc' },
+        take: 200,
       });
       for (const p of pending) {
-        if (this.paymentMatchesText(p, content)) return p;
+        if (this.paymentMatchesText(p, text)) return p;
       }
     }
 
     return null;
+  }
+
+  private depositAmountMatches(
+    transferAmount: number | null,
+    expected: number,
+  ): boolean {
+    if (transferAmount === null) return true;
+    return transferAmount >= expected;
   }
 
   async handleWebhook(
@@ -272,7 +305,7 @@ export class SepayService {
     }
 
     const transferAmount = this.parseAmount(body.transferAmount);
-    if (transferAmount !== null && transferAmount !== payment.amount) {
+    if (!this.depositAmountMatches(transferAmount, payment.amount)) {
       await this.prisma.payment.update({
         where: { id: payment.id },
         data: {
@@ -288,12 +321,27 @@ export class SepayService {
       payment.bookingId,
     );
 
+    if (ok) {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentRecordStatus.SUCCESS,
+          rawPayload: body as object,
+          externalTransId: externalId,
+        },
+      });
+      return { success: true };
+    }
+
+    // Tiền đã vào TK nhưng chưa confirm được đơn — giữ PENDING để SePay retry webhook.
+    console.warn(
+      `[sepay] Webhook ${externalId}: đã khớp payment ${payment.id} nhưng không confirm booking ${payment.bookingId}`,
+    );
     await this.prisma.payment.update({
       where: { id: payment.id },
       data: {
-        status: ok ? PaymentRecordStatus.SUCCESS : PaymentRecordStatus.FAILED,
+        status: PaymentRecordStatus.PENDING,
         rawPayload: body as object,
-        externalTransId: externalId,
       },
     });
 

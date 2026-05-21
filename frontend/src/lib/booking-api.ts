@@ -199,6 +199,7 @@ export type SepayInstructions = {
   bankBin?: string;
   transferContent?: string;
   qrImageUrl?: string;
+  shippingAddress?: string | null;
 };
 
 export async function fetchSepayInstructions(

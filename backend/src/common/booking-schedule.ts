@@ -8,6 +8,7 @@ export type BookingSlotValue =
   | 'EVENING';
 
 export const OCCUPYING_STATUSES: BookingStatus[] = [
+  BookingStatus.PENDING_PAYMENT,
   BookingStatus.CONFIRMED,
   BookingStatus.RENTING,
   BookingStatus.LATE_RETURN,

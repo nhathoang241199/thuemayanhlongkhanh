@@ -633,8 +633,8 @@ export class BookingService {
             bookingCode = await this.generateBookingCode();
             continue;
           }
-          if (e.code === 'P2002') {
-            throw new ConflictException('Mã booking đã tồn tại.');
+        if (e.code === 'P2002') {
+          throw new ConflictException('Mã booking đã tồn tại.');
         }
         if (e.code === 'P2003') {
           throw new ConflictException(

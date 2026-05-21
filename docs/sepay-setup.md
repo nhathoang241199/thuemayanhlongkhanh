@@ -59,6 +59,13 @@ Mỗi lần URL ngrok đổi, cập nhật lại URL trên SePay.
 4. Sai số tiền → không confirm (payment `FAILED`).
 5. Webhook retry → idempotent, không double-confirm.
 
+## Chuyển khoản muộn (chụp QR, CK sau)
+
+- Đơn **chờ cọc** (`PENDING_PAYMENT`) **giữ chỗ** trên lịch cho đến khi cọc hoặc hủy — tránh trùng slot khi khách CK sau 30–60 phút.
+- App poll trạng thái đơn tối đa **2 giờ**; màn timeout có nút **Đã chuyển khoản — kiểm tra lại**.
+- Webhook khớp mã đơn qua `code` / `content` / `referenceCode` (trích `DH-YYYYMMDD-XXXX`, không phụ thuộc 50 đơn pending gần nhất).
+- Trên SePay: bật nhận diện mã thanh toán tiền tố **DH** (khớp `bookingCode`).
+
 ## API liên quan
 
 | Method | Path                                                 | Mô tả                             |

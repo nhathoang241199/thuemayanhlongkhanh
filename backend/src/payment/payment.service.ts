@@ -33,6 +33,9 @@ export class PaymentService {
       booking.id,
     );
     if (!available) {
+      console.warn(
+        `[payment] Không confirm cọc booking ${bookingId}: slot không còn trống`,
+      );
       return false;
     }
 

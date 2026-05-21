@@ -17,3 +17,17 @@ export function stripTransferPrefix(text: string): string {
   const re = new RegExp(`^${prefix}\\s*`, 'i');
   return text.replace(re, '').trim();
 }
+
+/** Trích mã đơn DH-YYYYMMDD-XXXX từ nội dung CK (có/không dấu gạch). */
+export function extractBookingCodeFromTransferText(text: string): string | null {
+  const stripped = stripTransferPrefix(text);
+  const dashed = stripped.match(/DH-\d{8}-[A-Z0-9]+/i);
+  if (dashed) return dashed[0].toUpperCase();
+
+  const compact = compactPaymentRef(stripped);
+  const compactMatch = compact.match(/^DH(\d{8})([A-Z0-9]+)$/);
+  if (compactMatch) {
+    return `DH-${compactMatch[1]}-${compactMatch[2]}`;
+  }
+  return null;
+}

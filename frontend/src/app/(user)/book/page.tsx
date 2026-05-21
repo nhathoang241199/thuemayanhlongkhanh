@@ -17,10 +17,10 @@ import {
   Text,
   Textarea,
 } from "@chakra-ui/react";
-import NextLink from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
+import { BookStepFooter } from "@/components/user/book-step-footer";
 import { BrandPickerButton } from "@/components/camera/brand-picker-button";
 import { CameraPickerCard } from "@/components/camera/camera-picker-card";
 import { MonthCalendar } from "@/components/booking/month-calendar";
@@ -988,14 +988,27 @@ function BookPageContent() {
         >
           Đặt theo ngày
         </Button>
-        <Button asChild variant="ghost" size="sm">
-          <NextLink href="/home">
-            {changeSource || editSource ? "Huỷ chỉnh sửa" : "Quay lại"}
-          </NextLink>
-        </Button>
+        <BookStepFooter
+          onBack={() => router.push("/home")}
+          backLabel={
+            changeSource || editSource ? "Huỷ chỉnh sửa" : "Quay lại"
+          }
+        />
       </Stack>
     );
   }
+
+  const handleWizardBack = () => {
+    if (step > 0) {
+      setStep((s) => Math.max(0, s - 1));
+      return;
+    }
+    if (changeSource || editSource) {
+      router.push("/home");
+      return;
+    }
+    setMode(null);
+  };
 
   return (
     <Stack gap={4} pb={8}>
@@ -1234,20 +1247,7 @@ function BookPageContent() {
         </CardRoot>
       ) : null}
 
-      <HStack>
-        {step > 0 ? (
-          <Button
-            variant="ghost"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-          >
-            Quay lại
-          </Button>
-        ) : (
-          <Button variant="ghost" onClick={() => setMode(null)}>
-            Quay lại
-          </Button>
-        )}
-      </HStack>
+      <BookStepFooter onBack={handleWizardBack} />
     </Stack>
   );
 }
