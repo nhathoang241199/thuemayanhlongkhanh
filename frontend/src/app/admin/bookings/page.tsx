@@ -1147,7 +1147,7 @@ export default function AdminBookingsPage() {
             {bookings && bookings.length > 0 ? (
               <BookingsSearchFields
                 showMobilePhone
-                showDesktop
+                showDesktop={false}
                 appliedField={searchField}
                 appliedQuery={searchQuery}
                 onDebouncedChange={handleDebouncedSearchChange}
@@ -1366,6 +1366,13 @@ export default function AdminBookingsPage() {
                     </NativeSelectRoot>
                   </Stack>
                 </HStack>
+                <BookingsSearchFields
+                  showMobilePhone={false}
+                  showDesktop
+                  appliedField={searchField}
+                  appliedQuery={searchQuery}
+                  onDebouncedChange={handleDebouncedSearchChange}
+                />
               </HStack>
             ) : null}
           </Stack>

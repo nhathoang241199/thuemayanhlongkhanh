@@ -196,9 +196,10 @@ function BookingsSearchFieldsInner({
           display={{ base: "none", lg: "flex" }}
           gap={2}
           align="flex-end"
-          flex="1"
-          minW={{ md: "16rem" }}
-          maxW={{ md: "28rem" }}
+          flexShrink={0}
+          minW="16rem"
+          maxW="28rem"
+          ml="auto"
         >
           <Text
             fontSize="sm"
