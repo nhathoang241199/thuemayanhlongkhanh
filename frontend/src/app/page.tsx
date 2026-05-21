@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 
 import { identifyCustomer, sessionFromIdentify } from "@/lib/api";
 import { getSession, setSession } from "@/lib/customer-session";
+import { normalizePhone } from "@/lib/normalize-phone";
 import {
   APP_COLOR_PALETTE,
   titleColor,
@@ -28,10 +29,6 @@ const fieldInputProps = {
   ...userFieldInputProps,
   size: "lg" as const,
 };
-
-function normalizePhoneDigits(s: string): string {
-  return s.replace(/\D/g, "");
-}
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -52,13 +49,13 @@ export default function OnboardingPage() {
 
   const submit = () => {
     const nameTrim = name.trim();
-    const phoneDigits = normalizePhoneDigits(phone);
+    const phoneNormalized = normalizePhone(phone);
     if (!nameTrim) {
       setError("Vui lòng nhập tên.");
       return;
     }
-    if (phoneDigits.length < 9) {
-      setError("Số điện thoại phải có ít nhất 9 chữ số.");
+    if (phoneNormalized.length < 10 || !phoneNormalized.startsWith("0")) {
+      setError("Số điện thoại không hợp lệ (vd. 0901234567 hoặc +84901234567).");
       return;
     }
 
@@ -66,7 +63,7 @@ export default function OnboardingPage() {
       setLoading(true);
       setError(null);
       try {
-        const data = await identifyCustomer(nameTrim, phone);
+        const data = await identifyCustomer(nameTrim, phoneNormalized);
         setSession(sessionFromIdentify(data));
         router.push("/home");
       } catch (e) {
@@ -133,11 +130,15 @@ export default function OnboardingPage() {
               <Input
                 type="tel"
                 value={phone}
-                placeholder="0909123456"
+                placeholder="0909123456 hoặc +84909123456"
                 autoComplete="tel"
-                inputMode="numeric"
+                inputMode="tel"
                 {...fieldInputProps}
                 onChange={(e) => setPhone(e.target.value)}
+                onBlur={() => {
+                  const n = normalizePhone(phone);
+                  if (n.length >= 10) setPhone(n);
+                }}
               />
             </Box>
             <Button

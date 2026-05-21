@@ -15,6 +15,7 @@ import { memo, useEffect, useState } from "react";
 
 import { CloseIcon } from "@/app/admin/bookings/booking-list-icons";
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
+import { normalizePhone } from "@/lib/normalize-phone";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 export type CustomerSearchField = "phone" | "name";
@@ -23,10 +24,6 @@ export type CustomerSearchChange = {
   field: CustomerSearchField;
   query: string;
 };
-
-function normalizePhoneDigits(s: string): string {
-  return s.replace(/\D/g, "");
-}
 
 type CustomersSearchFieldsProps = {
   appliedField: CustomerSearchField;
@@ -96,7 +93,7 @@ function CustomersSearchFieldsInner({
             onChange={(e) =>
               setDraftQuery(
                 draftField === "phone"
-                  ? normalizePhoneDigits(e.target.value)
+                  ? e.target.value.replace(/\D/g, "")
                   : e.target.value,
               )
             }

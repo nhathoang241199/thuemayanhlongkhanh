@@ -1,4 +1,23 @@
-/** Chuẩn hóa SĐT: chỉ giữ chữ số (dùng thống nhất khi lưu/tra cứu). */
+/**
+ * Chuẩn hóa SĐT Việt Nam: chỉ chữ số, dạng nội địa 0 + 9 số (vd. 0901234567).
+ * Chuyển 84xxxxxxxxx / +84 / 0084 → 0xxxxxxxxx.
+ */
 export function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, '');
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('00')) {
+    digits = digits.slice(2);
+  }
+  if (digits.startsWith('84')) {
+    const rest = digits.slice(2);
+    if (rest.length === 9) {
+      return `0${rest}`;
+    }
+    if (rest.length === 10 && rest.startsWith('0')) {
+      return rest;
+    }
+  }
+  if (digits.length === 9 && /^[35789]/.test(digits)) {
+    return `0${digits}`;
+  }
+  return digits;
 }

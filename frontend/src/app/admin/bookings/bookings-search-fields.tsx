@@ -15,6 +15,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 
 
 import { CloseIcon } from "@/app/admin/bookings/booking-list-icons";
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
+import { normalizePhone } from "@/lib/normalize-phone";
 
 export type BookingsSearchField = "phone" | "name" | "bookingCode";
 
@@ -35,10 +36,6 @@ const searchInputProps = {
     boxShadow: "none",
   },
 };
-
-function normalizePhoneDigits(s: string): string {
-  return s.replace(/\D/g, "");
-}
 
 type BookingsSearchFieldsProps = {
   showMobilePhone: boolean;
@@ -131,10 +128,10 @@ function BookingsSearchFieldsInner({
   const mobileHasText = draftQuery.trim().length > 0;
 
   const updateMobileQuery = (raw: string) => {
-    const query = normalizePhoneDigits(raw);
+    const digitsOnly = raw.replace(/\D/g, "");
     setDraftField("phone");
-    setDraftQuery(query);
-    scheduleEmit("phone", query);
+    setDraftQuery(digitsOnly);
+    scheduleEmit("phone", normalizePhone(digitsOnly));
   };
 
   const updateDesktopQuery = (query: string) => {

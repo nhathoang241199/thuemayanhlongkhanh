@@ -71,6 +71,7 @@ import {
 } from "@/lib/datetime-vn";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 import type { BookingSlot } from "@/lib/booking-api";
+import { normalizePhone } from "@/lib/normalize-phone";
 import {
   startTransition,
   useCallback,
@@ -286,10 +287,6 @@ function cameraFilterLabel(c: AdminCameraOption): string {
   return `${brand} — ${c.name}`;
 }
 
-function normalizePhoneDigits(s: string): string {
-  return s.replace(/\D/g, "");
-}
-
 function bookingMatchesSearch(
   b: Booking,
   field: SearchField,
@@ -299,9 +296,9 @@ function bookingMatchesSearch(
   if (q.length === 0) return true;
   switch (field) {
     case "phone": {
-      const needle = normalizePhoneDigits(q);
+      const needle = normalizePhone(q);
       if (needle.length === 0) return true;
-      return normalizePhoneDigits(b.customer.phone).includes(needle);
+      return normalizePhone(b.customer.phone).includes(needle);
     }
     case "name":
       return b.customer.name.toLowerCase().includes(q.toLowerCase());
