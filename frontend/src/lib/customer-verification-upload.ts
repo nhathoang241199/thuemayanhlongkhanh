@@ -10,6 +10,36 @@ export function parseVerificationUrls(raw: unknown): string[] {
   );
 }
 
+/** Hiển thị ảnh — sửa URL lưu nhầm http://localhost:3000 trên production. */
+export function resolveVerificationImageUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+
+  const rewritePath = (pathname: string, search: string) => {
+    const siteBase =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_API_URL ?? apiBase()).replace(/\/$/, "");
+    if (!siteBase) return trimmed;
+    return `${siteBase}${pathname}${search}`;
+  };
+
+  try {
+    const parsed = new URL(trimmed);
+    if (
+      parsed.hostname === "localhost" &&
+      parsed.pathname.startsWith("/api/uploads/verification/")
+    ) {
+      return rewritePath(parsed.pathname, parsed.search);
+    }
+  } catch {
+    if (trimmed.startsWith("/api/uploads/verification/")) {
+      return rewritePath(trimmed, "");
+    }
+  }
+  return trimmed;
+}
+
 export function isVerificationImageFile(file: File): boolean {
   return (
     VERIFICATION_IMAGE_ACCEPT.split(",").includes(file.type) ||

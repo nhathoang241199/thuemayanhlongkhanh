@@ -7,10 +7,12 @@ import {
   Link,
   SimpleGrid,
   Spinner,
+  Stack,
   Text,
 } from "@chakra-ui/react";
 
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
+import { resolveVerificationImageUrl } from "@/lib/customer-verification-upload";
 import { useEffect, useRef, useState } from "react";
 
 function VerificationImageTile({
@@ -18,16 +20,20 @@ function VerificationImageTile({
   index,
   onDelete,
   deleting,
+  aspectRatio = 1,
 }: {
   url: string;
   index: number;
   onDelete?: (url: string) => void;
   deleting?: boolean;
+  aspectRatio?: number;
 }) {
   const [displaySrc, setDisplaySrc] = useState<string | null>(null);
   const [imageReady, setImageReady] = useState(false);
   const [imageError, setImageError] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
+  const fetchUrl = resolveVerificationImageUrl(url);
+  const openUrl = fetchUrl;
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +47,10 @@ function VerificationImageTile({
 
     void (async () => {
       try {
-        const res = await fetch(url, { mode: "cors", credentials: "omit" });
+        const res = await fetch(fetchUrl, {
+          mode: "cors",
+          credentials: "include",
+        });
         if (!res.ok) throw new Error(String(res.status));
         const blob = await res.blob();
         if (cancelled) return;
@@ -50,7 +59,7 @@ function VerificationImageTile({
         setDisplaySrc(objectUrl);
       } catch {
         if (cancelled) return;
-        setDisplaySrc(url);
+        setDisplaySrc(fetchUrl);
       }
     })();
 
@@ -61,7 +70,7 @@ function VerificationImageTile({
         blobUrlRef.current = null;
       }
     };
-  }, [url]);
+  }, [fetchUrl, url]);
 
   return (
     <Box position="relative" w="full">
@@ -87,7 +96,7 @@ function VerificationImageTile({
         </IconButton>
       ) : null}
       <Link
-        href={url}
+        href={openUrl}
         target="_blank"
         rel="noopener noreferrer"
         display="block"
@@ -98,7 +107,7 @@ function VerificationImageTile({
         <Box
           position="relative"
           w="full"
-          aspectRatio={1}
+          aspectRatio={aspectRatio}
           borderRadius="md"
           overflow="hidden"
           borderWidth="1px"
@@ -165,24 +174,39 @@ export function VerificationImageGallery({
   urls,
   onDeleteUrl,
   deletingUrl,
+  layout = "grid",
 }: {
   urls: string[];
   onDeleteUrl?: (url: string) => void;
   deletingUrl?: string | null;
+  /** `stack` — ảnh xếp dọc (dialog CCCD trên đơn thuê mobile). */
+  layout?: "grid" | "stack";
 }) {
   if (urls.length === 0) return null;
 
+  const tileAspect = layout === "stack" ? 3 / 2 : 1;
+  const tiles = urls.map((url, i) => (
+    <VerificationImageTile
+      key={`${url}-${i}`}
+      url={url}
+      index={i}
+      onDelete={onDeleteUrl}
+      deleting={deletingUrl === url}
+      aspectRatio={tileAspect}
+    />
+  ));
+
+  if (layout === "stack") {
+    return (
+      <Stack gap={4} w="full">
+        {tiles}
+      </Stack>
+    );
+  }
+
   return (
     <SimpleGrid columns={{ base: 2, sm: 3, md: 4 }} gap={3}>
-      {urls.map((url, i) => (
-        <VerificationImageTile
-          key={`${url}-${i}`}
-          url={url}
-          index={i}
-          onDelete={onDeleteUrl}
-          deleting={deletingUrl === url}
-        />
-      ))}
+      {tiles}
     </SimpleGrid>
   );
 }

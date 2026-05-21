@@ -28,30 +28,22 @@ import {
   NativeSelectRoot,
   Spinner,
   Stack,
-  TableBody,
-  TableColumnHeader,
-  TableHeader,
-  TableRoot,
-  TableRow,
-  TableScrollArea,
   Text,
   Textarea,
 } from "@chakra-ui/react";
-import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table";
 import { MonthCalendar } from "@/components/booking/month-calendar";
 import { BookingListCard } from "@/app/admin/bookings/booking-list-card";
+import { BookingsListPanel } from "@/app/admin/bookings/bookings-list-panel";
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CloseIcon,
-} from "@/app/admin/bookings/booking-list-icons";
+  BookingsSearchFields,
+  type BookingsSearchField,
+} from "@/app/admin/bookings/bookings-search-fields";
 import { BookingListRow } from "@/app/admin/bookings/booking-list-row";
 import type {
   Booking,
   BookingStatusValue,
   PaymentStatusValue,
 } from "@/app/admin/bookings/booking-types";
-import { tableCellPad } from "@/app/admin/bookings/booking-types";
 import {
   BOOKING_PAYMENT_EDIT_OPTIONS,
   BOOKING_STATUS_EDIT_OPTIONS,
@@ -78,7 +70,7 @@ import {
 } from "@/lib/datetime-vn";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 import type { BookingSlot } from "@/lib/booking-api";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { BRAND_LABEL } from "@/lib/camera-brands";
 import { apiBase } from "@/lib/api-base";
@@ -275,7 +267,7 @@ const PAYMENT_FILTER_OPTIONS: { value: PaymentStatusFilter; label: string }[] =
     { value: "REFUNDED", label: "Đã hoàn tiền" },
   ];
 
-type SearchField = "phone" | "name" | "bookingCode";
+type SearchField = BookingsSearchField;
 
 type CameraFilter = "ALL" | string;
 
@@ -339,7 +331,6 @@ function deriveQuickFilter(params: {
   statusFilter: StatusFilter;
   paymentStatusFilter: PaymentStatusFilter;
   cameraFilter: CameraFilter;
-  searchQuery: string;
 }): QuickFilterKey | null {
   const {
     showAllDates,
@@ -348,18 +339,11 @@ function deriveQuickFilter(params: {
     statusFilter,
     paymentStatusFilter,
     cameraFilter,
-    searchQuery,
   } = params;
-  const noSearch = searchQuery.trim() === "";
   const baseFiltersDefault =
     paymentStatusFilter === "ALL" && cameraFilter === "ALL";
 
-  /** Tất cả đơn: mọi ngày, hoặc đang search (xem trên mọi ngày). */
-  if (
-    statusFilter === "ALL" &&
-    baseFiltersDefault &&
-    (!noSearch || showAllDates)
-  ) {
+  if (showAllDates && statusFilter === "ALL" && baseFiltersDefault) {
     return "all";
   }
   if (
@@ -367,20 +351,14 @@ function deriveQuickFilter(params: {
     filterByPickupTime &&
     filterDateKey === todayLocalDateKey() &&
     statusFilter === "ALL" &&
-    baseFiltersDefault &&
-    noSearch
+    baseFiltersDefault
   ) {
     return "today";
   }
-  if (showAllDates && statusFilter === "RENTING" && baseFiltersDefault && noSearch) {
+  if (showAllDates && statusFilter === "RENTING" && baseFiltersDefault) {
     return "renting";
   }
-  if (
-    showAllDates &&
-    statusFilter === "PENDING_PAYMENT" &&
-    baseFiltersDefault &&
-    noSearch
-  ) {
+  if (showAllDates && statusFilter === "PENDING_PAYMENT" && baseFiltersDefault) {
     return "pending_payment";
   }
   return null;
@@ -415,7 +393,7 @@ export default function AdminBookingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDateKey, setFilterDateKey] = useState(todayLocalDateKey);
   /** Bật = không lọc theo ngày, hiển thị mọi đơn (theo các bộ lọc khác). */
-  const [showAllDates, setShowAllDates] = useState(false);
+  const [showAllDates, setShowAllDates] = useState(true);
   const [filterByPickupTime, setFilterByPickupTime] = useState(true);
   const [paymentStatusFilter, setPaymentStatusFilter] =
     useState<PaymentStatusFilter>("ALL");
@@ -425,24 +403,15 @@ export default function AdminBookingsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(30);
   const isMobileViewport = useIsMobileViewport();
-  const prevSearchTrimRef = useRef<string | null>(null);
 
-  /** Xóa hết ô tìm kiếm → về preset Đơn thuê hôm nay (giống filter nhanh). */
-  useEffect(() => {
-    const q = searchQuery.trim();
-    const prev = prevSearchTrimRef.current;
-    if (prev !== null && prev !== "" && q === "") {
+  const handleDebouncedSearchChange = useCallback(
+    (next: { field: SearchField; query: string }) => {
+      setSearchField(next.field);
+      setSearchQuery(next.query);
       setPage(1);
-      setSearchField("phone");
-      setShowAllDates(false);
-      setFilterByPickupTime(true);
-      setFilterDateKey(todayLocalDateKey());
-      setStatusFilter("ALL");
-      setPaymentStatusFilter("ALL");
-      setCameraFilter("ALL");
-    }
-    prevSearchTrimRef.current = q;
-  }, [searchQuery]);
+    },
+    [],
+  );
 
   const isRowSaving = useCallback(
     (id: string) =>
@@ -876,8 +845,7 @@ export default function AdminBookingsPage() {
       );
     }
 
-    const searchAllDates = searchQuery.trim() !== "";
-    const applyDateFilter = !showAllDates && !searchAllDates;
+    const applyDateFilter = !showAllDates;
 
     const filtered = bookings.filter((b) => {
       if (applyDateFilter) {
@@ -994,7 +962,6 @@ export default function AdminBookingsPage() {
         statusFilter,
         paymentStatusFilter,
         cameraFilter,
-        searchQuery,
       }),
     [
       showAllDates,
@@ -1003,7 +970,6 @@ export default function AdminBookingsPage() {
       statusFilter,
       paymentStatusFilter,
       cameraFilter,
-      searchQuery,
     ],
   );
 
@@ -1044,6 +1010,48 @@ export default function AdminBookingsPage() {
         break;
     }
   }, []);
+
+  const pagedBookingRows = useMemo(
+    () =>
+      pagedBookings.map((b) => (
+        <BookingListRow key={b.id} {...getBookingListProps(b)} />
+      )),
+    [pagedBookings, getBookingListProps],
+  );
+
+  const pagedBookingCards = useMemo(() => {
+    if (!isMobileViewport) return null;
+    return pagedBookings.map((b) => (
+      <BookingListCard
+        key={b.id}
+        isMobileLayout
+        {...getBookingListProps(b)}
+      />
+    ));
+  }, [isMobileViewport, pagedBookings, getBookingListProps]);
+
+  const listEmptyMessage = useMemo(
+    () =>
+      mobileTodayMode
+        ? "Không có đơn chờ cọc, chờ lấy máy hoặc đang thuê (trả hôm nay)."
+        : showAllDates
+          ? "Không có đơn phù hợp bộ lọc trạng thái, máy ảnh hoặc tìm kiếm."
+          : "Không có đơn trong ngày đã chọn, bộ lọc trạng thái/thanh toán/máy hoặc khớp tìm kiếm.",
+    [mobileTodayMode, showAllDates],
+  );
+
+  const handleListPageSizeChange = useCallback((size: number) => {
+    setPageSize(size);
+    setPage(1);
+  }, []);
+
+  const handleListPrevPage = useCallback(() => {
+    setPage(Math.max(1, clampedPage - 1));
+  }, [clampedPage]);
+
+  const handleListNextPage = useCallback(() => {
+    setPage(Math.min(totalPages, clampedPage + 1));
+  }, [clampedPage, totalPages]);
 
   return (
     <Stack gap={6}>
@@ -1124,55 +1132,14 @@ export default function AdminBookingsPage() {
                 </HStack>
               ) : null}
             </HStack>
-            {/* Mobile: phone search only */}
             {bookings && bookings.length > 0 ? (
-              <Stack
-                display={{ base: "flex", lg: "none" }}
-                gap={2}
-                w="full"
-              >
-                <Text fontSize="sm" fontWeight="medium" color="fg.muted">
-                  Số điện thoại
-                </Text>
-                <Box position="relative" w="full">
-                  <Input
-                    w="full"
-                    size="sm"
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel"
-                    bg="white"
-                    borderWidth="1px"
-                    borderColor="gray.200"
-                    pe={searchQuery.trim() ? "2.25rem" : undefined}
-                    _focusVisible={{ borderColor: "ocean.500" }}
-                    placeholder="Ví dụ: 0901…"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchField("phone");
-                      setSearchQuery(normalizePhoneDigits(e.target.value));
-                    }}
-                    aria-label="Tìm theo số điện thoại"
-                  />
-                  {searchQuery.trim() ? (
-                    <IconButton
-                      type="button"
-                      size="xs"
-                      variant="ghost"
-                      colorPalette={APP_COLOR_PALETTE}
-                      position="absolute"
-                      right={1}
-                      top="50%"
-                      transform="translateY(-50%)"
-                      zIndex={1}
-                      aria-label="Xóa số điện thoại"
-                      onClick={() => setSearchQuery("")}
-                    >
-                      <CloseIcon boxSize="1rem" />
-                    </IconButton>
-                  ) : null}
-                </Box>
-              </Stack>
+              <BookingsSearchFields
+                showMobilePhone
+                showDesktop={false}
+                appliedField={searchField}
+                appliedQuery={searchQuery}
+                onDebouncedChange={handleDebouncedSearchChange}
+              />
             ) : null}
 
             {bookings && bookings.length > 0 ? (
@@ -1381,75 +1348,13 @@ export default function AdminBookingsPage() {
                     </NativeSelectRoot>
                   </Stack>
                 </HStack>
-                <Stack
-                  gap={2}
-                  align="flex-end"
-                  flex="1"
-                  minW={0}
-                  maxW="36rem"
-                  w="auto"
-                  ml="auto"
-                >
-                  <Text
-                    fontSize="sm"
-                    fontWeight="medium"
-                    color="fg.muted"
-                    textAlign={{ base: "left", md: "right" }}
-                    w="full"
-                  >
-                    Tìm kiếm
-                  </Text>
-                  <HStack
-                    gap={2}
-                    flexWrap="nowrap"
-                    align="stretch"
-                    justify="flex-end"
-                    w="full"
-                    maxW="100%"
-                  >
-                    <NativeSelectRoot
-                      size="sm"
-                      w="11rem"
-                      flexShrink={0}
-                    >
-                      <NativeSelectField
-                        value={searchField}
-                        bg="white"
-                        borderWidth="1px"
-                        borderColor="gray.200"
-                        onChange={(e) =>
-                          setSearchField(e.target.value as SearchField)
-                        }
-                      >
-                        <option value="bookingCode">Mã đơn</option>
-                        <option value="name">Tên khách</option>
-                        <option value="phone">Số điện thoại</option>
-                      </NativeSelectField>
-                      <NativeSelectIndicator />
-                    </NativeSelectRoot>
-                    <Input
-                      flex="1"
-                      minW={0}
-                      size="sm"
-                      bg="white"
-                      borderWidth="1px"
-                      borderColor="gray.200"
-                      _focusVisible={{
-                        borderColor: "ocean.500",
-                      }}
-                      placeholder={
-                        searchField === "phone"
-                          ? "Ví dụ: 0901…"
-                          : searchField === "name"
-                            ? "Nhập tên khách…"
-                            : "Ví dụ: DH-20260516-A3F2"
-                      }
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      aria-label="Từ khóa tìm kiếm"
-                    />
-                  </HStack>
-                </Stack>
+                <BookingsSearchFields
+                  showMobilePhone={false}
+                  showDesktop
+                  appliedField={searchField}
+                  appliedQuery={searchQuery}
+                  onDebouncedChange={handleDebouncedSearchChange}
+                />
               </HStack>
             ) : null}
           </Stack>
@@ -1485,153 +1390,20 @@ export default function AdminBookingsPage() {
       {bookings && bookings.length > 0 ? (
         <CardRoot {...cardSurfaceProps}>
           <CardBody p={0}>
-            {filteredBookings.length === 0 ? (
-              <Box px={4} py={8}>
-                <Text color="fg.muted" textAlign="center">
-                  {mobileTodayMode
-                    ? "Không có đơn chờ cọc, chờ lấy máy hoặc đang thuê (trả hôm nay)."
-                    : showAllDates
-                      ? "Không có đơn phù hợp bộ lọc trạng thái, máy ảnh hoặc tìm kiếm."
-                      : "Không có đơn trong ngày đã chọn, bộ lọc trạng thái/thanh toán/máy hoặc khớp tìm kiếm."}
-                </Text>
-              </Box>
-            ) : (
-              <Stack gap={3}>
-                {patchError ? (
-                  <Box px={4} pt={2}>
-                    <Text color="red.fg" fontSize="sm" fontWeight="medium">
-                      {patchError}
-                    </Text>
-                  </Box>
-                ) : null}
-                <AdminResponsiveTable
-                  breakpoint="lg"
-                  table={
-                    <TableScrollArea rounded="l2">
-                      <TableRoot size="sm" native>
-                        <TableHeader>
-                          <TableRow>
-                            <TableColumnHeader {...tableCellPad}>
-                              Ngày thuê
-                            </TableColumnHeader>
-                            <TableColumnHeader {...tableCellPad}>
-                              Nhận máy
-                            </TableColumnHeader>
-                            <TableColumnHeader {...tableCellPad}>
-                              Buổi
-                            </TableColumnHeader>
-                            <TableColumnHeader {...tableCellPad}>
-                              Khách
-                            </TableColumnHeader>
-                            <TableColumnHeader maxW="14rem" {...tableCellPad}>
-                              Địa chỉ
-                            </TableColumnHeader>
-                            <TableColumnHeader {...tableCellPad}>
-                              Máy
-                            </TableColumnHeader>
-                            <TableColumnHeader {...tableCellPad} textAlign="end">
-                              Số tiền
-                            </TableColumnHeader>
-                            <TableColumnHeader {...tableCellPad}>
-                              Thanh toán
-                            </TableColumnHeader>
-                            <TableColumnHeader {...tableCellPad}>
-                              Trạng thái
-                            </TableColumnHeader>
-                            <TableColumnHeader maxW="12rem" {...tableCellPad}>
-                              Ghi chú
-                            </TableColumnHeader>
-                            <TableColumnHeader {...tableCellPad} w="7.5rem">
-                              Hành động
-                            </TableColumnHeader>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {pagedBookings.map((b) => (
-                            <BookingListRow
-                              key={b.id}
-                              {...getBookingListProps(b)}
-                            />
-                          ))}
-                        </TableBody>
-                      </TableRoot>
-                    </TableScrollArea>
-                  }
-                  cards={pagedBookings.map((b) => (
-                    <BookingListCard
-                      key={b.id}
-                      {...getBookingListProps(b)}
-                    />
-                  ))}
-                />
-                <HStack
-                  px={4}
-                  py={3}
-                  minH="3.25rem"
-                  borderTopWidth="1px"
-                  borderTopColor="gray.200"
-                  bg="white"
-                  justify="space-between"
-                  align="center"
-                  w="full"
-                  gap={3}
-                >
-                  <Text
-                    fontSize="sm"
-                    fontWeight="semibold"
-                    color="fg.muted"
-                    lineHeight="1"
-                    flexShrink={0}
-                  >
-                    {clampedPage}/{totalPages}
-                  </Text>
-                  <HStack gap={2} justify="flex-end" align="center" flexShrink={0}>
-                    <NativeSelectRoot size="sm" w="3.75rem" minW="3.75rem">
-                      <NativeSelectField
-                        value={String(pageSize)}
-                        bg="white"
-                        borderWidth="1px"
-                        borderColor="gray.200"
-                        aria-label="Số đơn mỗi trang"
-                        onChange={(e) => {
-                          setPageSize(Number(e.target.value));
-                          setPage(1);
-                        }}
-                      >
-                        {PAGE_SIZE_OPTIONS.map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
-                        ))}
-                      </NativeSelectField>
-                      <NativeSelectIndicator />
-                    </NativeSelectRoot>
-                    <IconButton
-                      type="button"
-                      size="md"
-                      variant="outline"
-                      colorPalette={APP_COLOR_PALETTE}
-                      aria-label="Trang trước"
-                      disabled={clampedPage <= 1}
-                      onClick={() => setPage(clampedPage - 1)}
-                    >
-                      <ChevronLeftIcon boxSize="1.25rem" />
-                    </IconButton>
-                    <IconButton
-                      type="button"
-                      size="md"
-                      variant="outline"
-                      colorPalette={APP_COLOR_PALETTE}
-                      aria-label="Trang sau"
-                      disabled={clampedPage >= totalPages}
-                      onClick={() => setPage(clampedPage + 1)}
-                    >
-                      <ChevronRightIcon boxSize="1.25rem" />
-                    </IconButton>
-                  </HStack>
-                </HStack>
-              </Stack>
-            )}
+            <BookingsListPanel
+              isEmpty={filteredBookings.length === 0}
+              emptyMessage={listEmptyMessage}
+              patchError={patchError}
+              tableRows={pagedBookingRows}
+              cards={pagedBookingCards}
+              clampedPage={clampedPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
+              onPageSizeChange={handleListPageSizeChange}
+              onPrevPage={handleListPrevPage}
+              onNextPage={handleListNextPage}
+            />
           </CardBody>
         </CardRoot>
       ) : null}

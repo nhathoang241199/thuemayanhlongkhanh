@@ -19,7 +19,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
-import { useState } from "react";
+import { memo, useState } from "react";
 
 import {
   AdminDataCard,
@@ -27,7 +27,6 @@ import {
   AdminDataCardHeader,
 } from "@/components/admin/admin-data-card";
 import { APP_COLOR_PALETTE, titleColor } from "@/lib/app-theme";
-import { useAdminMobileLayout } from "@/lib/use-admin-mobile-layout";
 import { balanceDueVnd } from "@/lib/booking-payment";
 import { slotLabelVi } from "@/lib/booking-status";
 
@@ -48,7 +47,11 @@ import {
   vnd,
 } from "./booking-list-utils";
 
-export function BookingListCard({
+export type BookingListCardProps = BookingListRowProps & {
+  isMobileLayout: boolean;
+};
+
+function BookingListCardInner({
   booking: b,
   isRowSaving,
   quickAdvanceSaving,
@@ -58,7 +61,8 @@ export function BookingListCard({
   onMenuOpenChange,
   onQuickAdvance,
   onCccdUploaded,
-}: BookingListRowProps) {
+  isMobileLayout,
+}: BookingListCardProps) {
   const [noteOpen, setNoteOpen] = useState(false);
   const noteText = b.note?.trim() ?? "";
 
@@ -71,7 +75,6 @@ export function BookingListCard({
   const showTotal = b.paymentStatus === "PENDING";
   const showBalanceDue = b.paymentStatus === "DEPOSITED";
   const hideCardActions = b.status === "COMPLETED";
-  const isMobileLayout = useAdminMobileLayout();
   const verificationUrls = b.customer.verificationImageUrls ?? [];
   const hasCccdAction =
     b.status === "CONFIRMED" &&
@@ -263,3 +266,5 @@ export function BookingListCard({
     </AdminDataCard>
   );
 }
+
+export const BookingListCard = memo(BookingListCardInner);

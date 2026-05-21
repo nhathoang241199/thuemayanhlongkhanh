@@ -76,7 +76,7 @@ export function BookingCccdViewButton({
                 <Text fontSize="sm" color="fg.muted">
                   Mặt trước · mặt sau
                 </Text>
-                <VerificationImageGallery urls={previewUrls} />
+                <VerificationImageGallery urls={previewUrls} layout="stack" />
               </Stack>
             </DialogBody>
           </DialogContent>

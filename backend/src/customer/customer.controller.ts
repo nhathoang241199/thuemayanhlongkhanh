@@ -49,13 +49,22 @@ export class CustomerController {
   findAll(
     @Query('page') pageStr?: string,
     @Query('pageSize') pageSizeStr?: string,
+    @Query('searchField') searchField?: string,
+    @Query('search') search?: string,
   ) {
     const hasPage = pageStr !== undefined && pageStr !== '';
     const hasSize = pageSizeStr !== undefined && pageSizeStr !== '';
     if (hasPage || hasSize) {
       const page = Math.max(1, Number.parseInt(pageStr ?? '1', 10) || 1);
       const pageSize = Number.parseInt(pageSizeStr ?? '30', 10) || 30;
-      return this.customerService.findPage(page, pageSize);
+      const field =
+        searchField === 'name' || searchField === 'phone'
+          ? searchField
+          : undefined;
+      return this.customerService.findPage(page, pageSize, {
+        searchField: field,
+        search,
+      });
     }
     return this.customerService.findAll();
   }

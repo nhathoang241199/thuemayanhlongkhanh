@@ -6,9 +6,18 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { join } from 'path';
 import { AppModule } from './app.module';
-import { getUploadDir } from './common/upload-config';
+import { getPublicApiUrl, getUploadDir } from './common/upload-config';
 
 async function bootstrap() {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    !process.env.PUBLIC_API_URL?.trim()
+  ) {
+    console.warn(
+      `[upload] PUBLIC_API_URL chưa đặt — dùng ${getPublicApiUrl()} cho URL ảnh CCCD. Nên đặt PUBLIC_API_URL=https://<domain> trong backend/.env`,
+    );
+  }
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use(cookieParser());
   app.useStaticAssets(join(getUploadDir()), { prefix: '/api/uploads/' });

@@ -155,6 +155,7 @@ cd /var/www/thuemayanhlongkhanh
 | Triệu chứng | Kiểm tra |
 |-------------|----------|
 | Trang trắng / lỗi API | `NEXT_PUBLIC_API_URL` phải là `https://thuemayanhlongkhanh.com` và đã `npm run build` lại frontend |
+| Ảnh CCCD URL `localhost:3000` | Trong `backend/.env` đặt `PUBLIC_API_URL=https://thuemayanhlongkhanh.com` (hoặc đảm bảo `FRONTEND_URL` đúng domain), rồi `pm2 restart thue-may-api`. Ảnh đã lưu sai vẫn xem được sau khi deploy frontend mới (tự map sang domain); upload mới sẽ lưu URL đúng |
 | CORS | `FRONTEND_ORIGIN=https://thuemayanhlongkhanh.com` trong `backend/.env` |
 | Webhook SePay không chạy | URL HTTPS, `SEPAY_WEBHOOK_API_KEY`, nội dung CK bắt đầu `SEVQR` |
 | 502 Bad Gateway | `pm2 status`, Postgres `docker compose ps` |

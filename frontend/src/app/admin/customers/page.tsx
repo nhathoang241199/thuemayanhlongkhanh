@@ -22,7 +22,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ChevronLeftIcon,
@@ -37,6 +37,10 @@ import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table"
 import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
+import {
+  CustomersSearchFields,
+  type CustomerSearchField,
+} from "./customers-search-fields";
 import { CustomerTagBadge } from "./customer-tag-badge";
 
 type Customer = {
@@ -182,8 +186,19 @@ export default function AdminCustomersPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(30);
+  const [searchField, setSearchField] = useState<CustomerSearchField>("phone");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleDebouncedSearchChange = useCallback(
+    (next: { field: CustomerSearchField; query: string }) => {
+      setSearchField(next.field);
+      setSearchQuery(next.query);
+      setPage(1);
+    },
+    [],
+  );
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / pageSize)),
@@ -211,6 +226,11 @@ export default function AdminCustomersPage() {
             page: String(requestedPage),
             pageSize: String(pageSize),
           });
+          const trimmedSearch = searchQuery.trim();
+          if (trimmedSearch.length > 0) {
+            params.set("searchField", searchField);
+            params.set("search", trimmedSearch);
+          }
           const res = await fetch(`${apiBase()}/api/customers?${params}`, {
             credentials: "include",
           });
@@ -253,13 +273,20 @@ export default function AdminCustomersPage() {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize]);
+  }, [page, pageSize, searchField, searchQuery]);
 
   return (
     <Stack gap={6}>
       <CardRoot {...cardSurfaceProps}>
         <CardBody>
-          <CardTitle textStyle="2xl">Khách hàng</CardTitle>
+          <Stack gap={4}>
+            <CardTitle textStyle="2xl">Khách hàng</CardTitle>
+            <CustomersSearchFields
+              appliedField={searchField}
+              appliedQuery={searchQuery}
+              onDebouncedChange={handleDebouncedSearchChange}
+            />
+          </Stack>
         </CardBody>
       </CardRoot>
 
@@ -284,7 +311,11 @@ export default function AdminCustomersPage() {
       {!loading && !error && customers !== null && total === 0 ? (
         <CardRoot {...cardSurfaceProps}>
           <CardBody>
-            <Text>Chưa có khách nào trong hệ thống.</Text>
+            <Text color="fg.muted" textAlign="center">
+              {searchQuery.trim()
+                ? "Không tìm thấy khách phù hợp số điện thoại hoặc tên."
+                : "Chưa có khách nào trong hệ thống."}
+            </Text>
           </CardBody>
         </CardRoot>
       ) : null}

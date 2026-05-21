@@ -26,6 +26,10 @@ docker compose up -d postgres
 [[ -f backend/.env ]] || die "Thiếu backend/.env — cp backend/.env.production.example backend/.env"
 [[ -f frontend/.env.production ]] || die "Thiếu frontend/.env.production — cp frontend/.env.production.example frontend/.env.production"
 
+if ! grep -qE '^PUBLIC_API_URL=https?://' backend/.env 2>/dev/null; then
+  log "WARN: backend/.env chưa có PUBLIC_API_URL (vd. https://thuemayanhlongkhanh.com) — URL ảnh CCCD có thể lưu localhost"
+fi
+
 log "Uploads directory..."
 mkdir -p backend/uploads/verification
 

@@ -19,11 +19,19 @@ export function getUploadDir(): string {
   return process.env.UPLOAD_DIR?.trim() || join(process.cwd(), 'uploads');
 }
 
+/** URL gốc công khai cho file upload (cùng domain với site khi API qua /api). */
 export function getPublicApiUrl(): string {
-  const raw =
-    process.env.PUBLIC_API_URL?.trim() ||
-    `http://localhost:${process.env.PORT ?? 3000}`;
-  return raw.replace(/\/$/, '');
+  const explicit = process.env.PUBLIC_API_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, '');
+
+  if (process.env.NODE_ENV === 'production') {
+    const site =
+      process.env.FRONTEND_URL?.trim() ||
+      process.env.FRONTEND_ORIGIN?.trim();
+    if (site) return site.replace(/\/$/, '');
+  }
+
+  return `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
 export function verificationImageExtension(mime: string): string {
@@ -49,16 +57,31 @@ export function verificationUploadUrlPrefix(): string {
   return `${getPublicApiUrl()}/api/uploads/verification/`;
 }
 
+const VERIFICATION_UPLOAD_PATH =
+  /^\/api\/uploads\/verification\/([^/]+)\/([^/]+)$/;
+
 export function parseVerificationUploadPath(
   url: string,
 ): { customerId: string; filename: string } | null {
-  const prefix = verificationUploadUrlPrefix();
-  if (!url.startsWith(prefix)) return null;
-  const rest = url.slice(prefix.length);
-  const slash = rest.indexOf('/');
-  if (slash <= 0) return null;
-  const customerId = rest.slice(0, slash);
-  const filename = decodeURIComponent(rest.slice(slash + 1));
+  const trimmed = url?.trim();
+  if (!trimmed) return null;
+
+  let pathname: string;
+  try {
+    pathname = trimmed.includes('://')
+      ? new URL(trimmed).pathname
+      : trimmed.startsWith('/')
+        ? trimmed
+        : '';
+  } catch {
+    return null;
+  }
+
+  const match = VERIFICATION_UPLOAD_PATH.exec(pathname);
+  if (!match) return null;
+
+  const customerId = match[1];
+  const filename = decodeURIComponent(match[2]);
   if (!customerId || !filename || filename.includes('..')) return null;
   return { customerId, filename };
 }

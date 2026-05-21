@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import {
   Button,
   HStack,
@@ -46,7 +47,7 @@ export type BookingListRowProps = {
   onCccdUploaded?: () => void;
 };
 
-export function BookingListRow({
+function BookingListRowInner({
   booking: b,
   isRowSaving,
   quickAdvanceSaving,
@@ -230,3 +231,5 @@ export function BookingListRow({
     </TableRow>
   );
 }
+
+export const BookingListRow = memo(BookingListRowInner);

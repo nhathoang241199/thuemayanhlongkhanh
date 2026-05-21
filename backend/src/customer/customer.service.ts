@@ -9,6 +9,27 @@ import { mkdir, unlink, writeFile } from 'fs/promises';
 import { dirname } from 'path';
 import { Prisma } from '../../generated/prisma/client';
 import { normalizePhone } from '../common/normalize-phone';
+
+export type CustomerSearchField = 'phone' | 'name';
+
+export type CustomerPageQuery = {
+  searchField?: CustomerSearchField;
+  search?: string;
+};
+
+function buildCustomerSearchWhere(
+  query: CustomerPageQuery,
+): Prisma.CustomerWhereInput | undefined {
+  const q = query.search?.trim() ?? '';
+  if (q.length === 0) return undefined;
+  const field = query.searchField ?? 'phone';
+  if (field === 'phone') {
+    const needle = normalizePhone(q);
+    if (needle.length === 0) return undefined;
+    return { phone: { contains: needle } };
+  }
+  return { name: { contains: q, mode: 'insensitive' } };
+}
 import {
   ALLOWED_VERIFICATION_MIMES,
   MAX_VERIFICATION_IMAGE_BYTES,
@@ -33,17 +54,23 @@ export class CustomerService {
     });
   }
 
-  async findPage(page: number, pageSize: number) {
+  async findPage(
+    page: number,
+    pageSize: number,
+    searchQuery: CustomerPageQuery = {},
+  ) {
     const safePage = Math.max(1, page);
     const safeSize = Math.min(100, Math.max(1, pageSize));
     const skip = (safePage - 1) * safeSize;
+    const where = buildCustomerSearchWhere(searchQuery);
     const [items, total] = await Promise.all([
       this.prisma.customer.findMany({
+        where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: safeSize,
       }),
-      this.prisma.customer.count(),
+      this.prisma.customer.count({ where }),
     ]);
     return {
       items,
