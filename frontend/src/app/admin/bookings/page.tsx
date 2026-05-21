@@ -71,7 +71,14 @@ import {
 } from "@/lib/datetime-vn";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 import type { BookingSlot } from "@/lib/booking-api";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { BRAND_LABEL } from "@/lib/camera-brands";
 import { apiBase } from "@/lib/api-base";
@@ -408,9 +415,11 @@ export default function AdminBookingsPage() {
 
   const handleDebouncedSearchChange = useCallback(
     (next: { field: SearchField; query: string }) => {
-      setSearchField(next.field);
-      setSearchQuery(next.query);
-      setPage(1);
+      startTransition(() => {
+        setSearchField(next.field);
+        setSearchQuery(next.query);
+        setPage(1);
+      });
     },
     [],
   );
