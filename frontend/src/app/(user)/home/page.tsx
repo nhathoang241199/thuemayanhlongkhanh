@@ -277,9 +277,20 @@ export default function UserHomePage() {
         </Text>
       </Box>
 
-      <Text fontWeight="semibold" color={titleColor}>
-        Đơn đặt lịch của bạn
-      </Text>
+      <HStack justify="space-between" align="center" gap={2} w="full">
+        <Text fontWeight="semibold" color={titleColor}>
+          Đơn đặt lịch của bạn
+        </Text>
+        <Link
+          href={STORE_MAP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          flexShrink={0}
+          {...inlineTextLinkProps}
+        >
+          Xem địa chỉ
+        </Link>
+      </HStack>
 
       {error ? (
         <Text color="red.fg" fontSize="sm">
