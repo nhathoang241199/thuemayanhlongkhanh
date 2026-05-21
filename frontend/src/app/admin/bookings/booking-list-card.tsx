@@ -27,9 +27,11 @@ import {
   AdminDataCardHeader,
 } from "@/components/admin/admin-data-card";
 import { APP_COLOR_PALETTE, titleColor } from "@/lib/app-theme";
+import { useAdminMobileLayout } from "@/lib/use-admin-mobile-layout";
 import { balanceDueVnd } from "@/lib/booking-payment";
 import { slotLabelVi } from "@/lib/booking-status";
 
+import { BookingCccdAction } from "./booking-cccd-action";
 import { BookingStatusMenuCell } from "./booking-menu-cells";
 import {
   CalendarIcon,
@@ -55,6 +57,7 @@ export function BookingListCard({
   onStatusChange,
   onMenuOpenChange,
   onQuickAdvance,
+  onCccdUploaded,
 }: BookingListRowProps) {
   const [noteOpen, setNoteOpen] = useState(false);
   const noteText = b.note?.trim() ?? "";
@@ -68,6 +71,11 @@ export function BookingListCard({
   const showTotal = b.paymentStatus === "PENDING";
   const showBalanceDue = b.paymentStatus === "DEPOSITED";
   const hideCardActions = b.status === "COMPLETED";
+  const isMobileLayout = useAdminMobileLayout();
+  const verificationUrls = b.customer.verificationImageUrls ?? [];
+  const hasCccdAction =
+    b.status === "CONFIRMED" &&
+    (verificationUrls.length >= 2 || isMobileLayout);
 
   return (
     <AdminDataCard>
@@ -189,20 +197,31 @@ export function BookingListCard({
 
       {!hideCardActions ? (
         <AdminDataCardActions justify="space-between">
-          {noteText ? (
-            <IconButton
-              type="button"
+          <HStack gap={1}>
+            <BookingCccdAction
+              status={b.status}
+              customerId={b.customer.id}
+              customerName={b.customer.name}
+              verificationImageUrls={verificationUrls}
+              disabled={isRowSaving}
               size="lg"
-              variant="subtle"
-              colorPalette={APP_COLOR_PALETTE}
-              aria-label="Xem ghi chú"
-              onClick={() => setNoteOpen(true)}
-            >
-              <NoteIcon boxSize="1.25rem" />
-            </IconButton>
-          ) : (
-            <Box flexShrink={0} />
-          )}
+              onCccdUploaded={onCccdUploaded}
+            />
+            {noteText ? (
+              <IconButton
+                type="button"
+                size="lg"
+                variant="subtle"
+                colorPalette={APP_COLOR_PALETTE}
+                aria-label="Xem ghi chú"
+                onClick={() => setNoteOpen(true)}
+              >
+                <NoteIcon boxSize="1.25rem" />
+              </IconButton>
+            ) : !hasCccdAction ? (
+              <Box flexShrink={0} />
+            ) : null}
+          </HStack>
           <IconButton
             type="button"
             size="lg"

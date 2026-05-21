@@ -19,6 +19,7 @@ import {
   BookingPaymentMenuCell,
   BookingStatusMenuCell,
 } from "./booking-menu-cells";
+import { BookingCccdAction } from "./booking-cccd-action";
 import { ChevronRightIcon, PencilIcon, TrashIcon } from "./booking-list-icons";
 import {
   bookingLocalDateKey,
@@ -42,6 +43,7 @@ export type BookingListRowProps = {
   onQuickAdvance: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onCccdUploaded?: () => void;
 };
 
 export function BookingListRow({
@@ -57,6 +59,7 @@ export function BookingListRow({
   onQuickAdvance,
   onEdit,
   onDelete,
+  onCccdUploaded,
 }: BookingListRowProps) {
   return (
     <TableRow>
@@ -176,6 +179,15 @@ export function BookingListRow({
       </TableCell>
       <TableCell {...tableCellPad}>
         <HStack gap={1} justify="flex-end">
+          <BookingCccdAction
+            status={b.status}
+            customerId={b.customer.id}
+            customerName={b.customer.name}
+            verificationImageUrls={b.customer.verificationImageUrls ?? []}
+            disabled={isRowSaving}
+            size="sm"
+            onCccdUploaded={onCccdUploaded}
+          />
           {canQuickAdvance ? (
             <IconButton
               type="button"

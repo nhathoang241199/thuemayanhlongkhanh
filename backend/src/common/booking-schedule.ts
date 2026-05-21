@@ -152,11 +152,13 @@ export function assertPickupAtValid(
   if (pickupDay !== startDate) {
     throw new Error('Thời gian nhận máy phải trong ngày bắt đầu thuê');
   }
-  const startMinutes = w.startHour * 60;
-  const endMinutes = w.endHour * 60;
+  /** Buổi ca: giờ nhận máy bất kỳ trong ngày thuê (7h–23h), không gò theo khung ca. */
+  const dayW = SLOT_TIME_WINDOWS.FULL_DAY;
+  const startMinutes = dayW.startHour * 60;
+  const endMinutes = dayW.endHour * 60 + 59;
   if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
     throw new Error(
-      `Thời gian nhận máy phải trong khung ${slotTimeRangeLabel(slot)}`,
+      `Thời gian nhận máy trong ngày thuê phải từ ${dayW.startHour}h đến ${dayW.endHour}h`,
     );
   }
 }

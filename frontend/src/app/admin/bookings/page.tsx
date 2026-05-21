@@ -82,6 +82,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 
 import { BRAND_LABEL } from "@/lib/camera-brands";
 import { apiBase } from "@/lib/api-base";
+import { parseVerificationUrls } from "@/lib/customer-verification-upload";
 import {
   APP_COLOR_PALETTE,
   cardSurfaceProps,
@@ -191,6 +192,28 @@ type BookingEditForm = {
   paymentStatus: PaymentStatusValue;
   status: BookingStatusValue;
 };
+
+function normalizeBookingCustomer(
+  customer: Booking["customer"],
+): Booking["customer"] {
+  return {
+    ...customer,
+    verificationImageUrls: parseVerificationUrls(
+      customer.verificationImageUrls,
+    ),
+  };
+}
+
+function normalizeBooking(row: Booking): Booking {
+  return {
+    ...row,
+    customer: normalizeBookingCustomer(row.customer),
+  };
+}
+
+function normalizeBookings(rows: Booking[]): Booking[] {
+  return rows.map(normalizeBooking);
+}
 
 function nowCalendarYm(): { year: number; month: number } {
   const t = new Date();
@@ -453,7 +476,7 @@ export default function AdminBookingsPage() {
         const text = await res.text().catch(() => "");
         throw new Error(text || res.statusText);
       }
-      const updated = (await res.json()) as Booking;
+      const updated = normalizeBooking((await res.json()) as Booking);
       setBookings((prev) =>
         prev?.map((row) => (row.id === id ? updated : row)) ?? null,
       );
@@ -633,7 +656,7 @@ export default function AdminBookingsPage() {
         const text = await res.text();
         throw new Error(text || res.statusText);
       }
-      const created = (await res.json()) as Booking;
+      const created = normalizeBooking((await res.json()) as Booking);
       setBookings((prev) => (prev ? [created, ...prev] : [created]));
       return created;
     },
@@ -890,6 +913,29 @@ export default function AdminBookingsPage() {
     return filteredBookings.slice(start, start + pageSize);
   }, [filteredBookings, clampedPage, pageSize]);
 
+  const loadBookings = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${apiBase()}/api/bookings`, {
+        credentials: "include",
+        signal,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+      const json = (await res.json()) as Booking[];
+      if (!signal?.aborted) setBookings(normalizeBookings(json));
+    } catch (e) {
+      if (signal?.aborted) return;
+      setBookings(null);
+      setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, []);
+
   const getBookingListProps = useCallback(
     (b: Booking) => ({
       booking: b,
@@ -904,6 +950,7 @@ export default function AdminBookingsPage() {
       onQuickAdvance: () => void handleQuickAdvance(b),
       onEdit: () => openEditBooking(b),
       onDelete: () => void handleBookingDelete(b),
+      onCccdUploaded: () => void loadBookings(),
     }),
     [
       isRowSaving,
@@ -913,31 +960,9 @@ export default function AdminBookingsPage() {
       handleBookingPaymentChange,
       handleBookingStatusChange,
       handleQuickAdvance,
+      loadBookings,
     ],
   );
-
-  const loadBookings = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`${apiBase()}/api/bookings`, {
-        credentials: "include",
-        signal,
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || res.statusText);
-      }
-      const json = (await res.json()) as Booking[];
-      if (!signal?.aborted) setBookings(json);
-    } catch (e) {
-      if (signal?.aborted) return;
-      setBookings(null);
-      setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     const ac = new AbortController();

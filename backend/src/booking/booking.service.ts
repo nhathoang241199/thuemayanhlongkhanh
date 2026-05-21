@@ -41,7 +41,14 @@ import { UpdateBookingDto } from './dto/update-booking.dto';
 import { UpdatePendingCustomerBookingDto } from './dto/update-pending-customer-booking.dto';
 
 const bookingInclude = {
-  customer: { select: { id: true, name: true, phone: true } },
+  customer: {
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      verificationImageUrls: true,
+    },
+  },
   camera: { select: { id: true, name: true, brand: true } },
 } as const;
 

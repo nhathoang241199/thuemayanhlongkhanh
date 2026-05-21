@@ -2,6 +2,7 @@ export type BookingCustomer = {
   id: string;
   name: string;
   phone: string;
+  verificationImageUrls: string[];
 };
 
 export type BookingCamera = {

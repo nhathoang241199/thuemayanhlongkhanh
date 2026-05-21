@@ -5,6 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
+import {
+  isVerificationImageFile,
+  MAX_VERIFICATION_IMAGES,
+  parseVerificationUrls,
+  uploadCustomerVerificationImage,
+  VERIFICATION_IMAGE_ACCEPT,
+} from "@/lib/customer-verification-upload";
 import { toaster } from "@/lib/toaster";
 
 import { VerificationImageGallery } from "./verification-image-gallery";
@@ -12,23 +19,6 @@ import { VerificationImageGallery } from "./verification-image-gallery";
 type CustomerPayload = {
   verificationImageUrls: unknown;
 };
-
-const ACCEPT = "image/jpeg,image/png,image/webp";
-const MAX_IMAGES = 10;
-
-function parseUrls(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (u): u is string => typeof u === "string" && u.trim().length > 0,
-  );
-}
-
-function isImageFile(file: File): boolean {
-  return (
-    ACCEPT.split(",").includes(file.type) ||
-    file.type.startsWith("image/")
-  );
-}
 
 function normalizePastedFile(file: File): File | null {
   if (!file.type.startsWith("image/")) return null;
@@ -53,14 +43,14 @@ function filesFromClipboard(data: DataTransfer | null): File[] {
     const raw = item.getAsFile();
     if (!raw) continue;
     const file = normalizePastedFile(raw);
-    if (file && isImageFile(file)) out.push(file);
+    if (file && isVerificationImageFile(file)) out.push(file);
   }
   return out;
 }
 
 function filesFromFileList(list: FileList | null): File[] {
   if (!list?.length) return [];
-  return Array.from(list).filter(isImageFile);
+  return Array.from(list).filter(isVerificationImageFile);
 }
 
 export function VerificationImageManager({
@@ -77,31 +67,12 @@ export function VerificationImageManager({
   const [uploading, setUploading] = useState(false);
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
 
-  const uploadFile = async (file: File) => {
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch(
-      `${apiBase()}/api/customers/${encodeURIComponent(customerId)}/verification-images`,
-      {
-        method: "POST",
-        credentials: "include",
-        body: form,
-      },
-    );
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(text || res.statusText);
-    }
-    const json = (await res.json()) as CustomerPayload;
-    return parseUrls(json.verificationImageUrls);
-  };
-
   const uploadFiles = useCallback(
     (files: File[]) => {
       if (!files.length) return;
-      if (urls.length + files.length > MAX_IMAGES) {
+      if (urls.length + files.length > MAX_VERIFICATION_IMAGES) {
         toaster.error({
-          title: `Tối đa ${MAX_IMAGES} ảnh`,
+          title: `Tối đa ${MAX_VERIFICATION_IMAGES} ảnh`,
           description: `Hiện có ${urls.length} ảnh.`,
         });
         return;
@@ -112,7 +83,7 @@ export function VerificationImageManager({
         try {
           let latest = urls;
           for (const file of files) {
-            latest = await uploadFile(file);
+            latest = await uploadCustomerVerificationImage(customerId, file);
           }
           onUpdated(latest);
           toaster.success({
@@ -134,7 +105,7 @@ export function VerificationImageManager({
 
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      if (uploading || urls.length >= MAX_IMAGES) return;
+      if (uploading || urls.length >= MAX_VERIFICATION_IMAGES) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable='true']"))
         return;
@@ -176,7 +147,7 @@ export function VerificationImageManager({
           throw new Error(text || res.statusText);
         }
         const json = (await res.json()) as CustomerPayload;
-        onUpdated(parseUrls(json.verificationImageUrls));
+        onUpdated(parseVerificationUrls(json.verificationImageUrls));
         toaster.success({ title: "Đã xóa ảnh" });
       } catch (e) {
         toaster.error({
@@ -189,7 +160,7 @@ export function VerificationImageManager({
     })();
   };
 
-  const atLimit = urls.length >= MAX_IMAGES;
+  const atLimit = urls.length >= MAX_VERIFICATION_IMAGES;
 
   return (
     <Stack gap={4}>
@@ -243,13 +214,13 @@ export function VerificationImageManager({
         <input
           ref={fileInputRef}
           type="file"
-          accept={ACCEPT}
+          accept={VERIFICATION_IMAGE_ACCEPT}
           multiple
           hidden
           onChange={(e) => uploadFiles(filesFromFileList(e.target.files))}
         />
         <Text fontSize="sm" color="fg.muted">
-          JPG, PNG, WebP — tối đa 5 MB/ảnh · {urls.length}/{MAX_IMAGES} ảnh
+          JPG, PNG, WebP — tối đa 5 MB/ảnh · {urls.length}/{MAX_VERIFICATION_IMAGES} ảnh
         </Text>
       </HStack>
 

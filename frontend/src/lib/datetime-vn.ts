@@ -51,9 +51,11 @@ export function slotPickupBounds(
       defaultLocal: toDatetimeLocalValue(startDate, w.startHour, 0),
     };
   }
+  /** Buổi ca: nhận máy bất kỳ lúc nào trong ngày bắt đầu thuê (7h–23h). */
+  const dayW = SLOT_TIME_WINDOWS.FULL_DAY;
   return {
-    minLocal: toDatetimeLocalValue(startDate, w.startHour, 0),
-    maxLocal: toDatetimeLocalValue(startDate, w.endHour, 0),
+    minLocal: toDatetimeLocalValue(startDate, dayW.startHour, 0),
+    maxLocal: toDatetimeLocalValue(startDate, dayW.endHour, 59),
     defaultLocal: toDatetimeLocalValue(startDate, w.startHour, 0),
   };
 }
@@ -104,10 +106,11 @@ export function validatePickupAtLocal(
     if (datePart !== startDate) {
       return "Thời gian nhận máy phải trong ngày bắt đầu thuê";
     }
-    const startMinutes = w.startHour * 60;
-    const endMinutes = w.endHour * 60;
+    const dayW = SLOT_TIME_WINDOWS.FULL_DAY;
+    const startMinutes = dayW.startHour * 60;
+    const endMinutes = dayW.endHour * 60 + 59;
     if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
-      return `Thời gian nhận máy phải từ ${w.startHour}h đến ${w.endHour}h`;
+      return `Thời gian nhận máy trong ngày thuê phải từ ${dayW.startHour}h đến ${dayW.endHour}h`;
     }
     return null;
   } catch {

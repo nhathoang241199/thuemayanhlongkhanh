@@ -777,7 +777,13 @@ function BookPageContent() {
             Khi thuê tối thiểu 1 ngày, bạn có thể nhận máy sớm từ tối đêm trước
             ngày thuê. Đối với tối thứ 7 vui lòng nhận sau 21h.
           </Text>
-        ) : null}
+        ) : (
+          <Text fontSize="xs" color="fg.muted" lineHeight="tall">
+            Buổi thuê xác định khung trả máy; giờ nhận máy có thể chọn bất kỳ lúc
+            nào trong ngày bắt đầu thuê (7h–23h), ví dụ ca sáng nhưng nhận sớm
+            hơn hoặc ca tối nhận trước vài tiếng.
+          </Text>
+        )}
         <Text fontSize="xs" color="fg.muted" lineHeight="tall">
           Trước khi qua lấy máy, xin nhắn tin cho mình trước để mình kiểm tra máy
           đã sẵn sàng nhé.
