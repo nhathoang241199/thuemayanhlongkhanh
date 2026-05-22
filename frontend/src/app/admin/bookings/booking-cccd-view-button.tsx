@@ -18,7 +18,7 @@ import { useState } from "react";
 import { VerificationImageGallery } from "@/app/admin/customers/verification-image-gallery";
 import { titleColor } from "@/lib/app-theme";
 
-import { ImageIcon } from "./booking-list-icons";
+import { CloseIcon, ImageIcon } from "./booking-list-icons";
 
 const CCCD_VIEW_COUNT = 2;
 
@@ -65,11 +65,27 @@ export function BookingCccdViewButton({
         <DialogBackdrop />
         <DialogPositioner>
           <DialogContent maxW="md" mx={4}>
-            <DialogHeader>
-              <DialogTitle color={titleColor}>
+            <DialogHeader
+              display="flex"
+              alignItems="flex-start"
+              justifyContent="space-between"
+              gap={2}
+              pe={1}
+            >
+              <DialogTitle color={titleColor} flex="1" pe={2}>
                 CCCD — {customerName}
               </DialogTitle>
-              <DialogCloseTrigger />
+              <DialogCloseTrigger asChild>
+                <IconButton
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  flexShrink={0}
+                  aria-label="Đóng"
+                >
+                  <CloseIcon boxSize="1.25rem" />
+                </IconButton>
+              </DialogCloseTrigger>
             </DialogHeader>
             <DialogBody pb={6}>
               <Stack gap={3}>

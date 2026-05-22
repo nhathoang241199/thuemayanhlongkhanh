@@ -278,13 +278,10 @@ function PaymentContent() {
                   <CheckIcon boxSize={6} color="green.600" aria-hidden />
                 ) : null}
               </HStack>
-              <Text fontSize="sm" color="fg.muted">
-                Đơn {instructions?.bookingCode ?? ""} — máy đã được giữ lịch.
-              </Text>
+              
               {balanceDue > 0 ? (
                 <Text fontSize="sm" color={titleColor} fontWeight="medium">
-                  Còn lại khi nhận máy: {vnd.format(balanceDue)} (chuyển khoản
-                  hoặc tiền mặt).
+                  Còn lại khi nhận máy: {vnd.format(balanceDue)}
                 </Text>
               ) : null}
               {shippingLine ? (
@@ -292,9 +289,7 @@ function PaymentContent() {
                   Địa chỉ giao máy: {shippingLine}
                 </Text>
               ) : null}
-              <Text fontSize="xs" color="fg.muted" lineHeight="tall" textAlign="left">
-                Bạn có thể đến sớm hơn giờ nhận máy đã chọn (nếu phù hợp).
-              </Text>
+              
               <Box {...userWarningNoteProps} textAlign="left">
                 <Text {...userWarningNoteTextProps}>
                   Lưu ý: Xin hãy mang theo CCCD bảng gốc hoặc VnID và đọc sđt đã đăng kí khi nhận máy. Vui lòng sạc pin sau khi nhận máy khoảng 20 phút để sử dụng.

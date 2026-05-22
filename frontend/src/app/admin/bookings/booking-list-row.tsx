@@ -180,15 +180,6 @@ function BookingListRowInner({
       </TableCell>
       <TableCell {...tableCellPad}>
         <HStack gap={1} justify="flex-end">
-          <BookingCccdAction
-            status={b.status}
-            customerId={b.customer.id}
-            customerName={b.customer.name}
-            verificationImageUrls={b.customer.verificationImageUrls ?? []}
-            disabled={isRowSaving}
-            size="sm"
-            onCccdUploaded={onCccdUploaded}
-          />
           {canQuickAdvance ? (
             <IconButton
               type="button"
@@ -203,6 +194,15 @@ function BookingListRowInner({
               <ChevronRightIcon />
             </IconButton>
           ) : null}
+          <BookingCccdAction
+            status={b.status}
+            customerId={b.customer.id}
+            customerName={b.customer.name}
+            verificationImageUrls={b.customer.verificationImageUrls ?? []}
+            disabled={isRowSaving}
+            size="sm"
+            onCccdUploaded={onCccdUploaded}
+          />
           <IconButton
             type="button"
             size="sm"
