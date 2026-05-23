@@ -794,13 +794,12 @@ function BookPageContent() {
           </Text>
         ) : (
           <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-            Buổi ca: nhận máy từ 1 giờ trước giờ bắt đầu ca đến hết ca (ví dụ ca
+            Buổi ca: bạn có thể nhận máy từ 1 giờ trước giờ bắt đầu ca đến hết ca (ví dụ ca
             sáng 7h–12h: nhận từ 6h đến 12h).
           </Text>
         )}
         <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-          Trước khi qua lấy máy, xin nhắn tin cho mình trước để mình kiểm tra máy
-          đã sẵn sàng nhé.
+          Trước khi qua lấy máy, xin vui lòng kiểm tra trạng thái sẵn sàng của máy ở trên đơn thuê.
         </Text>
       </Stack>
     );
