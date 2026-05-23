@@ -11,10 +11,8 @@ const SLOT_TIME_WINDOWS: Record<
   EVENING: { startHour: 18, endHour: 23 },
 };
 
-/** Ca cả ngày — nhận sớm hôm trước ngày thuê (đồng bộ backend). */
+/** Ca cả ngày — nhận sớm hôm trước ngày thuê 17h–23h (đồng bộ backend). */
 const FULL_DAY_EARLY_PICKUP_START_HOUR = 17;
-/** Hôm trước ngày thuê là thứ Bảy — nhận từ 20h. */
-const FULL_DAY_EARLY_PICKUP_SATURDAY_START_HOUR = 20;
 const FULL_DAY_EARLY_PICKUP_END_HOUR = 23;
 
 /** Buổi ca — được nhận máy sớm hơn giờ bắt đầu ca. */
@@ -61,10 +59,8 @@ export function isSaturdayYmd(ymd: string): boolean {
 }
 
 /** Giờ sớm nhất được nhận máy hôm trước ngày thuê (ca cả ngày). */
-export function fullDayEarlyPickupStartHour(prevDayYmd: string): number {
-  return isSaturdayYmd(prevDayYmd)
-    ? FULL_DAY_EARLY_PICKUP_SATURDAY_START_HOUR
-    : FULL_DAY_EARLY_PICKUP_START_HOUR;
+export function fullDayEarlyPickupStartHour(_prevDayYmd: string): number {
+  return FULL_DAY_EARLY_PICKUP_START_HOUR;
 }
 
 export type PickupTimeParts = {
@@ -194,9 +190,7 @@ export function validatePickupAtLocal(
         const min = minHour * 60;
         const max = FULL_DAY_EARLY_PICKUP_END_HOUR * 60 + 59;
         if (totalMinutes < min || totalMinutes > max) {
-          return isSaturdayYmd(prevDay)
-            ? "Thời gian nhận máy hôm trước ngày thuê (thứ Bảy) phải từ 20h tối đến hết đêm"
-            : "Thời gian nhận máy hôm trước ngày thuê phải từ 17h chiều đến hết đêm";
+          return "Thời gian nhận máy hôm trước ngày thuê phải từ 17h chiều đến 23h";
         }
         return null;
       }

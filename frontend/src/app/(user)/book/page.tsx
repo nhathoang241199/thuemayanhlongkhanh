@@ -789,7 +789,8 @@ function BookPageContent() {
         ) : null}
         {effectiveSlot === "FULL_DAY" ? (
           <Text mt={2} fontSize="xs" color="fg.muted" lineHeight="tall">
-            Nếu thuê tối thiểu 1 ngày, bạn có thể lấy máy sớm từ đêm hôm trước ngày thuê. Tối thứ Bảy vui lòng nhận sau 20h.
+            Nếu thuê tối thiểu 1 ngày, bạn có thể lấy máy sớm từ 17h đến 23h hôm
+            trước ngày thuê.
           </Text>
         ) : (
           <Text fontSize="xs" color="fg.muted" lineHeight="tall">
