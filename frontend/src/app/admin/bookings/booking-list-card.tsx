@@ -69,8 +69,13 @@ function BookingListCardInner({
       : formatBookingDateRelative(b.startBookingDate);
 
   const pay = paymentBadgeProps(b.paymentStatus);
+  const bookingSettled =
+    b.status === "COMPLETED" || b.status === "CANCELLED";
   const showTotal = b.paymentStatus === "PENDING";
-  const showBalanceDue = b.paymentStatus === "DEPOSITED";
+  /** Mobile: còn lại hiện tới khi đơn chưa hoàn tất/hủy (kể cả đã thanh toán). */
+  const showBalanceDue =
+    !bookingSettled &&
+    (b.paymentStatus === "DEPOSITED" || b.paymentStatus === "PAID");
   const hideQuickAdvance = b.status === "COMPLETED";
   const verificationUrls = b.customer.verificationImageUrls ?? [];
 
