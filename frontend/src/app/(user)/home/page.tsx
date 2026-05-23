@@ -46,7 +46,11 @@ import {
   type BookingSlot,
   type CameraBrand,
 } from "@/lib/booking-api";
-import { formatPickupAtVi, isoToCalendarDateKey } from "@/lib/datetime-vn";
+import {
+  formatPickupAtVi,
+  isoToCalendarDateKey,
+  pickupIsoIsYesterdayTodayOrTomorrowVn,
+} from "@/lib/datetime-vn";
 import {
   BOOKING_CANCEL_REFUND_VND,
   balanceDueVnd,
@@ -335,10 +339,15 @@ export default function UserHomePage() {
           b.status === "CONFIRMED" && b.paymentStatus === "DEPOSITED";
         const balanceDue =
           b.paymentStatus === "DEPOSITED" ? balanceDueVnd(b.amount) : 0;
-        const readinessBadge =
-          b.status === "CONFIRMED" && b.cameraReady != null
-            ? cameraReadinessBadgeProps(b.cameraReady)
-            : null;
+        const showCameraReadiness =
+          b.status === "CONFIRMED" &&
+          b.cameraReady != null &&
+          pickupIsoIsYesterdayTodayOrTomorrowVn(
+            b.pickupAt ?? b.startBookingDate,
+          );
+        const readinessBadge = showCameraReadiness
+          ? cameraReadinessBadgeProps(b.cameraReady === true)
+          : null;
 
         return (
           <CardRoot key={b.id} {...userBookingCardProps}>
@@ -346,22 +355,12 @@ export default function UserHomePage() {
               <Stack gap={2}>
                 <HStack justify="space-between" align="flex-start" gap={2}>
                   <Text fontWeight="semibold">{b.bookingCode}</Text>
-                  <HStack gap={1} flexWrap="wrap" justify="flex-end">
-                    <Badge
-                      colorPalette={bookingStatusColor(b.status)}
-                      variant="subtle"
-                    >
-                      {bookingStatusLabel(b.status)}
-                    </Badge>
-                    {readinessBadge ? (
-                      <Badge
-                        variant="subtle"
-                        colorPalette={readinessBadge.colorPalette}
-                      >
-                        {readinessBadge.label}
-                      </Badge>
-                    ) : null}
-                  </HStack>
+                  <Badge
+                    colorPalette={bookingStatusColor(b.status)}
+                    variant="subtle"
+                  >
+                    {bookingStatusLabel(b.status)}
+                  </Badge>
                 </HStack>
                 <HStack justify="space-between" align="baseline" gap={2} w="full">
                   <Text fontSize="sm" flex="1" minW={0}>
@@ -397,17 +396,36 @@ export default function UserHomePage() {
                 </HStack>
                 {b.pickupAt ? (
                   <Stack gap={0.5} align="stretch">
-                    <Text fontSize="sm" color="fg.muted">
-                      Nhận máy:{" "}
-                      <Text as="span" fontWeight="medium" color={titleColor}>
-                        {formatPickupAtVi(b.pickupAt)}
+                    <HStack
+                      justify="space-between"
+                      align="center"
+                      gap={2}
+                      w="full"
+                    >
+                      <Text fontSize="sm" color="fg.muted" flex="1" minW={0}>
+                        Nhận máy:{" "}
+                        <Text
+                          as="span"
+                          fontWeight="medium"
+                          color={titleColor}
+                        >
+                          {formatPickupAtVi(b.pickupAt)}
+                        </Text>
                       </Text>
-                    </Text>
-                    {b.cameraReady === false ? (
+                      {readinessBadge ? (
+                        <Badge
+                          variant="subtle"
+                          colorPalette={readinessBadge.colorPalette}
+                          flexShrink={0}
+                        >
+                          {readinessBadge.label}
+                        </Badge>
+                      ) : null}
+                    </HStack>
+                    {showCameraReadiness && b.cameraReady === false ? (
                       <Box {...userWarningNoteProps}>
                         <Text {...userWarningNoteTextProps}>
-                          Vui lòng kiểm tra badge trước khi tới cửa hàng. Máy
-                          có thể chưa sẵn sàng nếu khách trước chưa trả.
+                          Hiện tại máy chưa có sẵn, do có bạn khác đang trong thời gian thuê. Xin hãy kiểm tra trạng thái sẵn sàng trước khi tới nhận máy.
                         </Text>
                       </Box>
                     ) : null}

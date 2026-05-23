@@ -29,11 +29,11 @@ export function bookingStatusLabel(status: string): string {
 
 export function cameraReadinessBadgeProps(cameraReady: boolean): {
   label: string;
-  colorPalette: "green" | "orange";
+  colorPalette: "green" | "red";
 } {
   return cameraReady
     ? { label: "Máy sẵn sàng", colorPalette: "green" }
-    : { label: "Máy chưa sẵn sàng", colorPalette: "orange" };
+    : { label: "Chưa có máy", colorPalette: "red" };
 }
 
 export function bookingStatusColor(

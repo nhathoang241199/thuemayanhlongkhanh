@@ -249,6 +249,28 @@ export function isoToCalendarDateKey(iso: string): string {
   return local ? local.slice(0, 10) : "";
 }
 
+/** Hôm nay theo lịch VN (YYYY-MM-DD). */
+export function vnTodayDateKey(ref: Date = new Date()): string {
+  return isoToCalendarDateKey(ref.toISOString());
+}
+
+/** Ngày nhận máy (VN) là hôm qua, hôm nay hoặc ngày mai. */
+export function pickupIsoIsYesterdayTodayOrTomorrowVn(
+  pickupIso: string,
+  ref: Date = new Date(),
+): boolean {
+  const pickupDay = isoToCalendarDateKey(pickupIso);
+  if (!pickupDay) return false;
+  const today = vnTodayDateKey(ref);
+  const yesterday = addDaysYmd(today, -1);
+  const tomorrow = addDaysYmd(today, 1);
+  return (
+    pickupDay === yesterday ||
+    pickupDay === today ||
+    pickupDay === tomorrow
+  );
+}
+
 /** Coi chuỗi datetime-local là giờ VN (UTC+7) → ISO UTC. */
 export function datetimeLocalToIso(local: string): string {
   const { datePart, totalMinutes } = pickupLocalParts(local);
