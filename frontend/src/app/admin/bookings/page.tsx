@@ -54,7 +54,9 @@ import {
 } from "@/app/admin/bookings/booking-list-utils";
 import {
   getQuickAdvancePatch,
+  getQuickRevertPatch,
   quickAdvanceToastMessages,
+  quickRevertToastMessages,
 } from "@/lib/admin-booking-quick-advance";
 import { identifyCustomer } from "@/lib/api";
 import {
@@ -588,6 +590,30 @@ export default function AdminBookingsPage() {
     [patchBooking],
   );
 
+  const handleQuickRevert = useCallback(
+    (booking: Booking) => {
+      const patch = getQuickRevertPatch(booking);
+      if (!patch) return;
+      void (async () => {
+        setPatchError(null);
+        setQuickAdvanceSavingId(booking.id);
+        try {
+          await patchBooking(booking.id, patch);
+          for (const msg of quickRevertToastMessages(patch)) {
+            toaster.success({ title: msg });
+          }
+        } catch (e) {
+          setPatchError(
+            e instanceof Error ? e.message : "Không cập nhật được đơn.",
+          );
+        } finally {
+          setQuickAdvanceSavingId(null);
+        }
+      })();
+    },
+    [patchBooking],
+  );
+
   const loadBookingFormOptions = useCallback(async (mode: "create" | "edit") => {
     setEditOptionsLoading(true);
     setEditError(null);
@@ -876,15 +902,8 @@ export default function AdminBookingsPage() {
         filterByPickupTime,
         filterDateKey,
         todayKey: todayLocalDateKey(),
-        searchQuery,
       }),
-    [
-      isMobileViewport,
-      showAllDates,
-      filterByPickupTime,
-      filterDateKey,
-      searchQuery,
-    ],
+    [isMobileViewport, showAllDates, filterByPickupTime, filterDateKey],
   );
 
   const filteredBookings = useMemo(() => {
@@ -979,11 +998,13 @@ export default function AdminBookingsPage() {
       quickAdvanceSaving: quickAdvanceSavingId === b.id,
       deleteSaving: deleteSavingId === b.id,
       canQuickAdvance: getQuickAdvancePatch(b) !== null,
+      canQuickRevert: getQuickRevertPatch(b) !== null,
       onCopyPhone: (phone: string) => void copyToClipboard(phone),
       onPaymentChange: handleBookingPaymentChange,
       onStatusChange: handleBookingStatusChange,
       onMenuOpenChange: () => setPatchError(null),
       onQuickAdvance: () => void handleQuickAdvance(b),
+      onQuickRevert: () => void handleQuickRevert(b),
       onEdit: () => openEditBooking(b),
       onDelete: () => void handleBookingDelete(b),
       onCccdUploaded: () => void loadBookings(),
@@ -996,6 +1017,7 @@ export default function AdminBookingsPage() {
       handleBookingPaymentChange,
       handleBookingStatusChange,
       handleQuickAdvance,
+      handleQuickRevert,
       loadBookings,
     ],
   );
@@ -1101,7 +1123,7 @@ export default function AdminBookingsPage() {
   const listEmptyMessage = useMemo(
     () =>
       mobileTodayMode
-        ? "Không có đơn chờ cọc, chờ lấy máy hoặc đang thuê (trả hôm nay)."
+        ? "Không có đơn chờ cọc, chờ lấy máy, đang thuê (trả hôm nay) hoặc hoàn tất (nhận hôm nay/ngày mai)."
         : showAllDates
           ? "Không có đơn phù hợp bộ lọc trạng thái, máy ảnh hoặc tìm kiếm."
           : "Không có đơn trong ngày đã chọn, bộ lọc trạng thái/thanh toán/máy hoặc khớp tìm kiếm.",

@@ -21,7 +21,12 @@ import {
   BookingStatusMenuCell,
 } from "./booking-menu-cells";
 import { BookingCccdAction } from "./booking-cccd-action";
-import { ChevronRightIcon, PencilIcon, TrashIcon } from "./booking-list-icons";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PencilIcon,
+  TrashIcon,
+} from "./booking-list-icons";
 import {
   bookingLocalDateKey,
   formatBookingDate,
@@ -39,11 +44,13 @@ export type BookingListRowProps = {
   quickAdvanceSaving: boolean;
   deleteSaving: boolean;
   canQuickAdvance: boolean;
+  canQuickRevert: boolean;
   onCopyPhone: (phone: string) => void;
   onPaymentChange: (id: string, status: PaymentStatusValue) => void;
   onStatusChange: (id: string, status: BookingStatusValue) => void;
   onMenuOpenChange: () => void;
   onQuickAdvance: () => void;
+  onQuickRevert: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onCccdUploaded?: () => void;
@@ -56,11 +63,13 @@ function BookingListRowInner({
   quickAdvanceSaving,
   deleteSaving,
   canQuickAdvance,
+  canQuickRevert,
   onCopyPhone,
   onPaymentChange,
   onStatusChange,
   onMenuOpenChange,
   onQuickAdvance,
+  onQuickRevert,
   onEdit,
   onDelete,
   onCccdUploaded,
@@ -176,6 +185,20 @@ function BookingListRowInner({
       </TableCell>
       <TableCell {...tableCellPad}>
         <HStack gap={1} justify="flex-end">
+          {canQuickRevert ? (
+            <IconButton
+              type="button"
+              size="sm"
+              variant="subtle"
+              colorPalette="orange"
+              aria-label="Chuyển về đang thuê"
+              disabled={isRowSaving}
+              loading={quickAdvanceSaving}
+              onClick={onQuickRevert}
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+          ) : null}
           {canQuickAdvance ? (
             <IconButton
               type="button"

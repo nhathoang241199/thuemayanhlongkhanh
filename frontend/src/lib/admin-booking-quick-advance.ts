@@ -67,3 +67,20 @@ export function quickAdvanceToastMessages(patch: QuickAdvancePatch): string[] {
   }
   return messages;
 }
+
+/** Mobile: hoàn tất → đang thuê (nhấn nhầm trả máy). */
+export function getQuickRevertPatch(booking: {
+  status: string;
+}): QuickAdvancePatch | null {
+  if (booking.status === "COMPLETED") {
+    return { status: "RENTING" };
+  }
+  return null;
+}
+
+export function quickRevertToastMessages(patch: QuickAdvancePatch): string[] {
+  if (patch.status === "RENTING") {
+    return ["Đã chuyển về đang thuê"];
+  }
+  return [];
+}

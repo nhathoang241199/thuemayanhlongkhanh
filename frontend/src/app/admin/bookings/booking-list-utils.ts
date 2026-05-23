@@ -51,6 +51,32 @@ function parseDateKey(key: string): Date {
   return new Date(y, m - 1, day);
 }
 
+function dateKeyAddDays(key: string, days: number): string {
+  const d = parseDateKey(key);
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Ngày nhận máy = hôm nay hoặc ngày mai (theo todayKey của bộ lọc). */
+function pickupDayInMobilePickupWindow(
+  pickupDayKey: string,
+  todayKey: string,
+): boolean {
+  return (
+    pickupDayKey === todayKey ||
+    pickupDayKey === dateKeyAddDays(todayKey, 1)
+  );
+}
+
+function pickupDaySortRank(pickupDayKey: string, todayKey: string): number {
+  if (pickupDayKey === todayKey) return 0;
+  if (pickupDayKey === dateKeyAddDays(todayKey, 1)) return 1;
+  return 2;
+}
+
 function relativeDayLabelVn(dateKey: string, refKey: string): string | null {
   const diff = Math.round(
     (parseDateKey(dateKey).getTime() - parseDateKey(refKey).getTime()) /
@@ -155,6 +181,10 @@ const MOBILE_TODAY_PICKUP_STATUSES = new Set<BookingStatusValue>([
 
 const MOBILE_TODAY_RENTING_STATUSES = new Set<BookingStatusValue>(["RENTING"]);
 
+const MOBILE_TODAY_COMPLETED_STATUSES = new Set<BookingStatusValue>([
+  "COMPLETED",
+]);
+
 export const SEARCH_RENTING_STATUSES = new Set<BookingStatusValue>(["RENTING"]);
 
 export function isActiveRentingStatus(status: BookingStatusValue): boolean {
@@ -173,21 +203,19 @@ function startBookingSortTimeMs(b: Booking): number {
   return new Date(b.startBookingDate).getTime();
 }
 
-/** Mobile — đơn hôm nay: chờ cọc/lấy máy (theo ngày nhận) rồi đang thuê (theo ngày trả). */
+/** Mobile — đơn hôm nay: chờ cọc/lấy máy & hoàn tất (nhận hôm nay/mai), đang thuê (trả hôm nay). */
 export function isMobileTodayBookingsMode(params: {
   isMobileViewport: boolean;
   showAllDates: boolean;
   filterByPickupTime: boolean;
   filterDateKey: string;
   todayKey: string;
-  searchQuery: string;
 }): boolean {
   return (
     params.isMobileViewport &&
     !params.showAllDates &&
     params.filterByPickupTime &&
-    params.filterDateKey === params.todayKey &&
-    params.searchQuery.trim() === ""
+    params.filterDateKey === params.todayKey
   );
 }
 
@@ -197,24 +225,45 @@ export function filterAndSortMobileTodayBookings(
 ): Booking[] {
   const pickupQueue: Booking[] = [];
   const rentingQueue: Booking[] = [];
+  const completedPickupTodayQueue: Booking[] = [];
 
   for (const b of bookings) {
     const status = b.status as BookingStatusValue;
+    const pickupDayKey = bookingVnDateKey(b.pickupAt ?? b.startBookingDate);
     if (MOBILE_TODAY_PICKUP_STATUSES.has(status)) {
-      if (bookingVnDateKey(b.pickupAt ?? b.startBookingDate) === todayKey) {
+      if (pickupDayInMobilePickupWindow(pickupDayKey, todayKey)) {
         pickupQueue.push(b);
       }
     } else if (MOBILE_TODAY_RENTING_STATUSES.has(status)) {
       if (bookingVnDateKey(b.endBookingDate) === todayKey) {
         rentingQueue.push(b);
       }
+    } else if (MOBILE_TODAY_COMPLETED_STATUSES.has(status)) {
+      if (pickupDayInMobilePickupWindow(pickupDayKey, todayKey)) {
+        completedPickupTodayQueue.push(b);
+      }
     }
   }
 
-  pickupQueue.sort((a, b) => pickupSortTimeMs(a) - pickupSortTimeMs(b));
-  rentingQueue.sort((a, b) => returnSortTimeMs(a) - returnSortTimeMs(b));
+  const comparePickupWindow = (a: Booking, b: Booking) => {
+    const keyA = bookingVnDateKey(a.pickupAt ?? a.startBookingDate);
+    const keyB = bookingVnDateKey(b.pickupAt ?? b.startBookingDate);
+    const dayCmp = pickupDaySortRank(keyA, todayKey) - pickupDaySortRank(keyB, todayKey);
+    if (dayCmp !== 0) return dayCmp;
+    return pickupSortTimeMs(a) - pickupSortTimeMs(b);
+  };
 
-  return [...pickupQueue, ...rentingQueue];
+  pickupQueue.sort(comparePickupWindow);
+  rentingQueue.sort((a, b) => returnSortTimeMs(a) - returnSortTimeMs(b));
+  completedPickupTodayQueue.sort((a, b) => {
+    const keyA = bookingVnDateKey(a.pickupAt ?? a.startBookingDate);
+    const keyB = bookingVnDateKey(b.pickupAt ?? b.startBookingDate);
+    const dayCmp = pickupDaySortRank(keyA, todayKey) - pickupDaySortRank(keyB, todayKey);
+    if (dayCmp !== 0) return dayCmp;
+    return returnSortTimeMs(b) - returnSortTimeMs(a);
+  });
+
+  return [...pickupQueue, ...rentingQueue, ...completedPickupTodayQueue];
 }
 
 /**

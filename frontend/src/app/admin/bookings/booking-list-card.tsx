@@ -34,6 +34,7 @@ import { BookingCccdAction } from "./booking-cccd-action";
 import { BookingStatusMenuCell } from "./booking-menu-cells";
 import {
   CalendarIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
   ClockIcon,
   NoteIcon,
@@ -54,10 +55,12 @@ function BookingListCardInner({
   isRowSaving,
   quickAdvanceSaving,
   canQuickAdvance,
+  canQuickRevert,
   onCopyPhone,
   onStatusChange,
   onMenuOpenChange,
   onQuickAdvance,
+  onQuickRevert,
   onCccdUploaded,
 }: BookingListCardProps) {
   const [noteOpen, setNoteOpen] = useState(false);
@@ -72,11 +75,9 @@ function BookingListCardInner({
   const bookingSettled =
     b.status === "COMPLETED" || b.status === "CANCELLED";
   const showTotal = b.paymentStatus === "PENDING";
-  /** Mobile: còn lại hiện tới khi đơn chưa hoàn tất/hủy (kể cả đã thanh toán). */
+  /** Mobile: còn lại chỉ khi đã cọc, chưa thanh toán đủ, đơn chưa kết thúc. */
   const showBalanceDue =
-    !bookingSettled &&
-    (b.paymentStatus === "DEPOSITED" || b.paymentStatus === "PAID");
-  const hideQuickAdvance = b.status === "COMPLETED";
+    !bookingSettled && b.paymentStatus === "DEPOSITED";
   const verificationUrls = b.customer.verificationImageUrls ?? [];
 
   return (
@@ -220,20 +221,36 @@ function BookingListCardInner({
             </IconButton>
           ) : null}
         </HStack>
-        {!hideQuickAdvance ? (
-          <IconButton
-            type="button"
-            size="lg"
-            variant="subtle"
-            colorPalette="green"
-            aria-label="Chuyển tiếp trạng thái"
-            disabled={isRowSaving || !canQuickAdvance}
-            loading={quickAdvanceSaving}
-            onClick={onQuickAdvance}
-          >
-            <ChevronRightIcon boxSize="1.35rem" />
-          </IconButton>
-        ) : null}
+        <HStack gap={1}>
+          {canQuickRevert ? (
+            <IconButton
+              type="button"
+              size="lg"
+              variant="subtle"
+              colorPalette="orange"
+              aria-label="Chuyển về đang thuê"
+              disabled={isRowSaving}
+              loading={quickAdvanceSaving}
+              onClick={onQuickRevert}
+            >
+              <ChevronLeftIcon boxSize="1.35rem" />
+            </IconButton>
+          ) : null}
+          {canQuickAdvance ? (
+            <IconButton
+              type="button"
+              size="lg"
+              variant="subtle"
+              colorPalette="green"
+              aria-label="Chuyển tiếp trạng thái"
+              disabled={isRowSaving}
+              loading={quickAdvanceSaving}
+              onClick={onQuickAdvance}
+            >
+              <ChevronRightIcon boxSize="1.35rem" />
+            </IconButton>
+          ) : null}
+        </HStack>
       </AdminDataCardActions>
 
       {noteText ? (
