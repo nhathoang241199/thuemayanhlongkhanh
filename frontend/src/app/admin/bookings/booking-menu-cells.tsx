@@ -20,6 +20,7 @@ import type { Booking, BookingStatusValue, PaymentStatusValue } from "./booking-
 import {
   BOOKING_PAYMENT_EDIT_OPTIONS,
   BOOKING_STATUS_EDIT_OPTIONS,
+  isLateReturnBooking,
   paymentBadgeProps,
   statusBadgeProps,
 } from "./booking-list-utils";
@@ -38,6 +39,7 @@ export function BookingStatusMenuCell({
   size?: "compact" | "prominent";
 }) {
   const st = statusBadgeProps(booking.status);
+  const lateReturn = isLateReturnBooking(booking);
   const prominent = size === "prominent";
   return (
     <MenuRoot
@@ -66,13 +68,24 @@ export function BookingStatusMenuCell({
           ml={prominent ? "auto" : undefined}
         >
           {saving ? <Spinner size={prominent ? "sm" : "xs"} /> : null}
-          <Badge
-            variant="subtle"
-            colorPalette={st.colorPalette}
-            fontSize={prominent ? "sm" : undefined}
-          >
-            {st.label}
-          </Badge>
+          <HStack gap={1} flexWrap="wrap">
+            <Badge
+              variant="subtle"
+              colorPalette={st.colorPalette}
+              fontSize={prominent ? "sm" : undefined}
+            >
+              {st.label}
+            </Badge>
+            {lateReturn ? (
+              <Badge
+                variant="subtle"
+                colorPalette="red"
+                fontSize={prominent ? "sm" : "xs"}
+              >
+                Trả trễ
+              </Badge>
+            ) : null}
+          </HStack>
         </Button>
       </MenuTrigger>
       <Portal>

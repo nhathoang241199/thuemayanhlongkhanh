@@ -170,7 +170,6 @@ async function main() {
       | "PENDING_PAYMENT"
       | "CONFIRMED"
       | "RENTING"
-      | "LATE_RETURN"
       | "COMPLETED"
       | "CANCELLED";
     note: string;
@@ -235,8 +234,8 @@ async function main() {
     {
       slot: "AFTERNOON",
       paymentStatus: "PAID",
-      status: "LATE_RETURN",
-      note: "Trả máy trễ — demo",
+      status: "RENTING",
+      note: "Trả máy trễ — demo (badge FE khi quá endBookingDate)",
       ship: false,
     },
   ];
@@ -341,7 +340,6 @@ async function main() {
       | "PENDING_PAYMENT"
       | "CONFIRMED"
       | "RENTING"
-      | "LATE_RETURN"
       | "COMPLETED"
       | "CANCELLED";
     note: string;

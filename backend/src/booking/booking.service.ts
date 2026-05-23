@@ -75,19 +75,7 @@ export class BookingService {
     return `DH-${y}${m}${d}-${suffix}`;
   }
 
-  /** RENTING quá endBookingDate → LATE_RETURN */
-  private async markLateReturns() {
-    await this.prisma.booking.updateMany({
-      where: {
-        status: BookingStatus.RENTING,
-        endBookingDate: { lt: new Date() },
-      },
-      data: { status: BookingStatus.LATE_RETURN },
-    });
-  }
-
   async findAll() {
-    await this.markLateReturns();
     return this.prisma.booking.findMany({
       orderBy: { startBookingDate: 'desc' },
       include: bookingInclude,
@@ -99,7 +87,6 @@ export class BookingService {
     if (normalized.length < 9) {
       return [];
     }
-    await this.markLateReturns();
     const customer = await this.prisma.customer.findUnique({
       where: { phone: normalized },
     });
@@ -117,7 +104,6 @@ export class BookingService {
   }
 
   async findOne(id: string) {
-    await this.markLateReturns();
     const row = await this.prisma.booking.findUnique({
       where: { id },
       include: bookingInclude,

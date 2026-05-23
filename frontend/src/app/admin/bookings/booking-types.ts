@@ -35,7 +35,6 @@ export type BookingStatusValue =
   | "PENDING_PAYMENT"
   | "CONFIRMED"
   | "RENTING"
-  | "LATE_RETURN"
   | "COMPLETED"
   | "PENDING_REFUND_CANCEL"
   | "CANCELLED";

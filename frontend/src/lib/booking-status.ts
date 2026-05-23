@@ -1,3 +1,13 @@
+/** RENTING và đã quá endBookingDate — chỉ hiển thị badge, không đổi status DB. */
+export function isLateReturnBooking(
+  booking: { status: string; endBookingDate: string },
+  now: Date = new Date(),
+): boolean {
+  if (booking.status !== "RENTING") return false;
+  const end = new Date(booking.endBookingDate);
+  return !Number.isNaN(end.getTime()) && end.getTime() < now.getTime();
+}
+
 export function bookingStatusLabel(status: string): string {
   switch (status) {
     case "PENDING_PAYMENT":
@@ -6,8 +16,6 @@ export function bookingStatusLabel(status: string): string {
       return "Đã cọc";
     case "RENTING":
       return "Đang thuê";
-    case "LATE_RETURN":
-      return "Trả trễ";
     case "COMPLETED":
       return "Hoàn tất";
     case "PENDING_REFUND_CANCEL":
@@ -29,8 +37,6 @@ export function bookingStatusColor(
       return "green";
     case "RENTING":
       return "cerulean";
-    case "LATE_RETURN":
-      return "red";
     case "COMPLETED":
       return "green";
     case "PENDING_REFUND_CANCEL":

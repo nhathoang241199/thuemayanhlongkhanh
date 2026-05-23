@@ -49,7 +49,6 @@ import {
   BOOKING_STATUS_EDIT_OPTIONS,
   bookingLocalDateKey,
   filterAndSortMobileTodayBookings,
-  isActiveRentingStatus,
   isMobileTodayBookingsMode,
   sortAdminSearchBookings,
 } from "@/app/admin/bookings/booking-list-utils";
@@ -170,8 +169,6 @@ type StatusFilter =
   | "PENDING_PAYMENT"
   | "CONFIRMED"
   | "RENTING"
-  | "LATE_RETURN"
-  | "RENTING_ACTIVE"
   | "COMPLETED"
   | "PENDING_REFUND_CANCEL"
   | "CANCELLED";
@@ -181,7 +178,6 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "PENDING_PAYMENT", label: "Chờ cọc" },
   { value: "CONFIRMED", label: "Chờ lấy máy" },
   { value: "RENTING", label: "Đang thuê" },
-  { value: "LATE_RETURN", label: "Trả trễ" },
   { value: "COMPLETED", label: "Hoàn tất" },
   { value: "PENDING_REFUND_CANCEL", label: "Chờ hoàn tiền" },
   { value: "CANCELLED", label: "Đã hủy" },
@@ -417,7 +413,7 @@ function deriveQuickFilter(params: {
   ) {
     return "today";
   }
-  if (showAllDates && statusFilter === "RENTING_ACTIVE" && baseFiltersDefault) {
+  if (showAllDates && statusFilter === "RENTING" && baseFiltersDefault) {
     return "renting";
   }
   if (showAllDates && statusFilter === "PENDING_PAYMENT" && baseFiltersDefault) {
@@ -895,11 +891,7 @@ export default function AdminBookingsPage() {
     if (!bookings) return [];
 
     const matchesCommonFilters = (b: Booking) => {
-      if (statusFilter === "RENTING_ACTIVE") {
-        if (!isActiveRentingStatus(b.status as BookingStatusValue)) {
-          return false;
-        }
-      } else if (statusFilter !== "ALL" && b.status !== statusFilter) {
+      if (statusFilter !== "ALL" && b.status !== statusFilter) {
         return false;
       }
       if (
@@ -1071,7 +1063,7 @@ export default function AdminBookingsPage() {
       case "renting":
         setSearchField("phone");
         setShowAllDates(true);
-        setStatusFilter("RENTING_ACTIVE");
+        setStatusFilter("RENTING");
         setPaymentStatusFilter("ALL");
         setCameraFilter("ALL");
         setSearchQuery("");

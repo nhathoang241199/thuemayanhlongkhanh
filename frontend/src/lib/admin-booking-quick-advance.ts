@@ -34,7 +34,7 @@ export function getQuickAdvancePatch(booking: {
     patch.status = "CONFIRMED";
   } else if (booking.status === "CONFIRMED") {
     patch.status = "RENTING";
-  } else if (booking.status === "RENTING" || booking.status === "LATE_RETURN") {
+  } else if (booking.status === "RENTING") {
     patch.status = "COMPLETED";
   }
 

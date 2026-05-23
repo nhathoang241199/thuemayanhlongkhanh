@@ -1,8 +1,12 @@
+import { isLateReturnBooking } from "@/lib/booking-status";
+
 import type {
   Booking,
   BookingStatusValue,
   PaymentStatusValue,
 } from "./booking-types";
+
+export { isLateReturnBooking };
 
 const vnDateTimeZone = "Asia/Ho_Chi_Minh";
 
@@ -122,8 +126,6 @@ export function statusBadgeProps(s: string): {
       return { label: "Chờ lấy máy", colorPalette: "purple" };
     case "RENTING":
       return { label: "Đang thuê", colorPalette: "cerulean" };
-    case "LATE_RETURN":
-      return { label: "Trả trễ", colorPalette: "red" };
     case "COMPLETED":
       return { label: "Hoàn tất", colorPalette: "green" };
     case "PENDING_REFUND_CANCEL":
@@ -153,13 +155,10 @@ const MOBILE_TODAY_PICKUP_STATUSES = new Set<BookingStatusValue>([
 
 const MOBILE_TODAY_RENTING_STATUSES = new Set<BookingStatusValue>(["RENTING"]);
 
-export const SEARCH_RENTING_STATUSES = new Set<BookingStatusValue>([
-  "RENTING",
-  "LATE_RETURN",
-]);
+export const SEARCH_RENTING_STATUSES = new Set<BookingStatusValue>(["RENTING"]);
 
 export function isActiveRentingStatus(status: BookingStatusValue): boolean {
-  return SEARCH_RENTING_STATUSES.has(status);
+  return status === "RENTING";
 }
 
 function pickupSortTimeMs(b: Booking): number {
@@ -260,7 +259,6 @@ export const BOOKING_STATUS_EDIT_OPTIONS: {
   { value: "PENDING_PAYMENT", label: "Chờ cọc" },
   { value: "CONFIRMED", label: "Chờ lấy máy" },
   { value: "RENTING", label: "Đang thuê" },
-  { value: "LATE_RETURN", label: "Trả trễ" },
   { value: "COMPLETED", label: "Hoàn tất" },
   { value: "PENDING_REFUND_CANCEL", label: "Chờ hoàn tiền" },
   { value: "CANCELLED", label: "Đã hủy" },

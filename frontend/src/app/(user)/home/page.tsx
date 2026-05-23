@@ -64,7 +64,7 @@ import {
   userWarningNoteTextProps,
 } from "@/lib/user-theme";
 
-const GUIDE_STATUSES = new Set(["CONFIRMED", "RENTING", "LATE_RETURN"]);
+const GUIDE_STATUSES = new Set(["CONFIRMED", "RENTING"]);
 
 const STORE_MAP_URL = "https://maps.app.goo.gl/p7E56GSttpufsQVx5";
 
