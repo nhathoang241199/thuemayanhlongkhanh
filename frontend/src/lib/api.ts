@@ -56,6 +56,8 @@ export type MyBooking = {
   paymentStatus: string;
   note: string | null;
   pendingChange?: unknown;
+  /** CONFIRMED: máy vật lý sẵn sàng nhận; null: không hiện badge */
+  cameraReady?: boolean | null;
   camera: { id: string; name: string; brand: string };
 };
 

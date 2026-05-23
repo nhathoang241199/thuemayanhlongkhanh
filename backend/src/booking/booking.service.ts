@@ -93,7 +93,7 @@ export class BookingService {
     if (!customer) {
       return [];
     }
-    return this.prisma.booking.findMany({
+    const rows = await this.prisma.booking.findMany({
       where: {
         customerId: customer.id,
         status: { notIn: CUSTOMER_LIST_HIDDEN_STATUSES },
@@ -101,6 +101,18 @@ export class BookingService {
       orderBy: { startBookingDate: 'desc' },
       include: bookingInclude,
     });
+
+    const cameraIds = [...new Set(rows.map((r) => r.camera.id))];
+    const readyMap =
+      await this.availability.getPhysicalAvailabilityByCameraIds(cameraIds);
+
+    return rows.map((row) => ({
+      ...row,
+      cameraReady:
+        row.status === BookingStatus.CONFIRMED
+          ? (readyMap.get(row.camera.id) ?? false)
+          : null,
+    }));
   }
 
   async findOne(id: string) {

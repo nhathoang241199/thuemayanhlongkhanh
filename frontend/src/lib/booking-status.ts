@@ -27,6 +27,15 @@ export function bookingStatusLabel(status: string): string {
   }
 }
 
+export function cameraReadinessBadgeProps(cameraReady: boolean): {
+  label: string;
+  colorPalette: "green" | "orange";
+} {
+  return cameraReady
+    ? { label: "Máy sẵn sàng", colorPalette: "green" }
+    : { label: "Máy chưa sẵn sàng", colorPalette: "orange" };
+}
+
 export function bookingStatusColor(
   status: string,
 ): "gray" | "green" | "red" | "orange" | "cerulean" | "purple" {

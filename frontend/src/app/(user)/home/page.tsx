@@ -36,6 +36,7 @@ import {
 import {
   bookingStatusColor,
   bookingStatusLabel,
+  cameraReadinessBadgeProps,
   formatBookingRange,
   slotLabelVi,
   slotTimeRangeLabel,
@@ -211,6 +212,18 @@ export default function UserHomePage() {
     void loadBookings(s.phone);
   }, [router, loadBookings]);
 
+  useEffect(() => {
+    const phone = session?.phone;
+    if (!phone) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadBookings(phone);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [session?.phone, loadBookings]);
+
   const closeCancelModal = () => {
     setCancelTarget(null);
     setBankAccountInfo("");
@@ -322,6 +335,10 @@ export default function UserHomePage() {
           b.status === "CONFIRMED" && b.paymentStatus === "DEPOSITED";
         const balanceDue =
           b.paymentStatus === "DEPOSITED" ? balanceDueVnd(b.amount) : 0;
+        const readinessBadge =
+          b.status === "CONFIRMED" && b.cameraReady != null
+            ? cameraReadinessBadgeProps(b.cameraReady)
+            : null;
 
         return (
           <CardRoot key={b.id} {...userBookingCardProps}>
@@ -329,12 +346,22 @@ export default function UserHomePage() {
               <Stack gap={2}>
                 <HStack justify="space-between" align="flex-start" gap={2}>
                   <Text fontWeight="semibold">{b.bookingCode}</Text>
-                  <Badge
-                    colorPalette={bookingStatusColor(b.status)}
-                    variant="subtle"
-                  >
-                    {bookingStatusLabel(b.status)}
-                  </Badge>
+                  <HStack gap={1} flexWrap="wrap" justify="flex-end">
+                    <Badge
+                      colorPalette={bookingStatusColor(b.status)}
+                      variant="subtle"
+                    >
+                      {bookingStatusLabel(b.status)}
+                    </Badge>
+                    {readinessBadge ? (
+                      <Badge
+                        variant="subtle"
+                        colorPalette={readinessBadge.colorPalette}
+                      >
+                        {readinessBadge.label}
+                      </Badge>
+                    ) : null}
+                  </HStack>
                 </HStack>
                 <HStack justify="space-between" align="baseline" gap={2} w="full">
                   <Text fontSize="sm" flex="1" minW={0}>
@@ -376,6 +403,14 @@ export default function UserHomePage() {
                         {formatPickupAtVi(b.pickupAt)}
                       </Text>
                     </Text>
+                    {b.cameraReady === false ? (
+                      <Box {...userWarningNoteProps}>
+                        <Text {...userWarningNoteTextProps}>
+                          Vui lòng kiểm tra badge trước khi tới cửa hàng. Máy
+                          có thể chưa sẵn sàng nếu khách trước chưa trả.
+                        </Text>
+                      </Box>
+                    ) : null}
                     <Box {...userWarningNoteProps}>
                       <Text {...userWarningNoteTextProps}>
                         Lưu ý: Xin hãy mang theo CCCD bảng gốc hoặc VnID và đọc sđt đã đăng kí khi nhận máy. Vui lòng sạc pin sau khi nhận máy khoảng 20 phút để sử dụng.

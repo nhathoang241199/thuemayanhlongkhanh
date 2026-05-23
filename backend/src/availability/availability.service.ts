@@ -3,7 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BookingSlot, CameraBrand } from '../../generated/prisma/enums';
+import {
+  BookingSlot,
+  BookingStatus,
+  CameraBrand,
+} from '../../generated/prisma/enums';
 import {
   assertDateStr,
   bookingCoversCalendarDayVN,
@@ -349,6 +353,52 @@ export class AvailabilityService {
         imageUrl: cam.imageUrl,
         available,
       });
+    }
+    return result;
+  }
+
+  /** Còn ít nhất một máy vật lý trống (đơn RENTING < quantity). */
+  async isCameraPhysicallyAvailable(cameraId: string): Promise<boolean> {
+    const map = await this.getPhysicalAvailabilityByCameraIds([cameraId]);
+    return map.get(cameraId) ?? false;
+  }
+
+  /** Batch: cameraId → sẵn sàng nhận máy ngay (theo tồn kho thực tế). */
+  async getPhysicalAvailabilityByCameraIds(
+    cameraIds: string[],
+  ): Promise<Map<string, boolean>> {
+    const unique = [...new Set(cameraIds)];
+    const result = new Map<string, boolean>();
+    if (unique.length === 0) {
+      return result;
+    }
+
+    const cameras = await this.prisma.camera.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, quantity: true },
+    });
+    const quantityById = new Map(cameras.map((c) => [c.id, c.quantity]));
+
+    const rentingGroups = await this.prisma.booking.groupBy({
+      by: ['cameraId'],
+      where: {
+        cameraId: { in: unique },
+        status: BookingStatus.RENTING,
+      },
+      _count: { _all: true },
+    });
+    const rentingById = new Map(
+      rentingGroups.map((g) => [g.cameraId, g._count._all]),
+    );
+
+    for (const id of unique) {
+      const quantity = quantityById.get(id);
+      if (quantity === undefined) {
+        result.set(id, false);
+        continue;
+      }
+      const renting = rentingById.get(id) ?? 0;
+      result.set(id, renting < quantity);
     }
     return result;
   }
