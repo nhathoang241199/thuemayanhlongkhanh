@@ -11,8 +11,10 @@ const SLOT_TIME_WINDOWS: Record<
   EVENING: { startHour: 18, endHour: 23 },
 };
 
-/** Ca cả ngày — nhận sớm từ chiều hôm trước (đồng bộ backend). */
+/** Ca cả ngày — nhận sớm hôm trước ngày thuê (đồng bộ backend). */
 const FULL_DAY_EARLY_PICKUP_START_HOUR = 17;
+/** Hôm trước ngày thuê là thứ Bảy — nhận từ 20h. */
+const FULL_DAY_EARLY_PICKUP_SATURDAY_START_HOUR = 20;
 const FULL_DAY_EARLY_PICKUP_END_HOUR = 23;
 
 /** Buổi ca — được nhận máy sớm hơn giờ bắt đầu ca. */
@@ -37,6 +39,107 @@ export function toDatetimeLocalValue(
   return `${dateStr}T${pad2(hour)}:${pad2(minute)}`;
 }
 
+function hourRange(fromHour: number, toHourInclusive: number): number[] {
+  const hours: number[] = [];
+  for (let h = fromHour; h <= toHourInclusive; h++) hours.push(h);
+  return hours;
+}
+
+function formatYmdShortVi(ymd: string): string {
+  const [y, m, d] = ymd.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function weekdayYmd(ymd: string): number {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/** Thứ Bảy theo lịch (YYYY-MM-DD). */
+export function isSaturdayYmd(ymd: string): boolean {
+  return weekdayYmd(ymd) === 6;
+}
+
+/** Giờ sớm nhất được nhận máy hôm trước ngày thuê (ca cả ngày). */
+export function fullDayEarlyPickupStartHour(prevDayYmd: string): number {
+  return isSaturdayYmd(prevDayYmd)
+    ? FULL_DAY_EARLY_PICKUP_SATURDAY_START_HOUR
+    : FULL_DAY_EARLY_PICKUP_START_HOUR;
+}
+
+export type PickupTimeParts = {
+  dateYmd: string;
+  hour: number;
+  minute: number;
+};
+
+/** Các ngày được chọn khi nhận máy. */
+export function pickupAllowedDates(
+  startDate: string,
+  slot: BookingSlot,
+): { value: string; label: string }[] {
+  if (slot === "FULL_DAY") {
+    const prevDay = addDaysYmd(startDate, -1);
+    return [
+      {
+        value: prevDay,
+        label: `Hôm trước (${formatYmdShortVi(prevDay)})`,
+      },
+      {
+        value: startDate,
+        label: `Ngày thuê (${formatYmdShortVi(startDate)})`,
+      },
+    ];
+  }
+  return [
+    {
+      value: startDate,
+      label: formatYmdShortVi(startDate),
+    },
+  ];
+}
+
+/** Giờ được phép chọn theo ngày + buổi thuê. */
+export function pickupAllowedHours(
+  startDate: string,
+  slot: BookingSlot,
+  dateYmd: string,
+): number[] {
+  const w = SLOT_TIME_WINDOWS[slot];
+  if (slot === "FULL_DAY") {
+    const prevDay = addDaysYmd(startDate, -1);
+    if (dateYmd === prevDay) {
+      return hourRange(
+        fullDayEarlyPickupStartHour(prevDay),
+        FULL_DAY_EARLY_PICKUP_END_HOUR,
+      );
+    }
+    if (dateYmd === startDate) {
+      return hourRange(w.startHour, w.endHour);
+    }
+    return [];
+  }
+  if (dateYmd !== startDate) return [];
+  return hourRange(w.startHour - SHIFT_EARLY_PICKUP_HOURS, w.endHour);
+}
+
+export function pickupPartsToLocal(parts: PickupTimeParts): string {
+  return toDatetimeLocalValue(parts.dateYmd, parts.hour, parts.minute);
+}
+
+export function pickupLocalToParts(local: string): PickupTimeParts | null {
+  try {
+    const { datePart, totalMinutes } = pickupLocalParts(local);
+    return {
+      dateYmd: datePart,
+      hour: Math.floor(totalMinutes / 60),
+      minute: totalMinutes % 60,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function slotPickupBounds(
   startDate: string,
   slot: BookingSlot,
@@ -47,7 +150,7 @@ export function slotPickupBounds(
     return {
       minLocal: toDatetimeLocalValue(
         prevDay,
-        FULL_DAY_EARLY_PICKUP_START_HOUR,
+        fullDayEarlyPickupStartHour(prevDay),
         0,
       ),
       maxLocal: toDatetimeLocalValue(startDate, w.endHour, 0),
@@ -87,10 +190,13 @@ export function validatePickupAtLocal(
     if (slot === "FULL_DAY") {
       const prevDay = addDaysYmd(startDate, -1);
       if (datePart === prevDay) {
-        const min = FULL_DAY_EARLY_PICKUP_START_HOUR * 60;
+        const minHour = fullDayEarlyPickupStartHour(prevDay);
+        const min = minHour * 60;
         const max = FULL_DAY_EARLY_PICKUP_END_HOUR * 60 + 59;
         if (totalMinutes < min || totalMinutes > max) {
-          return "Thời gian nhận máy hôm trước phải từ 17h chiều đến hết đêm";
+          return isSaturdayYmd(prevDay)
+            ? "Thời gian nhận máy hôm trước ngày thuê (thứ Bảy) phải từ 20h tối đến hết đêm"
+            : "Thời gian nhận máy hôm trước ngày thuê phải từ 17h chiều đến hết đêm";
         }
         return null;
       }
@@ -102,7 +208,7 @@ export function validatePickupAtLocal(
         }
         return null;
       }
-      return "Thời gian nhận máy phải trong ngày thuê hoặc từ 17h chiều hôm trước (ca cả ngày)";
+      return "Thời gian nhận máy phải trong ngày thuê hoặc hôm trước ngày thuê (ca cả ngày)";
     }
 
     if (datePart !== startDate) {
@@ -169,9 +275,7 @@ export function isoToDatetimeLocal(iso: string): string {
 
 /** Chủ nhật theo lịch (YYYY-MM-DD). */
 export function isSundayYmd(ymd: string): boolean {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return dt.getUTCDay() === 0;
+  return weekdayYmd(ymd) === 0;
 }
 
 const pickupFmt = new Intl.DateTimeFormat("vi-VN", {

@@ -11,7 +11,6 @@ import {
   CheckboxLabel,
   CheckboxRoot,
   HStack,
-  Input,
   Skeleton,
   Stack,
   Text,
@@ -24,6 +23,7 @@ import { BookStepFooter } from "@/components/user/book-step-footer";
 import { BrandPickerButton } from "@/components/camera/brand-picker-button";
 import { CameraPickerCard } from "@/components/camera/camera-picker-card";
 import { MonthCalendar } from "@/components/booking/month-calendar";
+import { PickupTimePicker } from "@/components/booking/pickup-time-picker";
 import { SlotHoursLabel } from "@/components/booking/slot-hours-label";
 import { BRAND_LABEL, CAMERA_BRAND_OPTIONS } from "@/lib/camera-brands";
 import {
@@ -280,9 +280,13 @@ function BookPageContent() {
   }, [forceFullDay]);
 
   useEffect(() => {
-    setPickupAtLocal("");
     setPickupAtError(null);
     setPickupValidated(false);
+    if (!startDate || !effectiveSlot) {
+      setPickupAtLocal("");
+      return;
+    }
+    setPickupAtLocal(slotPickupBounds(startDate, effectiveSlot).defaultLocal);
   }, [startDate, effectiveSlot]);
 
   const pickupBounds = useMemo(() => {
@@ -455,6 +459,12 @@ function BookPageContent() {
     () => balanceDueVnd(estimatedAmount),
     [estimatedAmount],
   );
+
+  const handlePickupTimeChange = useCallback((local: string) => {
+    setPickupAtLocal(local);
+    setPickupAtError(null);
+    setPickupValidated(false);
+  }, []);
 
   function getPickupAtValidationError(): string | null {
     if (!startDate || !effectiveSlot) return null;
@@ -766,20 +776,11 @@ function BookPageContent() {
     if (!startDate || !effectiveSlot || !pickupBounds) return null;
     return (
       <Stack gap={1} align="stretch">
-        
-        <Input
-          type="datetime-local"
-          size="md"
-          required
+        <PickupTimePicker
+          startDate={startDate}
+          slot={effectiveSlot}
           value={pickupAtLocal}
-          min={pickupBounds.minLocal}
-          max={pickupBounds.maxLocal}
-          onChange={(e) => {
-            setPickupAtLocal(e.target.value);
-            setPickupAtError(null);
-            setPickupValidated(false);
-          }}
-          {...userFieldInputProps}
+          onChange={handlePickupTimeChange}
         />
         {pickupAtError ? (
           <Text fontSize="sm" color="red.fg">
@@ -788,7 +789,7 @@ function BookPageContent() {
         ) : null}
         {effectiveSlot === "FULL_DAY" ? (
           <Text mt={2} fontSize="xs" color="fg.muted" lineHeight="tall">
-            Nếu thuê tối thiểu 1 ngày, bạn có thể lấy máy sớm từ đêm hôm trước ngày thuê. Tối thứ Bảy vui lòng nhận sau 21h.
+            Nếu thuê tối thiểu 1 ngày, bạn có thể lấy máy sớm từ đêm hôm trước ngày thuê. Tối thứ Bảy vui lòng nhận sau 20h.
           </Text>
         ) : (
           <Text fontSize="xs" color="fg.muted" lineHeight="tall">

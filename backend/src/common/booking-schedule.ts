@@ -101,12 +101,29 @@ export function defaultPickupAt(
   return vnDateTimeToUtc(startDate, w.startHour, 0);
 }
 
-/** Ca cả ngày: lấy máy sớm từ 17h chiều hôm trước đến hết đêm. */
+/** Ca cả ngày: lấy máy sớm hôm trước ngày thuê đến hết đêm. */
 export const FULL_DAY_EARLY_PICKUP_START_HOUR = 17;
+/** Hôm trước ngày thuê là thứ Bảy — nhận từ 20h. */
+export const FULL_DAY_EARLY_PICKUP_SATURDAY_START_HOUR = 20;
 export const FULL_DAY_EARLY_PICKUP_END_HOUR = 23;
 
 /** Buổi ca: được nhận máy sớm hơn giờ bắt đầu ca. */
 export const SHIFT_EARLY_PICKUP_HOURS = 1;
+
+function weekdayDateStr(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+export function isSaturdayDateStr(dateStr: string): boolean {
+  return weekdayDateStr(dateStr) === 6;
+}
+
+export function fullDayEarlyPickupStartHour(prevDayYmd: string): number {
+  return isSaturdayDateStr(prevDayYmd)
+    ? FULL_DAY_EARLY_PICKUP_SATURDAY_START_HOUR
+    : FULL_DAY_EARLY_PICKUP_START_HOUR;
+}
 
 export function assertPickupAtValid(
   startDate: string,
@@ -129,11 +146,14 @@ export function assertPickupAtValid(
   if (slot === 'FULL_DAY') {
     const prevDay = addDaysDateStr(startDate, -1);
     if (pickupDay === prevDay) {
-      const min = FULL_DAY_EARLY_PICKUP_START_HOUR * 60;
+      const minHour = fullDayEarlyPickupStartHour(prevDay);
+      const min = minHour * 60;
       const max = FULL_DAY_EARLY_PICKUP_END_HOUR * 60 + 59;
       if (totalMinutes < min || totalMinutes > max) {
         throw new Error(
-          'Thời gian nhận máy hôm trước phải từ 17h chiều đến hết đêm',
+          isSaturdayDateStr(prevDay)
+            ? 'Thời gian nhận máy hôm trước ngày thuê (thứ Bảy) phải từ 20h tối đến hết đêm'
+            : 'Thời gian nhận máy hôm trước ngày thuê phải từ 17h chiều đến hết đêm',
         );
       }
       return;
@@ -149,7 +169,7 @@ export function assertPickupAtValid(
       return;
     }
     throw new Error(
-      'Thời gian nhận máy phải trong ngày thuê hoặc từ 17h chiều hôm trước (ca cả ngày)',
+      'Thời gian nhận máy phải trong ngày thuê hoặc hôm trước ngày thuê (ca cả ngày)',
     );
   }
 

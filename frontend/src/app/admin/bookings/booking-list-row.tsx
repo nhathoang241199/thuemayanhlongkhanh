@@ -135,22 +135,6 @@ function BookingListRowInner({
           </Button>
         </Stack>
       </TableCell>
-      <TableCell maxW="14rem" {...tableCellPad}>
-        {b.shippingAddress?.trim() ? (
-          <Text
-            fontSize="sm"
-            lineClamp={3}
-            title={b.shippingAddress.trim()}
-            whiteSpace="pre-wrap"
-          >
-            {b.shippingAddress.trim()}
-          </Text>
-        ) : (
-          <Text fontSize="sm" color="fg.muted">
-            Tự lấy
-          </Text>
-        )}
-      </TableCell>
       <TableCell {...tableCellPad}>
         <Text fontSize="sm" color="fg.muted">
           {b.camera.brand}

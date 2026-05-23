@@ -96,9 +96,6 @@ function BookingsListPanelInner({
                   </TableColumnHeader>
                   <TableColumnHeader {...tableCellPad}>Buổi</TableColumnHeader>
                   <TableColumnHeader {...tableCellPad}>Khách</TableColumnHeader>
-                  <TableColumnHeader maxW="14rem" {...tableCellPad}>
-                    Địa chỉ
-                  </TableColumnHeader>
                   <TableColumnHeader {...tableCellPad}>Máy</TableColumnHeader>
                   <TableColumnHeader {...tableCellPad} textAlign="end">
                     Số tiền
