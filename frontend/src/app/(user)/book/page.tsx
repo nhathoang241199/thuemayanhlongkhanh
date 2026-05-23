@@ -202,10 +202,15 @@ function BookPageContent() {
 
   const loadCalendar = useCallback(
     async (cameraId: string) => {
-      const data = await fetchCalendarMonth(cameraId, ym.year, ym.month);
+      const data = await fetchCalendarMonth(
+        cameraId,
+        ym.year,
+        ym.month,
+        modifyBookingId,
+      );
       setCalendarDays(data.days);
     },
-    [ym.year, ym.month],
+    [ym.year, ym.month, modifyBookingId],
   );
 
   useEffect(() => {
@@ -470,7 +475,13 @@ function BookPageContent() {
     }
   }
 
-  function tryAdvanceFromSlotStep(nextStep: number) {
+  function advanceFromSlotStep(nextStep: number) {
+    if (!slotStepCanContinue()) return;
+    setError(null);
+    setStep(nextStep);
+  }
+
+  function tryAdvanceFromPickupStep(nextStep: number) {
     const err = getPickupAtValidationError();
     if (err) {
       setPickupAtError(err);
@@ -503,7 +514,7 @@ function BookPageContent() {
     if (!pickupAt) {
       setError(
         pickupAtError ??
-          "Thời gian nhận máy không hợp lệ. Vui lòng quay lại bước Buổi.",
+          "Thời gian nhận máy không hợp lệ. Vui lòng quay lại bước Nhận máy.",
       );
       return;
     }
@@ -558,7 +569,7 @@ function BookPageContent() {
     if (!pickupAt) {
       setError(
         pickupAtError ??
-          "Thời gian nhận máy không hợp lệ. Vui lòng quay lại bước Buổi.",
+          "Thời gian nhận máy không hợp lệ. Vui lòng quay lại bước Nhận máy.",
       );
       return;
     }
@@ -604,7 +615,7 @@ function BookPageContent() {
     if (!pickupAt) {
       setError(
         pickupAtError ??
-          "Thời gian nhận máy không hợp lệ. Vui lòng quay lại bước Buổi.",
+          "Thời gian nhận máy không hợp lệ. Vui lòng quay lại bước Nhận máy.",
       );
       return;
     }
@@ -636,10 +647,20 @@ function BookPageContent() {
     "Máy",
     "Ngày",
     "Buổi",
+    "Nhận máy",
     "Xác nhận",
   ];
-  const stepsByDate = ["Ngày", "Buổi", "Hãng", "Máy", "Xác nhận"];
+  const stepsByDate = [
+    "Ngày",
+    "Buổi",
+    "Hãng",
+    "Máy",
+    "Nhận máy",
+    "Xác nhận",
+  ];
   const steps = mode === "BY_CAMERA" ? stepsByCamera : stepsByDate;
+  const summaryStep = 5;
+  const pickupStep = 4;
   const brandStep = mode === "BY_CAMERA" ? 0 : 2;
   const isBrandStep =
     (mode === "BY_CAMERA" && step === 0) ||
@@ -647,6 +668,7 @@ function BookPageContent() {
   const isCameraStep =
     (mode === "BY_CAMERA" && step === 1) ||
     (mode === "BY_DATE" && step === 3);
+  const isPickupStep = step === pickupStep && !!camera;
 
   function renderDateStepHeader() {
     return (
@@ -742,17 +764,9 @@ function BookPageContent() {
 
   function renderPickupTimeFields() {
     if (!startDate || !effectiveSlot || !pickupBounds) return null;
-    if (!forceFullDay && (!slot || slotAvailability?.[slot] !== true)) {
-      return null;
-    }
     return (
       <Stack gap={1} align="stretch">
-        <Text fontSize="sm" fontWeight="medium" color={titleColor}>
-          Thời gian nhận máy{" "}
-          <Text as="span" color="red.500">
-            *
-          </Text>
-        </Text>
+        
         <Input
           type="datetime-local"
           size="md"
@@ -773,33 +787,46 @@ function BookPageContent() {
           </Text>
         ) : null}
         {effectiveSlot === "FULL_DAY" ? (
-          <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-            Khi thuê tối thiểu 1 ngày, bạn có thể nhận máy sớm từ tối đêm trước
-            ngày thuê. Đối với tối thứ 7 vui lòng nhận sau 21h.
+          <Text mt={2} fontSize="xs" color="fg.muted" lineHeight="tall">
+            Nếu thuê tối thiểu 1 ngày, bạn có thể lấy máy sớm từ đêm hôm trước ngày thuê. Tối thứ Bảy vui lòng nhận sau 21h.
           </Text>
         ) : (
           <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-            Buổi thuê xác định khung trả máy; giờ nhận máy có thể chọn bất kỳ lúc
-            nào trong ngày bắt đầu thuê (7h–23h), ví dụ ca sáng nhưng nhận sớm
-            hơn hoặc ca tối nhận trước vài tiếng.
+            Buổi ca: nhận máy từ 1 giờ trước giờ bắt đầu ca đến hết ca (ví dụ ca
+            sáng 7h–12h: nhận từ 6h đến 12h).
           </Text>
         )}
         <Text fontSize="xs" color="fg.muted" lineHeight="tall">
           Trước khi qua lấy máy, xin nhắn tin cho mình trước để mình kiểm tra máy
           đã sẵn sàng nhé.
         </Text>
-        {isSundayYmd(startDate) ? (
-          <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-            Lưu ý: Nếu thuê Chủ nhật, không nên lấy máy quá sớm vì cần chờ khách
-            thứ Bảy trả máy.
-          </Text>
-        ) : null}
       </Stack>
     );
   }
 
-  function slotStepCanContinueWithPickup(): boolean {
-    return slotStepCanContinue() && !!pickupAtLocal.trim();
+  function renderPickupStep() {
+    return (
+      <Stack gap={4}>
+        <Stack gap={1} align="stretch">
+          <Text fontSize="md" fontWeight="semibold" color={titleColor}>
+            Thời gian nhận máy
+          </Text>
+        
+        </Stack>
+        {renderPickupTimeFields() ?? (
+          <Text fontSize="sm" color="red.fg">
+            Chưa đủ thông tin ngày/buổi thuê. Vui lòng quay lại bước trước.
+          </Text>
+        )}
+        <Button
+          {...userSolidButtonProps}
+          disabled={!pickupAtLocal.trim()}
+          onClick={() => tryAdvanceFromPickupStep(summaryStep)}
+        >
+          Tiếp tục
+        </Button>
+      </Stack>
+    );
   }
 
   function renderSummary() {
@@ -1176,18 +1203,19 @@ function BookPageContent() {
           {mode === "BY_CAMERA" && step === 3 && (
             <Stack gap={4}>
               {renderSlotPicker()}
-              {renderPickupTimeFields()}
               <Button
                 {...userSolidButtonProps}
-                disabled={!slotStepCanContinueWithPickup()}
-                onClick={() => tryAdvanceFromSlotStep(4)}
+                disabled={!slotStepCanContinue()}
+                onClick={() => advanceFromSlotStep(pickupStep)}
               >
                 Tiếp tục
               </Button>
             </Stack>
           )}
 
-          {mode === "BY_CAMERA" && step === 4 && renderSummary()}
+          {mode === "BY_CAMERA" && isPickupStep && renderPickupStep()}
+
+          {mode === "BY_CAMERA" && step === summaryStep && renderSummary()}
 
           {mode === "BY_DATE" && step === 0 && (
             <Stack gap={4}>
@@ -1231,18 +1259,19 @@ function BookPageContent() {
           {mode === "BY_DATE" && step === 1 && (
             <Stack gap={4}>
               {renderSlotPicker()}
-              {renderPickupTimeFields()}
               <Button
                 {...userSolidButtonProps}
-                disabled={!slotStepCanContinueWithPickup()}
-                onClick={() => tryAdvanceFromSlotStep(2)}
+                disabled={!slotStepCanContinue()}
+                onClick={() => advanceFromSlotStep(2)}
               >
                 Tiếp tục
               </Button>
             </Stack>
           )}
 
-          {mode === "BY_DATE" && step === 4 && renderSummary()}
+          {mode === "BY_DATE" && isPickupStep && renderPickupStep()}
+
+          {mode === "BY_DATE" && step === summaryStep && renderSummary()}
           </CardBody>
         </CardRoot>
       ) : null}

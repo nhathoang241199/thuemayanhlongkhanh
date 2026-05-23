@@ -23,7 +23,6 @@ import {
   uploadCustomerVerificationImage,
 } from "@/lib/customer-verification-upload";
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
-import { useAdminMobileLayout } from "@/lib/use-admin-mobile-layout";
 import { toaster } from "@/lib/toaster";
 
 import { CameraIcon } from "./booking-list-icons";
@@ -98,7 +97,6 @@ export function BookingCccdCaptureButton({
   size = "lg",
   onUploaded,
 }: BookingCccdCaptureButtonProps) {
-  const isMobileLayout = useAdminMobileLayout();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -298,10 +296,6 @@ export function BookingCccdCaptureButton({
       );
     })();
   };
-
-  if (!isMobileLayout) {
-    return null;
-  }
 
   return (
     <>

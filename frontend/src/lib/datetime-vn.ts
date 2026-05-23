@@ -11,9 +11,12 @@ const SLOT_TIME_WINDOWS: Record<
   EVENING: { startHour: 18, endHour: 23 },
 };
 
-/** Ca cả ngày — đồng bộ backend. */
-const FULL_DAY_EARLY_PICKUP_START_HOUR = 12;
+/** Ca cả ngày — nhận sớm từ chiều hôm trước (đồng bộ backend). */
+const FULL_DAY_EARLY_PICKUP_START_HOUR = 17;
 const FULL_DAY_EARLY_PICKUP_END_HOUR = 23;
+
+/** Buổi ca — được nhận máy sớm hơn giờ bắt đầu ca. */
+const SHIFT_EARLY_PICKUP_HOURS = 1;
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -51,11 +54,10 @@ export function slotPickupBounds(
       defaultLocal: toDatetimeLocalValue(startDate, w.startHour, 0),
     };
   }
-  /** Buổi ca: nhận máy bất kỳ lúc nào trong ngày bắt đầu thuê (7h–23h). */
-  const dayW = SLOT_TIME_WINDOWS.FULL_DAY;
+  const pickupStartHour = w.startHour - SHIFT_EARLY_PICKUP_HOURS;
   return {
-    minLocal: toDatetimeLocalValue(startDate, dayW.startHour, 0),
-    maxLocal: toDatetimeLocalValue(startDate, dayW.endHour, 59),
+    minLocal: toDatetimeLocalValue(startDate, pickupStartHour, 0),
+    maxLocal: toDatetimeLocalValue(startDate, w.endHour, 59),
     defaultLocal: toDatetimeLocalValue(startDate, w.startHour, 0),
   };
 }
@@ -88,29 +90,29 @@ export function validatePickupAtLocal(
         const min = FULL_DAY_EARLY_PICKUP_START_HOUR * 60;
         const max = FULL_DAY_EARLY_PICKUP_END_HOUR * 60 + 59;
         if (totalMinutes < min || totalMinutes > max) {
-          return "Thời gian nhận máy hôm trước phải từ 12h trưa đến 12h đêm";
+          return "Thời gian nhận máy hôm trước phải từ 17h chiều đến hết đêm";
         }
         return null;
       }
       if (datePart === startDate) {
         const startMinutes = w.startHour * 60;
-        const endMinutes = w.endHour * 60;
+        const endMinutes = w.endHour * 60 + 59;
         if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
           return `Thời gian nhận máy trong ngày thuê phải từ ${w.startHour}h đến ${w.endHour}h`;
         }
         return null;
       }
-      return "Thời gian nhận máy phải trong ngày thuê hoặc từ 12h trưa hôm trước (ca cả ngày)";
+      return "Thời gian nhận máy phải trong ngày thuê hoặc từ 17h chiều hôm trước (ca cả ngày)";
     }
 
     if (datePart !== startDate) {
       return "Thời gian nhận máy phải trong ngày bắt đầu thuê";
     }
-    const dayW = SLOT_TIME_WINDOWS.FULL_DAY;
-    const startMinutes = dayW.startHour * 60;
-    const endMinutes = dayW.endHour * 60 + 59;
-    if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
-      return `Thời gian nhận máy trong ngày thuê phải từ ${dayW.startHour}h đến ${dayW.endHour}h`;
+    const pickupStartHour = w.startHour - SHIFT_EARLY_PICKUP_HOURS;
+    const minMinutes = pickupStartHour * 60;
+    const maxMinutes = w.endHour * 60 + 59;
+    if (totalMinutes < minMinutes || totalMinutes > maxMinutes) {
+      return `Thời gian nhận máy phải từ ${pickupStartHour}h đến ${w.endHour}h trong ngày thuê (ca ${w.startHour}h–${w.endHour}h)`;
     }
     return null;
   } catch {

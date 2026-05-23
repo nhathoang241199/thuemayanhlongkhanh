@@ -8,7 +8,6 @@ import { BookingCccdViewButton } from "./booking-cccd-view-button";
 const CCCD_COMPLETE_COUNT = 2;
 
 type BookingCccdActionProps = {
-  status: string;
   customerId: string;
   customerName: string;
   verificationImageUrls: unknown;
@@ -18,7 +17,6 @@ type BookingCccdActionProps = {
 };
 
 export function BookingCccdAction({
-  status,
   customerId,
   customerName,
   verificationImageUrls,
@@ -26,10 +24,6 @@ export function BookingCccdAction({
   size = "lg",
   onCccdUploaded,
 }: BookingCccdActionProps) {
-  if (status !== "CONFIRMED") {
-    return null;
-  }
-
   const urls = parseVerificationUrls(verificationImageUrls);
 
   if (urls.length >= CCCD_COMPLETE_COUNT) {

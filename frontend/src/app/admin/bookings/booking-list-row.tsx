@@ -33,6 +33,8 @@ import { tableCellPad } from "./booking-types";
 
 export type BookingListRowProps = {
   booking: Booking;
+  /** Số thứ tự trên bảng desktop (theo trang hiện tại). */
+  rowNumber?: number;
   isRowSaving: boolean;
   quickAdvanceSaving: boolean;
   deleteSaving: boolean;
@@ -49,6 +51,7 @@ export type BookingListRowProps = {
 
 function BookingListRowInner({
   booking: b,
+  rowNumber,
   isRowSaving,
   quickAdvanceSaving,
   deleteSaving,
@@ -64,6 +67,15 @@ function BookingListRowInner({
 }: BookingListRowProps) {
   return (
     <TableRow>
+      <TableCell
+        whiteSpace="nowrap"
+        w="2.75rem"
+        textAlign="center"
+        color="fg.muted"
+        {...tableCellPad}
+      >
+        <Text fontSize="sm">{rowNumber}</Text>
+      </TableCell>
       <TableCell whiteSpace="nowrap" {...tableCellPad}>
         <Stack gap={0} align="flex-start">
           <Text fontSize="sm">{formatBookingDate(b.startBookingDate)}</Text>
@@ -195,7 +207,6 @@ function BookingListRowInner({
             </IconButton>
           ) : null}
           <BookingCccdAction
-            status={b.status}
             customerId={b.customer.id}
             customerName={b.customer.name}
             verificationImageUrls={b.customer.verificationImageUrls ?? []}

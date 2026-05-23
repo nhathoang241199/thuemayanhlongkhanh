@@ -69,7 +69,12 @@ import {
   isoToDatetimeLocal,
   slotBookingRangeToIso,
 } from "@/lib/datetime-vn";
-import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
+import {
+  DELIVERY_FEE_VND,
+  slotLabelVi,
+  slotTimeRangeLabel,
+} from "@/lib/booking-status";
+import { rentalAmountVnd } from "@/lib/rental-pricing";
 import type { BookingSlot } from "@/lib/booking-api";
 import { normalizePhone } from "@/lib/normalize-phone";
 import {
@@ -144,7 +149,13 @@ const RefreshIcon = createIcon({
 });
 
 type AdminCustomerOption = { id: string; name: string; phone: string };
-type AdminCameraOption = { id: string; brand: string; name: string };
+type AdminCameraOption = {
+  id: string;
+  brand: string;
+  name: string;
+  dayPrice: number;
+  shiftPrice: number;
+};
 
 const BOOKING_SLOT_OPTIONS = [
   "FULL_DAY",
@@ -263,6 +274,51 @@ function emptyBookingForm(): BookingEditForm {
     paymentStatus: "PENDING",
     status: "PENDING_PAYMENT",
   };
+}
+
+function editFormRentalDayCount(
+  form: BookingEditForm,
+  mode: "create" | "edit",
+): number {
+  if (mode === "create") {
+    if (!form.rangeStart || !form.rangeEnd) return 0;
+    return dayCountInclusive(form.rangeStart, form.rangeEnd);
+  }
+  const startKey = form.startBookingDateLocal.slice(0, 10);
+  const endKey = form.endBookingDateLocal.slice(0, 10);
+  if (startKey.length !== 10 || endKey.length !== 10) return 0;
+  return dayCountInclusive(startKey, endKey);
+}
+
+/** Tiền thuê + phí giao — đồng bộ backend computeBookingAmount. */
+function suggestedBookingAmountVnd(
+  form: BookingEditForm,
+  cameras: AdminCameraOption[],
+  mode: "create" | "edit",
+): number | null {
+  const camera = cameras.find((c) => c.id === form.cameraId);
+  if (!camera) return null;
+  const dayCount = editFormRentalDayCount(form, mode);
+  if (dayCount < 1) return null;
+  const slot = (dayCount >= 2 ? "FULL_DAY" : form.slot) as BookingSlot;
+  const rental = rentalAmountVnd(
+    dayCount,
+    camera.dayPrice,
+    camera.shiftPrice,
+    slot,
+  );
+  const delivery = form.shippingAddress.trim() ? DELIVERY_FEE_VND : 0;
+  return rental + delivery;
+}
+
+function applySuggestedAmount(
+  form: BookingEditForm,
+  cameras: AdminCameraOption[],
+  mode: "create" | "edit",
+): BookingEditForm {
+  const suggested = suggestedBookingAmountVnd(form, cameras, mode);
+  if (suggested === null) return form;
+  return { ...form, amount: String(suggested) };
 }
 
 /** Lọc theo `paymentStatus` từ API */
@@ -606,6 +662,14 @@ export default function AdminBookingsPage() {
   }, [editForm]);
 
   const createFormForceFullDay = createFormDayCount >= 2;
+
+  const syncEditFormAmount = useCallback(
+    (form: BookingEditForm): BookingEditForm => {
+      if (!bookingFormMode) return form;
+      return applySuggestedAmount(form, editCameras, bookingFormMode);
+    },
+    [bookingFormMode, editCameras],
+  );
 
   useEffect(() => {
     if (bookingFormMode !== "create" || !editForm?.cameraId) {
@@ -1025,20 +1089,20 @@ export default function AdminBookingsPage() {
 
   const pagedBookingRows = useMemo(
     () =>
-      pagedBookings.map((b) => (
-        <BookingListRow key={b.id} {...getBookingListProps(b)} />
+      pagedBookings.map((b, index) => (
+        <BookingListRow
+          key={b.id}
+          rowNumber={(clampedPage - 1) * pageSize + index + 1}
+          {...getBookingListProps(b)}
+        />
       )),
-    [pagedBookings, getBookingListProps],
+    [pagedBookings, getBookingListProps, clampedPage, pageSize],
   );
 
   const pagedBookingCards = useMemo(() => {
     if (!isMobileViewport) return null;
     return pagedBookings.map((b) => (
-      <BookingListCard
-        key={b.id}
-        isMobileLayout
-        {...getBookingListProps(b)}
-      />
+      <BookingListCard key={b.id} {...getBookingListProps(b)} />
     ));
   }, [isMobileViewport, pagedBookings, getBookingListProps]);
 
@@ -1542,17 +1606,16 @@ export default function AdminBookingsPage() {
                         value={editForm.cameraId}
                         {...fieldInputProps}
                         onChange={(e) =>
-                          setEditForm((f) =>
-                            f
-                              ? {
-                                  ...f,
-                                  cameraId: e.target.value,
-                                  ...(bookingFormMode === "create"
-                                    ? { rangeStart: "", rangeEnd: "" }
-                                    : {}),
-                                }
-                              : f,
-                          )
+                          setEditForm((f) => {
+                            if (!f) return f;
+                            return syncEditFormAmount({
+                              ...f,
+                              cameraId: e.target.value,
+                              ...(bookingFormMode === "create"
+                                ? { rangeStart: "", rangeEnd: "" }
+                                : {}),
+                            });
+                          })
                         }
                       >
                         {bookingFormMode === "create" ? (
@@ -1592,12 +1655,12 @@ export default function AdminBookingsPage() {
                             setEditForm((f) => {
                               if (!f) return f;
                               const dc = dayCountInclusive(start, end);
-                              return {
+                              return syncEditFormAmount({
                                 ...f,
                                 rangeStart: start,
                                 rangeEnd: end,
                                 slot: dc >= 2 ? "FULL_DAY" : f.slot,
-                              };
+                              });
                             });
                           }}
                         />
@@ -1625,10 +1688,10 @@ export default function AdminBookingsPage() {
                           onChange={(e) =>
                             setEditForm((f) =>
                               f
-                                ? {
+                                ? syncEditFormAmount({
                                     ...f,
                                     startBookingDateLocal: e.target.value,
-                                  }
+                                  })
                                 : f,
                             )
                           }
@@ -1645,10 +1708,10 @@ export default function AdminBookingsPage() {
                           onChange={(e) =>
                             setEditForm((f) =>
                               f
-                                ? {
+                                ? syncEditFormAmount({
                                     ...f,
                                     endBookingDateLocal: e.target.value,
-                                  }
+                                  })
                                 : f,
                             )
                           }
@@ -1677,7 +1740,12 @@ export default function AdminBookingsPage() {
                         {...fieldInputProps}
                         onChange={(e) =>
                           setEditForm((f) =>
-                            f ? { ...f, slot: e.target.value } : f,
+                            f
+                              ? syncEditFormAmount({
+                                  ...f,
+                                  slot: e.target.value,
+                                })
+                              : f,
                           )
                         }
                       >
@@ -1733,7 +1801,12 @@ export default function AdminBookingsPage() {
                       {...fieldInputProps}
                       onChange={(e) =>
                         setEditForm((f) =>
-                          f ? { ...f, shippingAddress: e.target.value } : f,
+                          f
+                            ? syncEditFormAmount({
+                                ...f,
+                                shippingAddress: e.target.value,
+                              })
+                            : f,
                         )
                       }
                     />

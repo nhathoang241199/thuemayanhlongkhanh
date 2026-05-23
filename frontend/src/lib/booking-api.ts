@@ -68,12 +68,14 @@ export async function fetchCalendarMonth(
   cameraId: string,
   year: number,
   month: number,
+  excludeBookingId?: string,
 ): Promise<{ year: number; month: number; days: CalendarDay[] }> {
   const params = new URLSearchParams({
     cameraId,
     year: String(year),
     month: String(month),
   });
+  if (excludeBookingId) params.set("excludeBookingId", excludeBookingId);
   const res = await fetch(`${apiBase()}/api/availability/calendar?${params}`);
   return parseJson(res);
 }
@@ -81,8 +83,10 @@ export async function fetchCalendarMonth(
 export async function fetchSlots(
   cameraId: string,
   date: string,
+  excludeBookingId?: string,
 ): Promise<SlotAvailability> {
   const params = new URLSearchParams({ cameraId, date });
+  if (excludeBookingId) params.set("excludeBookingId", excludeBookingId);
   const res = await fetch(`${apiBase()}/api/availability/slots?${params}`);
   return parseJson(res);
 }

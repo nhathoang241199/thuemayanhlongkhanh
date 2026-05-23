@@ -47,9 +47,7 @@ import {
   vnd,
 } from "./booking-list-utils";
 
-export type BookingListCardProps = BookingListRowProps & {
-  isMobileLayout: boolean;
-};
+export type BookingListCardProps = BookingListRowProps;
 
 function BookingListCardInner({
   booking: b,
@@ -61,7 +59,6 @@ function BookingListCardInner({
   onMenuOpenChange,
   onQuickAdvance,
   onCccdUploaded,
-  isMobileLayout,
 }: BookingListCardProps) {
   const [noteOpen, setNoteOpen] = useState(false);
   const noteText = b.note?.trim() ?? "";
@@ -74,11 +71,8 @@ function BookingListCardInner({
   const pay = paymentBadgeProps(b.paymentStatus);
   const showTotal = b.paymentStatus === "PENDING";
   const showBalanceDue = b.paymentStatus === "DEPOSITED";
-  const hideCardActions = b.status === "COMPLETED";
+  const hideQuickAdvance = b.status === "COMPLETED";
   const verificationUrls = b.customer.verificationImageUrls ?? [];
-  const hasCccdAction =
-    b.status === "CONFIRMED" &&
-    (verificationUrls.length >= 2 || isMobileLayout);
 
   return (
     <AdminDataCard>
@@ -198,33 +192,30 @@ function BookingListCardInner({
         ) : null}
       </HStack>
 
-      {!hideCardActions ? (
-        <AdminDataCardActions justify="space-between">
-          <HStack gap={1}>
-            <BookingCccdAction
-              status={b.status}
-              customerId={b.customer.id}
-              customerName={b.customer.name}
-              verificationImageUrls={verificationUrls}
-              disabled={isRowSaving}
+      <AdminDataCardActions justify="space-between">
+        <HStack gap={1}>
+          <BookingCccdAction
+            customerId={b.customer.id}
+            customerName={b.customer.name}
+            verificationImageUrls={verificationUrls}
+            disabled={isRowSaving}
+            size="lg"
+            onCccdUploaded={onCccdUploaded}
+          />
+          {noteText ? (
+            <IconButton
+              type="button"
               size="lg"
-              onCccdUploaded={onCccdUploaded}
-            />
-            {noteText ? (
-              <IconButton
-                type="button"
-                size="lg"
-                variant="subtle"
-                colorPalette={APP_COLOR_PALETTE}
-                aria-label="Xem ghi chú"
-                onClick={() => setNoteOpen(true)}
-              >
-                <NoteIcon boxSize="1.25rem" />
-              </IconButton>
-            ) : !hasCccdAction ? (
-              <Box flexShrink={0} />
-            ) : null}
-          </HStack>
+              variant="subtle"
+              colorPalette={APP_COLOR_PALETTE}
+              aria-label="Xem ghi chú"
+              onClick={() => setNoteOpen(true)}
+            >
+              <NoteIcon boxSize="1.25rem" />
+            </IconButton>
+          ) : null}
+        </HStack>
+        {!hideQuickAdvance ? (
           <IconButton
             type="button"
             size="lg"
@@ -237,8 +228,8 @@ function BookingListCardInner({
           >
             <ChevronRightIcon boxSize="1.35rem" />
           </IconButton>
-        </AdminDataCardActions>
-      ) : null}
+        ) : null}
+      </AdminDataCardActions>
 
       {noteText ? (
         <DialogRoot

@@ -81,6 +81,13 @@ function BookingsListPanelInner({
             <TableRoot size="sm" native>
               <TableHeader>
                 <TableRow>
+                  <TableColumnHeader
+                    w="2.75rem"
+                    textAlign="center"
+                    {...tableCellPad}
+                  >
+                    STT
+                  </TableColumnHeader>
                   <TableColumnHeader {...tableCellPad}>
                     Ngày thuê
                   </TableColumnHeader>
