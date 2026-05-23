@@ -21,6 +21,7 @@ export class AvailabilityController {
     @Query('cameraId') cameraId: string,
     @Query('year') year: string,
     @Query('month') month: string,
+    @Query('excludeBookingId') excludeBookingId?: string,
   ) {
     if (!cameraId?.trim()) {
       throw new BadRequestException('cameraId is required');
@@ -30,7 +31,12 @@ export class AvailabilityController {
     if (!Number.isFinite(y) || !Number.isFinite(m)) {
       throw new BadRequestException('year and month are required');
     }
-    return this.availabilityService.calendarMonth(cameraId, y, m);
+    return this.availabilityService.calendarMonth(
+      cameraId,
+      y,
+      m,
+      excludeBookingId?.trim() || undefined,
+    );
   }
 
   @Get('slots')
@@ -38,11 +44,16 @@ export class AvailabilityController {
   slots(
     @Query('cameraId') cameraId: string,
     @Query('date') date: string,
+    @Query('excludeBookingId') excludeBookingId?: string,
   ) {
     if (!cameraId?.trim() || !date?.trim()) {
       throw new BadRequestException('cameraId and date are required');
     }
-    return this.availabilityService.slotsForDate(cameraId, date);
+    return this.availabilityService.slotsForDate(
+      cameraId,
+      date,
+      excludeBookingId?.trim() || undefined,
+    );
   }
 
   @Get('range')

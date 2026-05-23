@@ -166,7 +166,12 @@ export class AvailabilityService {
     return { available: allOk, days: results };
   }
 
-  async calendarMonth(cameraId: string, year: number, month: number) {
+  async calendarMonth(
+    cameraId: string,
+    year: number,
+    month: number,
+    excludeBookingId?: string,
+  ) {
     if (month < 1 || month > 12) {
       throw new BadRequestException('month must be 1-12');
     }
@@ -181,7 +186,11 @@ export class AvailabilityService {
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const { m, a, e, fd } = this.countsForDay(bookings, dateStr);
+      const { m, a, e, fd } = this.countsForDay(
+        bookings,
+        dateStr,
+        excludeBookingId,
+      );
       const slots = {} as Record<
         BookingSlot,
         { available: boolean; remaining: number }
@@ -198,11 +207,19 @@ export class AvailabilityService {
     return { year, month, days };
   }
 
-  async slotsForDate(cameraId: string, date: string) {
+  async slotsForDate(
+    cameraId: string,
+    date: string,
+    excludeBookingId?: string,
+  ) {
     assertDateStr(date);
     const quantity = await this.getCameraQuantity(cameraId);
     const bookings = await this.getOccupyingBookings(cameraId);
-    const { m, a, e, fd } = this.countsForDay(bookings, date);
+    const { m, a, e, fd } = this.countsForDay(
+      bookings,
+      date,
+      excludeBookingId,
+    );
     const slots = {} as Record<
       BookingSlot,
       { available: boolean; remaining: number }

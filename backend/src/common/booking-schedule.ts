@@ -101,9 +101,12 @@ export function defaultPickupAt(
   return vnDateTimeToUtc(startDate, w.startHour, 0);
 }
 
-/** Ca cả ngày: lấy máy sớm từ 12h trưa hôm trước đến hết ngày (24h). */
-export const FULL_DAY_EARLY_PICKUP_START_HOUR = 12;
+/** Ca cả ngày: lấy máy sớm từ 17h chiều hôm trước đến hết đêm. */
+export const FULL_DAY_EARLY_PICKUP_START_HOUR = 17;
 export const FULL_DAY_EARLY_PICKUP_END_HOUR = 23;
+
+/** Buổi ca: được nhận máy sớm hơn giờ bắt đầu ca. */
+export const SHIFT_EARLY_PICKUP_HOURS = 1;
 
 export function assertPickupAtValid(
   startDate: string,
@@ -130,14 +133,14 @@ export function assertPickupAtValid(
       const max = FULL_DAY_EARLY_PICKUP_END_HOUR * 60 + 59;
       if (totalMinutes < min || totalMinutes > max) {
         throw new Error(
-          'Thời gian nhận máy hôm trước phải từ 12h trưa đến 12h đêm',
+          'Thời gian nhận máy hôm trước phải từ 17h chiều đến hết đêm',
         );
       }
       return;
     }
     if (pickupDay === startDate) {
       const startMinutes = w.startHour * 60;
-      const endMinutes = w.endHour * 60;
+      const endMinutes = w.endHour * 60 + 59;
       if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
         throw new Error(
           `Thời gian nhận máy trong ngày thuê phải trong khung ${slotTimeRangeLabel(slot)}`,
@@ -146,20 +149,19 @@ export function assertPickupAtValid(
       return;
     }
     throw new Error(
-      'Thời gian nhận máy phải trong ngày thuê hoặc từ 12h trưa hôm trước (ca cả ngày)',
+      'Thời gian nhận máy phải trong ngày thuê hoặc từ 17h chiều hôm trước (ca cả ngày)',
     );
   }
 
   if (pickupDay !== startDate) {
     throw new Error('Thời gian nhận máy phải trong ngày bắt đầu thuê');
   }
-  /** Buổi ca: giờ nhận máy bất kỳ trong ngày thuê (7h–23h), không gò theo khung ca. */
-  const dayW = SLOT_TIME_WINDOWS.FULL_DAY;
-  const startMinutes = dayW.startHour * 60;
-  const endMinutes = dayW.endHour * 60 + 59;
-  if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
+  const pickupStartHour = w.startHour - SHIFT_EARLY_PICKUP_HOURS;
+  const minMinutes = pickupStartHour * 60;
+  const maxMinutes = w.endHour * 60 + 59;
+  if (totalMinutes < minMinutes || totalMinutes > maxMinutes) {
     throw new Error(
-      `Thời gian nhận máy trong ngày thuê phải từ ${dayW.startHour}h đến ${dayW.endHour}h`,
+      `Thời gian nhận máy phải từ ${pickupStartHour}h đến ${w.endHour}h trong ngày thuê (ca ${slotTimeRangeLabel(slot)})`,
     );
   }
 }
