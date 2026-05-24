@@ -332,6 +332,7 @@ export class AvailabilityService {
       quantity: number;
       dayPrice: number;
       shiftPrice: number;
+      discountPercent: number;
       imageUrl: string | null;
       available: boolean;
     }[] = [];
@@ -350,6 +351,7 @@ export class AvailabilityService {
         quantity: cam.quantity,
         dayPrice: cam.dayPrice,
         shiftPrice: cam.shiftPrice,
+        discountPercent: cam.discountPercent,
         imageUrl: cam.imageUrl,
         available,
       });

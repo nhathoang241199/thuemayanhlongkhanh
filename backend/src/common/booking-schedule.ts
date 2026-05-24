@@ -52,6 +52,30 @@ export function rentalAmountVnd(
   return Math.round(dayPrice * multiDayRentalMultiplier(dayCount));
 }
 
+export function clampDiscountPercent(discountPercent: number): number {
+  if (!Number.isFinite(discountPercent)) return 0;
+  return Math.min(100, Math.max(0, Math.trunc(discountPercent)));
+}
+
+/** Tiền thuê sau giảm (VNĐ), chưa gồm phí giao. */
+export function discountedRentalVnd(
+  rental: number,
+  discountPercent: number,
+): number {
+  const pct = clampDiscountPercent(discountPercent);
+  if (pct <= 0) return rental;
+  return Math.round((rental * (100 - pct)) / 100);
+}
+
+/** Tổng đơn = thuê sau giảm + phí giao. */
+export function bookingAmountVnd(
+  rental: number,
+  discountPercent: number,
+  delivery: number,
+): number {
+  return discountedRentalVnd(rental, discountPercent) + delivery;
+}
+
 /** Khung giờ VN cho từng ca (đồng bộ với frontend booking-status.ts). */
 export const SLOT_TIME_WINDOWS = {
   FULL_DAY: { startHour: 7, endHour: 23 },

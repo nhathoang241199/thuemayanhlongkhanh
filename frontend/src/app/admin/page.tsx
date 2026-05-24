@@ -249,9 +249,18 @@ export default function AdminPage() {
             align="center"
             gap={4}
             flexWrap="wrap"
-            mb={4}
+            mb={{ base: 0, md: 4 }}
           >
-            <CardTitle textStyle="lg">Chọn kỳ</CardTitle>
+            <CardTitle textStyle="lg" display={{ base: "none", md: "block" }}>
+              Chọn kỳ
+            </CardTitle>
+            <Text
+              textStyle="lg"
+              fontWeight="semibold"
+              display={{ base: "block", md: "none" }}
+            >
+              {MONTH_LABELS_VI[month - 1]}
+            </Text>
             <Button
               type="button"
               size="sm"
@@ -261,7 +270,12 @@ export default function AdminPage() {
               Thêm chi phí
             </Button>
           </HStack>
-          <HStack gap={4} flexWrap="wrap" align="flex-end">
+          <HStack
+            gap={4}
+            flexWrap="wrap"
+            align="flex-end"
+            display={{ base: "none", md: "flex" }}
+          >
             <Box minW={{ md: "12rem" }} w={{ base: "full", md: "auto" }}>
               <Text fontSize="sm" mb={1} fontWeight="medium">
                 Tháng

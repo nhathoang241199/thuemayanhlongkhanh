@@ -51,10 +51,15 @@ type Camera = {
   quantity: number;
   dayPrice: number;
   shiftPrice: number;
+  discountPercent: number;
   imageUrl: string | null;
   tutorialVideoUrl: string | null;
   createdAt: string;
 };
+
+function formatDiscountLabel(percent: number): string {
+  return percent > 0 ? `${percent}%` : "—";
+}
 
 const CAMERA_BRANDS = ["FUJIFILM", "CANON", "DJI"] as const;
 type CameraBrand = (typeof CAMERA_BRANDS)[number];
@@ -73,6 +78,7 @@ type EditForm = {
   quantity: number;
   dayPrice: number;
   shiftPrice: number;
+  discountPercent: number;
 };
 
 function parseCameraBrand(raw: string): CameraBrand {
@@ -89,6 +95,7 @@ type CreateForm = {
   quantity: number;
   dayPrice: number;
   shiftPrice: number;
+  discountPercent: number;
 };
 
 function defaultCreateForm(): CreateForm {
@@ -100,6 +107,7 @@ function defaultCreateForm(): CreateForm {
     quantity: 1,
     dayPrice: 350_000,
     shiftPrice: 200_000,
+    discountPercent: 0,
   };
 }
 
@@ -213,6 +221,9 @@ function CameraMobileCard({
       <AdminDataCardRow label="Giá / buổi">
         {vnd.format(c.shiftPrice)}
       </AdminDataCardRow>
+      <AdminDataCardRow label="Giảm giá">
+        {formatDiscountLabel(c.discountPercent)}
+      </AdminDataCardRow>
       <AdminDataCardActions>
         <Button
           size="sm"
@@ -255,6 +266,12 @@ function normalizeImageUrlInput(raw: string): string | null {
   return t === "" ? null : t;
 }
 
+function parseDiscountPercent(raw: string): number | null {
+  const n = Number.parseInt(raw, 10);
+  if (Number.isNaN(n) || n < 0 || n > 100) return null;
+  return n;
+}
+
 function formDirty(c: Camera, f: EditForm): boolean {
   const nextUrl = normalizeImageUrlInput(f.imageUrl);
   const nextVideo = normalizeTutorialVideoUrl(f.tutorialVideoUrl);
@@ -265,7 +282,8 @@ function formDirty(c: Camera, f: EditForm): boolean {
     nextVideo !== c.tutorialVideoUrl ||
     f.quantity !== c.quantity ||
     f.dayPrice !== c.dayPrice ||
-    f.shiftPrice !== c.shiftPrice
+    f.shiftPrice !== c.shiftPrice ||
+    f.discountPercent !== c.discountPercent
   );
 }
 
@@ -283,6 +301,7 @@ export default function AdminCamerasPage() {
     quantity: 0,
     dayPrice: 0,
     shiftPrice: 0,
+    discountPercent: 0,
   });
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -353,6 +372,7 @@ export default function AdminCamerasPage() {
       quantity: c.quantity,
       dayPrice: c.dayPrice,
       shiftPrice: c.shiftPrice,
+      discountPercent: c.discountPercent ?? 0,
     });
     setModalError(null);
   };
@@ -382,6 +402,7 @@ export default function AdminCamerasPage() {
             quantity: editForm.quantity,
             dayPrice: editForm.dayPrice,
             shiftPrice: editForm.shiftPrice,
+            discountPercent: editForm.discountPercent,
           }),
         });
         if (!res.ok) {
@@ -417,6 +438,7 @@ export default function AdminCamerasPage() {
           quantity: createForm.quantity,
           dayPrice: createForm.dayPrice,
           shiftPrice: createForm.shiftPrice,
+          discountPercent: createForm.discountPercent,
         };
         const img = normalizeImageUrlInput(createForm.imageUrl);
         if (img) body.imageUrl = img;
@@ -577,6 +599,9 @@ export default function AdminCamerasPage() {
                         <TableColumnHeader textAlign="end" {...tableCellPad}>
                           Giá / buổi
                         </TableColumnHeader>
+                        <TableColumnHeader textAlign="end" {...tableCellPad}>
+                          Giảm giá
+                        </TableColumnHeader>
                         <TableColumnHeader
                           minW="10.5rem"
                           textAlign="end"
@@ -627,6 +652,9 @@ export default function AdminCamerasPage() {
                             {...tableCellPad}
                           >
                             {vnd.format(c.shiftPrice)}
+                          </TableCell>
+                          <TableCell textAlign="end" {...tableCellPad}>
+                            {formatDiscountLabel(c.discountPercent ?? 0)}
                           </TableCell>
                           <TableCell textAlign="end" {...tableCellPad}>
                             <HStack
@@ -843,6 +871,26 @@ export default function AdminCamerasPage() {
                       {vnd.format(editForm.shiftPrice)}
                     </Text>
                   </Box>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Giảm giá (%)
+                    </Text>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={String(editForm.discountPercent)}
+                      onChange={(e) => {
+                        const v = parseDiscountPercent(e.target.value);
+                        if (v === null) return;
+                        setEditForm((f) => ({ ...f, discountPercent: v }));
+                      }}
+                    />
+                    <Text fontSize="xs" color="fg.muted" mt={1}>
+                      0 = không giảm. Chỉ áp dụng tiền thuê máy.
+                    </Text>
+                  </Box>
                 </Stack>
               ) : null}
             </DialogBody>
@@ -1023,6 +1071,26 @@ export default function AdminCamerasPage() {
                   />
                   <Text fontSize="xs" color="fg.muted" mt={1}>
                     {vnd.format(createForm.shiftPrice)}
+                  </Text>
+                </Box>
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Giảm giá (%)
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={String(createForm.discountPercent)}
+                    onChange={(e) => {
+                      const v = parseDiscountPercent(e.target.value);
+                      if (v === null) return;
+                      setCreateForm((f) => ({ ...f, discountPercent: v }));
+                    }}
+                  />
+                  <Text fontSize="xs" color="fg.muted" mt={1}>
+                    0 = không giảm. Chỉ áp dụng tiền thuê máy.
                   </Text>
                 </Box>
               </Stack>

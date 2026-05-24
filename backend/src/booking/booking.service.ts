@@ -16,6 +16,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { AvailabilityService } from '../availability/availability.service';
 import {
   assertPickupAtValid,
+  bookingAmountVnd,
   dayCountInclusive,
   deliveryFeeVnd,
   rentalAmountVnd,
@@ -222,6 +223,14 @@ export class BookingService {
     const { startBookingDate } = slotWindow(pending.startDate, pending.slot);
     const { endBookingDate } = slotWindow(pending.endDate, pending.slot);
 
+    const pricing = await this.computeBookingPricing(
+      pending.cameraId,
+      pending.startDate,
+      pending.endDate,
+      pending.slot,
+      pending.shippingAddress ?? booking.shippingAddress,
+    );
+
     await this.prisma.booking.update({
       where: { id: bookingId },
       data: {
@@ -229,7 +238,8 @@ export class BookingService {
         startBookingDate,
         endBookingDate,
         slot: pending.slot,
-        amount: pending.newAmount,
+        amount: pricing.amount,
+        discountPercent: pricing.discountPercent,
         note: pending.note ?? booking.note,
         shippingAddress: pending.shippingAddress ?? booking.shippingAddress,
         pendingChange: Prisma.DbNull,
@@ -311,24 +321,46 @@ export class BookingService {
     };
   }
 
-  private async computeBookingAmount(
+  private async computeBookingPricing(
     cameraId: string,
     startDate: string,
     endDate: string,
     slot: BookingSlot,
     shippingAddress?: string | null,
-  ): Promise<number> {
+  ): Promise<{ amount: number; discountPercent: number }> {
     const camera = await this.prisma.camera.findUnique({
       where: { id: cameraId },
     });
     if (!camera) {
       throw new NotFoundException('Máy ảnh không tồn tại');
     }
+    const discountPercent = camera.discountPercent ?? 0;
     const dayCount = dayCountInclusive(startDate, endDate);
-    return (
-      rentalAmountVnd(dayCount, camera.dayPrice, camera.shiftPrice, slot) +
-      deliveryFeeVnd(shippingAddress)
+    const rental = rentalAmountVnd(
+      dayCount,
+      camera.dayPrice,
+      camera.shiftPrice,
+      slot,
     );
+    return {
+      amount: bookingAmountVnd(
+        rental,
+        discountPercent,
+        deliveryFeeVnd(shippingAddress),
+      ),
+      discountPercent,
+    };
+  }
+
+  private async cameraDiscountPercent(cameraId: string): Promise<number> {
+    const camera = await this.prisma.camera.findUnique({
+      where: { id: cameraId },
+      select: { discountPercent: true },
+    });
+    if (!camera) {
+      throw new NotFoundException('Máy ảnh không tồn tại');
+    }
+    return camera.discountPercent ?? 0;
   }
 
   private assertDeliveryAllowed(
@@ -384,7 +416,7 @@ export class BookingService {
 
     this.assertDeliveryAllowed(booking.customer, dto.shippingAddress);
 
-    const newAmount = await this.computeBookingAmount(
+    const pricing = await this.computeBookingPricing(
       dto.cameraId,
       dto.startDate,
       dto.endDate,
@@ -404,7 +436,8 @@ export class BookingService {
         endBookingDate,
         slot: dto.slot,
         pickupAt,
-        amount: newAmount,
+        amount: pricing.amount,
+        discountPercent: pricing.discountPercent,
         note: dto.note?.trim()
           ? booking.note?.trim()
             ? `${booking.note.trim()}\n${dto.note.trim()}`
@@ -420,8 +453,8 @@ export class BookingService {
 
     return {
       booking: updated,
-      newAmount,
-      balanceDue: balanceDueVnd(newAmount),
+      newAmount: pricing.amount,
+      balanceDue: balanceDueVnd(pricing.amount),
     };
   }
 
@@ -476,7 +509,7 @@ export class BookingService {
 
     this.assertDeliveryAllowed(booking.customer, shippingAddress);
 
-    const amount = await this.computeBookingAmount(
+    const pricing = await this.computeBookingPricing(
       dto.cameraId,
       dto.startDate,
       dto.endDate,
@@ -496,7 +529,8 @@ export class BookingService {
         endBookingDate,
         slot: dto.slot,
         pickupAt,
-        amount,
+        amount: pricing.amount,
+        discountPercent: pricing.discountPercent,
         note: dto.note !== undefined ? dto.note : booking.note,
         shippingAddress,
       },
@@ -543,7 +577,7 @@ export class BookingService {
 
     this.assertDeliveryAllowed(customer, dto.shippingAddress);
 
-    const amount = await this.computeBookingAmount(
+    const pricing = await this.computeBookingPricing(
       dto.cameraId,
       dto.startDate,
       dto.endDate,
@@ -574,7 +608,8 @@ export class BookingService {
           endBookingDate,
           slot: dto.slot,
           pickupAt,
-          amount,
+          amount: pricing.amount,
+          discountPercent: pricing.discountPercent,
           note: dto.note,
           shippingAddress: dto.shippingAddress,
           paymentStatus: PaymentStatus.PENDING,
@@ -605,6 +640,7 @@ export class BookingService {
     if (!bookingCode) {
       bookingCode = await this.generateBookingCode();
     }
+    const discountPercent = await this.cameraDiscountPercent(dto.cameraId);
 
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
@@ -618,6 +654,7 @@ export class BookingService {
             slot: dto.slot,
             pickupAt: dto.pickupAt ? new Date(dto.pickupAt) : undefined,
             amount: dto.amount,
+            discountPercent,
             note: dto.note,
             shippingAddress: dto.shippingAddress,
             paymentStatus: dto.paymentStatus,
@@ -685,6 +722,9 @@ export class BookingService {
         : {}),
       ...(pickupAt !== undefined ? { pickupAt: new Date(pickupAt) } : {}),
     };
+    if (dto.cameraId !== undefined) {
+      data.discountPercent = await this.cameraDiscountPercent(dto.cameraId);
+    }
 
     try {
       return await this.prisma.booking.update({

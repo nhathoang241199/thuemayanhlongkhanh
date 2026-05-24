@@ -30,6 +30,7 @@ export class CameraService {
         quantity: true,
         dayPrice: true,
         shiftPrice: true,
+        discountPercent: true,
         imageUrl: true,
       },
     });
@@ -45,6 +46,7 @@ export class CameraService {
         quantity: true,
         dayPrice: true,
         shiftPrice: true,
+        discountPercent: true,
         imageUrl: true,
         tutorialVideoUrl: true,
       },

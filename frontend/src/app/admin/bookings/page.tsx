@@ -75,7 +75,7 @@ import {
   slotLabelVi,
   slotTimeRangeLabel,
 } from "@/lib/booking-status";
-import { rentalAmountVnd } from "@/lib/rental-pricing";
+import { rentalAmountVnd, bookingAmountVnd } from "@/lib/rental-pricing";
 import type { BookingSlot } from "@/lib/booking-api";
 import { normalizePhone } from "@/lib/normalize-phone";
 import {
@@ -156,6 +156,7 @@ type AdminCameraOption = {
   name: string;
   dayPrice: number;
   shiftPrice: number;
+  discountPercent: number;
 };
 
 const BOOKING_SLOT_OPTIONS = [
@@ -306,7 +307,7 @@ function suggestedBookingAmountVnd(
     slot,
   );
   const delivery = form.shippingAddress.trim() ? DELIVERY_FEE_VND : 0;
-  return rental + delivery;
+  return bookingAmountVnd(rental, camera.discountPercent ?? 0, delivery);
 }
 
 function applySuggestedAmount(

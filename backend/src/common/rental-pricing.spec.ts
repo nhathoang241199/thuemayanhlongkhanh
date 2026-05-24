@@ -1,6 +1,8 @@
 import {
   multiDayRentalMultiplier,
   rentalAmountVnd,
+  discountedRentalVnd,
+  bookingAmountVnd,
 } from './booking-schedule';
 
 const DAY = 350_000;
@@ -46,5 +48,17 @@ describe('rentalAmountVnd', () => {
   it('applies 65% per day for 6+ days', () => {
     expect(rentalAmountVnd(6, DAY, SHIFT, 'FULL_DAY')).toBe(1_365_000);
     expect(rentalAmountVnd(7, DAY, SHIFT, 'FULL_DAY')).toBe(1_592_500);
+  });
+});
+
+describe('discount pricing', () => {
+  it('discounts rental only', () => {
+    expect(discountedRentalVnd(200_000, 20)).toBe(160_000);
+    expect(bookingAmountVnd(200_000, 20, 40_000)).toBe(200_000);
+  });
+
+  it('ignores invalid discount', () => {
+    expect(discountedRentalVnd(200_000, 0)).toBe(200_000);
+    expect(discountedRentalVnd(200_000, -5)).toBe(200_000);
   });
 });

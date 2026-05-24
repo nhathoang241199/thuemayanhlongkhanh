@@ -14,6 +14,7 @@ export type PublicCamera = {
   quantity: number;
   dayPrice: number;
   shiftPrice: number;
+  discountPercent: number;
   imageUrl: string | null;
 };
 

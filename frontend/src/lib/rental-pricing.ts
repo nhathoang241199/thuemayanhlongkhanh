@@ -29,3 +29,25 @@ export function rentalAmountVnd(
   if (dayCount === 1 && slot !== "FULL_DAY") return shiftPrice;
   return Math.round(dayPrice * multiDayRentalMultiplier(dayCount));
 }
+
+export function clampDiscountPercent(discountPercent: number): number {
+  if (!Number.isFinite(discountPercent)) return 0;
+  return Math.min(100, Math.max(0, Math.trunc(discountPercent)));
+}
+
+export function discountedRentalVnd(
+  rental: number,
+  discountPercent: number,
+): number {
+  const pct = clampDiscountPercent(discountPercent);
+  if (pct <= 0) return rental;
+  return Math.round((rental * (100 - pct)) / 100);
+}
+
+export function bookingAmountVnd(
+  rental: number,
+  discountPercent: number,
+  delivery: number,
+): number {
+  return discountedRentalVnd(rental, discountPercent) + delivery;
+}

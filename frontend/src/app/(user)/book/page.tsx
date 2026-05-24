@@ -22,6 +22,8 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { BookStepFooter } from "@/components/user/book-step-footer";
 import { BrandPickerButton } from "@/components/camera/brand-picker-button";
 import { CameraPickerCard } from "@/components/camera/camera-picker-card";
+import { CameraDiscountBadge } from "@/components/camera/camera-discount-badge";
+import { DiscountedPriceLine } from "@/components/camera/discounted-price-line";
 import { MonthCalendar } from "@/components/booking/month-calendar";
 import { PickupTimePicker } from "@/components/booking/pickup-time-picker";
 import { SlotHoursLabel } from "@/components/booking/slot-hours-label";
@@ -58,7 +60,7 @@ import {
   slotPickupBounds,
   validatePickupAtLocal,
 } from "@/lib/datetime-vn";
-import { rentalAmountVnd } from "@/lib/rental-pricing";
+import { rentalAmountVnd, bookingAmountVnd } from "@/lib/rental-pricing";
 import { getSession, setSession } from "@/lib/customer-session";
 import {
   APP_COLOR_PALETTE,
@@ -188,17 +190,23 @@ function BookPageContent() {
   const deliverySelected =
     canRequestDelivery && wantDelivery;
 
-  const estimatedAmount = useMemo(() => {
+  const estimatedRental = useMemo(() => {
     if (!camera || !effectiveSlot || dayCount < 1) return 0;
-    const rental = rentalAmountVnd(
+    return rentalAmountVnd(
       dayCount,
       camera.dayPrice,
       camera.shiftPrice,
       effectiveSlot,
     );
+  }, [camera, effectiveSlot, dayCount]);
+
+  const discountPercent = camera?.discountPercent ?? 0;
+
+  const estimatedAmount = useMemo(() => {
+    if (!camera || !effectiveSlot || dayCount < 1) return 0;
     const delivery = deliverySelected ? DELIVERY_FEE_VND : 0;
-    return rental + delivery;
-  }, [camera, effectiveSlot, dayCount, deliverySelected]);
+    return bookingAmountVnd(estimatedRental, discountPercent, delivery);
+  }, [camera, effectiveSlot, dayCount, deliverySelected, estimatedRental, discountPercent]);
 
   const loadCalendar = useCallback(
     async (cameraId: string) => {
@@ -839,9 +847,14 @@ function BookPageContent() {
     return (
       <Stack gap={4}>
         <Stack gap={1} fontSize="sm">
-          <Text>
-            <strong>Máy:</strong> {camera?.name}
-          </Text>
+          <HStack gap={2} align="center" flexWrap="wrap">
+            <Text>
+              <strong>Máy:</strong> {camera?.name}
+            </Text>
+            {discountPercent > 0 ? (
+              <CameraDiscountBadge discountPercent={discountPercent} />
+            ) : null}
+          </HStack>
           <Text>
             <strong>Ngày:</strong>{" "}
             {startDate && endDate
@@ -872,6 +885,13 @@ function BookPageContent() {
           ) : null}
           {isChange ? (
             <>
+              {discountPercent > 0 ? (
+                <DiscountedPriceLine
+                  label="Tiền thuê mới:"
+                  price={estimatedRental}
+                  discountPercent={discountPercent}
+                />
+              ) : null}
               <Text fontWeight="bold" fontSize="md" color={titleColor}>
                 Tổng tiền thuê mới: {vnd.format(estimatedAmount)}
               </Text>
@@ -881,6 +901,13 @@ function BookPageContent() {
             </>
           ) : (
             <>
+              {discountPercent > 0 ? (
+                <DiscountedPriceLine
+                  label="Tiền thuê:"
+                  price={estimatedRental}
+                  discountPercent={discountPercent}
+                />
+              ) : null}
               {deliverySelected ? (
                 <Text fontSize="sm">
                   <strong>Giao & trả tận nơi:</strong>{" "}

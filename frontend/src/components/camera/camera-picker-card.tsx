@@ -1,21 +1,19 @@
 import {
+  Badge,
   Box,
   CardBody,
   CardRoot,
+  HStack,
   Image,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 
+import { CameraDiscountBadge } from "@/components/camera/camera-discount-badge";
+import { DiscountedPriceLine } from "@/components/camera/discounted-price-line";
 import type { PublicCamera } from "@/lib/booking-api";
 import { titleColor, userBookingCardProps } from "@/lib/user-theme";
-
-const vnd = new Intl.NumberFormat("vi-VN", {
-  style: "currency",
-  currency: "VND",
-  maximumFractionDigits: 0,
-});
 
 type CameraPickerCardProps = {
   camera: PublicCamera;
@@ -32,8 +30,15 @@ export function CameraPickerCard({
   disabled = false,
   unavailableLabel,
 }: CameraPickerCardProps) {
+  const discountPercent = camera.discountPercent ?? 0;
+
   const body = (
-    <CardBody>
+    <CardBody position="relative">
+      {discountPercent > 0 ? (
+        <Box position="absolute" top={3} right={3} zIndex={1}>
+          <CameraDiscountBadge discountPercent={discountPercent} />
+        </Box>
+      ) : null}
       <Stack gap={3}>
         <Box
           borderRadius="md"
@@ -58,26 +63,26 @@ export function CameraPickerCard({
           )}
         </Box>
         <Stack gap={1}>
-          <Text fontWeight="semibold" color={titleColor}>
-            {camera.name}
-            {unavailableLabel ? (
-              <Text as="span" color="red.fg" fontWeight="medium" ml={1}>
-                ({unavailableLabel})
-              </Text>
-            ) : null}
-          </Text>
-          <Text fontSize="sm">
-            Cả ngày:{" "}
-            <Text as="span" fontWeight="medium">
-              {vnd.format(camera.dayPrice)}
+          <HStack gap={2} align="center" flexWrap="wrap">
+            <Text fontWeight="semibold" color={titleColor}>
+              {camera.name}
+              {unavailableLabel ? (
+                <Text as="span" color="red.fg" fontWeight="medium" ml={1}>
+                  ({unavailableLabel})
+                </Text>
+              ) : null}
             </Text>
-          </Text>
-          <Text fontSize="sm">
-            Theo buổi:{" "}
-            <Text as="span" fontWeight="medium">
-              {vnd.format(camera.shiftPrice)}
-            </Text>
-          </Text>
+          </HStack>
+          <DiscountedPriceLine
+            label="Cả ngày:"
+            price={camera.dayPrice}
+            discountPercent={discountPercent}
+          />
+          <DiscountedPriceLine
+            label="Theo buổi:"
+            price={camera.shiftPrice}
+            discountPercent={discountPercent}
+          />
         </Stack>
       </Stack>
     </CardBody>

@@ -20,6 +20,7 @@ model Camera {
   quantity         Int
   dayPrice         Int
   shiftPrice       Int
+  discountPercent  Int          @default(0)
   imageUrl         String?
   tutorialVideoUrl String?
   createdAt        DateTime     @default(now())
@@ -66,6 +67,7 @@ model Booking {
   slot             BookingSlot
   pickupAt         DateTime?
   amount        Int
+  discountPercent Int           @default(0)
   note          String?
   shippingAddress String?
   pendingChange Json?

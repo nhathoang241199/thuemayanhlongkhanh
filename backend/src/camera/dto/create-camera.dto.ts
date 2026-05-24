@@ -8,6 +8,7 @@ import {
   IsUrl,
   MaxLength,
   Min,
+  Max,
 } from 'class-validator';
 
 export class CreateCameraDto {
@@ -34,6 +35,13 @@ export class CreateCameraDto {
   @IsInt()
   @Min(0)
   shiftPrice: number;
+
+  @ApiPropertyOptional({ example: 20, minimum: 0, maximum: 100 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  discountPercent?: number;
 
   @ApiPropertyOptional({ example: 'https://example.com/cam.jpg' })
   @IsOptional()
