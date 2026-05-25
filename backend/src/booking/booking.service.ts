@@ -751,6 +751,22 @@ export class BookingService {
   }
 
   async remove(id: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    if (!booking) {
+      throw new NotFoundException(`Booking ${id} not found`);
+    }
+    if (
+      booking.status !== BookingStatus.PENDING_PAYMENT &&
+      booking.status !== BookingStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        'Chỉ xóa được đơn chờ cọc hoặc đơn đã hủy.',
+      );
+    }
+
     try {
       return await this.prisma.$transaction(async (tx) => {
         await tx.payment.deleteMany({ where: { bookingId: id } });

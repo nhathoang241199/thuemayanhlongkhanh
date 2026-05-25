@@ -37,9 +37,7 @@ import {
   bookingStatusColor,
   bookingStatusLabel,
   cameraReadinessBadgeProps,
-  formatBookingRange,
-  slotLabelVi,
-  slotTimeRangeLabel,
+  formatBookingUsageDetailHome,
 } from "@/lib/booking-status";
 import {
   fetchRangeAvailability,
@@ -47,7 +45,7 @@ import {
   type CameraBrand,
 } from "@/lib/booking-api";
 import {
-  formatPickupAtVi,
+  formatPickupAtHomeDisplay,
   isoToCalendarDateKey,
   pickupIsoIsYesterdayTodayOrTomorrowVn,
 } from "@/lib/datetime-vn";
@@ -68,8 +66,6 @@ import {
   userWarningNoteProps,
   userWarningNoteTextProps,
 } from "@/lib/user-theme";
-
-const GUIDE_STATUSES = new Set(["CONFIRMED", "RENTING"]);
 
 const STORE_MAP_URL = "https://maps.app.goo.gl/p7E56GSttpufsQVx5";
 
@@ -366,34 +362,37 @@ export default function UserHomePage() {
                   <Text fontSize="sm" flex="1" minW={0}>
                     {cameraDisplayName(b.camera.brand, b.camera.name)}
                   </Text>
-                  {GUIDE_STATUSES.has(b.status) ? (
-                    <Text
-                      as="button"
-                      {...inlineTextLinkProps}
-                      flexShrink={0}
-                      onClick={() =>
-                        setGuideCamera({
-                          id: b.camera.id,
-                          name: cameraDisplayName(
-                            b.camera.brand,
-                            b.camera.name,
-                          ),
-                        })
-                      }
-                    >
-                      Hướng dẫn sử dụng
-                    </Text>
-                  ) : null}
-                </HStack>
-                <Text fontSize="sm" color="fg.muted">
-                  {formatBookingRange(b.startBookingDate, b.endBookingDate)}
-                </Text>
-                <HStack justify="space-between" fontSize="sm" w="full">
-                  <Text>Thời gian: {slotLabelVi(b.slot)}</Text>
-                  <Text fontSize="xs" color="fg.muted">
-                    {slotTimeRangeLabel(b.slot)}
+                  <Text
+                    as="button"
+                    {...inlineTextLinkProps}
+                    flexShrink={0}
+                    onClick={() =>
+                      setGuideCamera({
+                        id: b.camera.id,
+                        name: cameraDisplayName(
+                          b.camera.brand,
+                          b.camera.name,
+                        ),
+                      })
+                    }
+                  >
+                    Hướng dẫn sử dụng
                   </Text>
                 </HStack>
+                <Text fontSize="sm" color="fg.muted">
+                  Sử dụng:{" "}
+                  <Text
+                    as="span"
+                    fontWeight="medium"
+                    color={titleColor}
+                  >
+                    {formatBookingUsageDetailHome(
+                      b.startBookingDate,
+                      b.endBookingDate,
+                      b.slot,
+                    )}
+                  </Text>
+                </Text>
                 {b.pickupAt ? (
                   <Stack gap={0.5} align="stretch">
                     <HStack
@@ -409,7 +408,7 @@ export default function UserHomePage() {
                           fontWeight="medium"
                           color={titleColor}
                         >
-                          {formatPickupAtVi(b.pickupAt)}
+                          {formatPickupAtHomeDisplay(b.pickupAt)}
                         </Text>
                       </Text>
                       {readinessBadge ? (
@@ -430,9 +429,14 @@ export default function UserHomePage() {
                       </Box>
                     ) : null}
                     <Box {...userWarningNoteProps}>
-                      <Text {...userWarningNoteTextProps}>
-                        Lưu ý: Xin hãy mang theo CCCD bảng gốc hoặc VnID và đọc sđt đã đăng kí khi nhận máy. Vui lòng sạc pin sau khi nhận máy khoảng 20 phút để sử dụng.
-                      </Text>
+                      <Stack gap={1} align="stretch">
+                        <Text {...userWarningNoteTextProps}>
+                          Lưu ý: Xin hãy mang theo CCCD bảng gốc hoặc VnID và đọc sđt đã đăng kí khi nhận máy.
+                        </Text>
+                        <Text {...userWarningNoteTextProps}>
+                          Vui lòng sạc pin sau khi nhận máy khoảng 20 phút để sử dụng.
+                        </Text>
+                      </Stack>
                     </Box>
                   </Stack>
                 ) : null}

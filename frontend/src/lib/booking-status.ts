@@ -1,3 +1,9 @@
+import { dayCountInclusive } from "@/lib/booking-api";
+import {
+  formatWeekdayDateAbbrViFromIso,
+  isoToCalendarDateKey,
+} from "@/lib/datetime-vn";
+
 /** RENTING và đã quá endBookingDate — chỉ hiển thị badge, không đổi status DB. */
 export function isLateReturnBooking(
   booking: { status: string; endBookingDate: string },
@@ -125,4 +131,46 @@ export function formatBookingRange(startIso: string, endIso: string): string {
     return startLabel;
   }
   return `${startLabel} → ${formatCalendarDayShort(endDay)}`;
+}
+
+function bookingUsageSlotPrefix(slot: string, dayCount: number): string {
+  if (slot === "FULL_DAY") {
+    return `${dayCount} ngày`;
+  }
+  switch (slot) {
+    case "MORNING":
+      return "sáng";
+    case "AFTERNOON":
+      return "chiều";
+    case "EVENING":
+      return "tối";
+    default:
+      return slotLabelVi(slot).toLocaleLowerCase("vi-VN");
+  }
+}
+
+/** Giá trị thời gian thuê (/home): "1 ngày – CN, 31/05", "sáng – T2, 01/06", … */
+export function formatBookingUsageDetailHome(
+  startIso: string,
+  endIso: string,
+  slot: string,
+): string {
+  const startKey = isoToCalendarDateKey(startIso);
+  const endKey = isoToCalendarDateKey(endIso);
+  if (!startKey || !endKey) return "—";
+  const dayCount = dayCountInclusive(startKey, endKey);
+  const prefix = bookingUsageSlotPrefix(slot, dayCount);
+  const dayPart = formatWeekdayDateAbbrViFromIso(startIso);
+  return `${prefix} – ${dayPart}`;
+}
+
+/**
+ * Card đơn khách (/home): "Sử dụng: 1 ngày – CN, 31/05", …
+ */
+export function formatBookingTimeLineHome(
+  startIso: string,
+  endIso: string,
+  slot: string,
+): string {
+  return `Sử dụng: ${formatBookingUsageDetailHome(startIso, endIso, slot)}`;
 }

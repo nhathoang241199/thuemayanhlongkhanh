@@ -694,10 +694,6 @@ function BookPageContent() {
         <Text fontSize="md" fontWeight="semibold" color={titleColor}>
           Ngày sử dụng máy
         </Text>
-        <Text fontSize="sm" color="fg.muted" lineHeight="tall">
-          Chọn ngày bạn thực sự dùng máy, không tính đêm nhận sớm hôm trước. Ví
-          dụ thuê ngày 25, nhận máy tối ngày 24 — tại bước này hãy chọn ngày 25.
-        </Text>
       </Stack>
     );
   }
@@ -795,19 +791,9 @@ function BookPageContent() {
             {pickupAtError}
           </Text>
         ) : null}
-        {effectiveSlot === "FULL_DAY" ? (
-          <Text mt={2} fontSize="xs" color="fg.muted" lineHeight="tall">
-            Nếu thuê tối thiểu 1 ngày, bạn có thể lấy máy sớm từ 17h đến 23h hôm
-            trước ngày thuê.
-          </Text>
-        ) : (
-          <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-            Buổi ca: bạn có thể nhận máy từ 1 giờ trước giờ bắt đầu ca đến hết ca (ví dụ ca
-            sáng 7h–12h: nhận từ 6h đến 12h).
-          </Text>
-        )}
-        <Text fontSize="xs" color="fg.muted" lineHeight="tall">
-          Trước khi qua lấy máy, xin vui lòng kiểm tra trạng thái sẵn sàng của máy ở trên đơn thuê.
+        
+        <Text fontSize="xs" mt={2} color="fg.muted" lineHeight="tall">
+          Lưu ý: Trước khi qua lấy máy, xin vui lòng kiểm tra trạng thái sẵn sàng của máy ở trên đơn thuê.
         </Text>
       </Stack>
     );
@@ -864,7 +850,7 @@ function BookPageContent() {
           {effectiveSlot ? (
             <HStack gap={2} fontSize="sm" align="center">
               <Text flexShrink={0}>
-                <strong>Thời gian:</strong>
+                <strong>Sử dụng:</strong>
               </Text>
               <Box flex={1} minW={0}>
                 <SlotHoursLabel slot={effectiveSlot} variant="inline" />
@@ -872,12 +858,12 @@ function BookPageContent() {
             </HStack>
           ) : (
             <Text fontSize="sm">
-              <strong>Thời gian:</strong> —
+              <strong>Sử dụng:</strong> —
             </Text>
           )}
           {pickupDisplay ? (
             <Text fontSize="sm">
-              <strong>Thời gian nhận máy:</strong>{" "}
+              <strong>Nhận máy:</strong>{" "}
               <Text as="span" fontWeight="medium" color={titleColor}>
                 {pickupDisplay}
               </Text>
@@ -918,7 +904,10 @@ function BookPageContent() {
                 Tổng: {vnd.format(estimatedAmount)}
               </Text>
               <Text fontSize="sm" color="fg.muted">
-                Cọc online: {vnd.format(50_000)} · Còn lại khi lấy máy:{" "}
+                Cọc online: {vnd.format(50_000)}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                Còn lại khi nhận máy:{" "}
                 {vnd.format(balanceDueVnd(estimatedAmount))}
               </Text>
             </>
@@ -1248,7 +1237,6 @@ function BookPageContent() {
           {mode === "BY_DATE" && step === 0 && (
             <Stack gap={4}>
               {renderDateStepHeader()}
-              {renderDatePickupNotice()}
               <MonthCalendar
                 year={ym.year}
                 month={ym.month}

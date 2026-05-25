@@ -29,6 +29,7 @@ import {
 } from "./booking-list-icons";
 import {
   bookingLocalDateKey,
+  canAdminDeleteBooking,
   formatBookingDate,
   formatPickupAtTable,
   vnd,
@@ -74,6 +75,8 @@ function BookingListRowInner({
   onDelete,
   onCccdUploaded,
 }: BookingListRowProps) {
+  const showDelete = canAdminDeleteBooking(b.status);
+
   return (
     <TableRow>
       <TableCell
@@ -232,18 +235,20 @@ function BookingListRowInner({
           >
             <PencilIcon />
           </IconButton>
-          <IconButton
-            type="button"
-            size="sm"
-            variant="subtle"
-            colorPalette="red"
-            aria-label={`Xóa đơn ${b.bookingCode}`}
-            loading={deleteSaving}
-            disabled={isRowSaving}
-            onClick={onDelete}
-          >
-            <TrashIcon />
-          </IconButton>
+          {showDelete ? (
+            <IconButton
+              type="button"
+              size="sm"
+              variant="subtle"
+              colorPalette="red"
+              aria-label={`Xóa đơn ${b.bookingCode}`}
+              loading={deleteSaving}
+              disabled={isRowSaving}
+              onClick={onDelete}
+            >
+              <TrashIcon />
+            </IconButton>
+          ) : null}
         </HStack>
       </TableCell>
     </TableRow>

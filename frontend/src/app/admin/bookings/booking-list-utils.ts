@@ -112,6 +112,8 @@ export function formatPickupAtRelative(
   return `${time} ${dayPart}`;
 }
 
+export { formatPickupAtMobileCard } from "@/lib/datetime-vn";
+
 export function formatPickupAtTable(iso: string): string {
   return formatPickupAtRelative(iso);
 }
@@ -189,6 +191,11 @@ export const SEARCH_RENTING_STATUSES = new Set<BookingStatusValue>(["RENTING"]);
 
 export function isActiveRentingStatus(status: BookingStatusValue): boolean {
   return status === "RENTING";
+}
+
+/** Admin chỉ xóa đơn chờ cọc hoặc đã hủy (đồng bộ backend). */
+export function canAdminDeleteBooking(status: string): boolean {
+  return status === "PENDING_PAYMENT" || status === "CANCELLED";
 }
 
 function pickupSortTimeMs(b: Booking): number {

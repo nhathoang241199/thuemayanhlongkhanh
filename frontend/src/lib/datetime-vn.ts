@@ -15,6 +15,10 @@ const SLOT_TIME_WINDOWS: Record<
 const FULL_DAY_EARLY_PICKUP_START_HOUR = 17;
 const FULL_DAY_EARLY_PICKUP_END_HOUR = 23;
 
+/** Ca cả ngày — giờ nhận trong ngày thuê (picker; khoảng thuê vẫn 7h–23h). */
+const FULL_DAY_SAME_DAY_PICKUP_START_HOUR = 6;
+const FULL_DAY_SAME_DAY_PICKUP_END_HOUR = 22;
+
 /** Buổi ca — được nhận máy sớm hơn giờ bắt đầu ca. */
 const SHIFT_EARLY_PICKUP_HOURS = 1;
 
@@ -56,6 +60,42 @@ function weekdayYmd(ymd: string): number {
 /** Thứ Bảy theo lịch (YYYY-MM-DD). */
 export function isSaturdayYmd(ymd: string): boolean {
   return weekdayYmd(ymd) === 6;
+}
+
+const WEEKDAY_LABEL_VI = [
+  "chủ nhật",
+  "thứ hai",
+  "thứ ba",
+  "thứ tư",
+  "thứ năm",
+  "thứ sáu",
+  "thứ bảy",
+] as const;
+
+function weekdayLabelViFromYmd(ymd: string): string {
+  return WEEKDAY_LABEL_VI[weekdayYmd(ymd)];
+}
+
+/**
+ * Ngày kèm thứ: "chủ nhật hôm nay", "thứ hai ngày mai", "chủ nhật 31-05".
+ */
+export function formatDayWithWeekdayLowerVi(
+  iso: string,
+  refDate: Date = new Date(),
+): string {
+  const key = isoToCalendarDateKey(iso);
+  if (!key) return iso;
+  const weekday = weekdayLabelViFromYmd(key);
+  const today = vnTodayDateKey(refDate);
+  const diff = Math.round(
+    (parseYmdLocal(key).getTime() - parseYmdLocal(today).getTime()) /
+      86_400_000,
+  );
+  if (diff === 0) return `${weekday} hôm nay`;
+  if (diff === -1) return `${weekday} hôm qua`;
+  if (diff === 1) return `${weekday} ngày mai`;
+  const [, m, d] = key.split("-");
+  return `${weekday} ${d}-${m}`;
 }
 
 /** Giờ sớm nhất được nhận máy hôm trước ngày thuê (ca cả ngày). */
@@ -111,12 +151,17 @@ export function pickupAllowedHours(
       );
     }
     if (dateYmd === startDate) {
-      return hourRange(w.startHour, w.endHour);
+      return hourRange(
+        FULL_DAY_SAME_DAY_PICKUP_START_HOUR,
+        FULL_DAY_SAME_DAY_PICKUP_END_HOUR,
+      );
     }
     return [];
   }
   if (dateYmd !== startDate) return [];
-  return hourRange(w.startHour - SHIFT_EARLY_PICKUP_HOURS, w.endHour);
+  const pickupStartHour = w.startHour - SHIFT_EARLY_PICKUP_HOURS;
+  const pickupEndHour = w.endHour - 1;
+  return hourRange(pickupStartHour, pickupEndHour);
 }
 
 export function pickupPartsToLocal(parts: PickupTimeParts): string {
@@ -149,14 +194,19 @@ export function slotPickupBounds(
         fullDayEarlyPickupStartHour(prevDay),
         0,
       ),
-      maxLocal: toDatetimeLocalValue(startDate, w.endHour, 0),
+      maxLocal: toDatetimeLocalValue(
+        startDate,
+        FULL_DAY_SAME_DAY_PICKUP_END_HOUR,
+        0,
+      ),
       defaultLocal: toDatetimeLocalValue(startDate, w.startHour, 0),
     };
   }
   const pickupStartHour = w.startHour - SHIFT_EARLY_PICKUP_HOURS;
+  const pickupEndHour = w.endHour - 1;
   return {
     minLocal: toDatetimeLocalValue(startDate, pickupStartHour, 0),
-    maxLocal: toDatetimeLocalValue(startDate, w.endHour, 59),
+    maxLocal: toDatetimeLocalValue(startDate, pickupEndHour, 59),
     defaultLocal: toDatetimeLocalValue(startDate, w.startHour, 0),
   };
 }
@@ -195,10 +245,10 @@ export function validatePickupAtLocal(
         return null;
       }
       if (datePart === startDate) {
-        const startMinutes = w.startHour * 60;
-        const endMinutes = w.endHour * 60 + 59;
+        const startMinutes = FULL_DAY_SAME_DAY_PICKUP_START_HOUR * 60;
+        const endMinutes = FULL_DAY_SAME_DAY_PICKUP_END_HOUR * 60 + 59;
         if (totalMinutes < startMinutes || totalMinutes > endMinutes) {
-          return `Thời gian nhận máy trong ngày thuê phải từ ${w.startHour}h đến ${w.endHour}h`;
+          return "Thời gian nhận máy trong ngày thuê phải từ 6h đến 22h";
         }
         return null;
       }
@@ -209,10 +259,11 @@ export function validatePickupAtLocal(
       return "Thời gian nhận máy phải trong ngày bắt đầu thuê";
     }
     const pickupStartHour = w.startHour - SHIFT_EARLY_PICKUP_HOURS;
+    const pickupEndHour = w.endHour - 1;
     const minMinutes = pickupStartHour * 60;
-    const maxMinutes = w.endHour * 60 + 59;
+    const maxMinutes = pickupEndHour * 60 + 59;
     if (totalMinutes < minMinutes || totalMinutes > maxMinutes) {
-      return `Thời gian nhận máy phải từ ${pickupStartHour}h đến ${w.endHour}h trong ngày thuê (ca ${w.startHour}h–${w.endHour}h)`;
+      return `Thời gian nhận máy phải từ ${pickupStartHour}h đến ${pickupEndHour}h trong ngày thuê (ca ${w.startHour}h–${w.endHour}h)`;
     }
     return null;
   } catch {
@@ -246,6 +297,18 @@ export function isoToCalendarDateKey(iso: string): string {
 /** Hôm nay theo lịch VN (YYYY-MM-DD). */
 export function vnTodayDateKey(ref: Date = new Date()): string {
   return isoToCalendarDateKey(ref.toISOString());
+}
+
+/** Đơn thuê có phủ calendar day `dateKey` (YYYY-MM-DD, VN) không. */
+export function bookingCoversDateKeyVN(
+  startIso: string,
+  endIso: string,
+  dateKey: string,
+): boolean {
+  const startKey = isoToCalendarDateKey(startIso);
+  const endKey = isoToCalendarDateKey(endIso);
+  if (!startKey || !endKey || !dateKey) return false;
+  return startKey <= dateKey && dateKey <= endKey;
 }
 
 /** Ngày nhận máy (VN) là hôm qua, hôm nay hoặc ngày mai. */
@@ -310,15 +373,110 @@ export function formatPickupAtVi(iso: string): string {
   return pickupFmt.format(d);
 }
 
-/** datetime-local (VN) → hiển thị dd/mm/yyyy, HH:mm. */
+function pickupHourMinuteVN(
+  iso: string,
+): { hour: number; minute: number } | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  }).formatToParts(d);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return { hour, minute };
+}
+
+/** Giờ nhận máy dạng "3 giờ chiều" (múi VN). */
+function vnPickupTimePhrase(hour24: number): string {
+  if (hour24 >= 6 && hour24 <= 10) {
+    return `${hour24} giờ sáng`;
+  }
+  if (hour24 === 11 || hour24 === 12) {
+    return `${hour24} giờ trưa`;
+  }
+  if (hour24 >= 13 && hour24 <= 17) {
+    return `${hour24 - 12} giờ chiều`;
+  }
+  if (hour24 >= 18 && hour24 <= 23) {
+    return `${hour24 - 12} giờ tối`;
+  }
+  if (hour24 >= 0 && hour24 <= 5) {
+    const h = hour24 === 0 ? 12 : hour24;
+    return `${h} giờ đêm`;
+  }
+  return `${hour24} giờ`;
+}
+
+function parseYmdLocal(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** T2–T7, CN (Chủ nhật). */
+const WEEKDAY_ABBR_VI = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"] as const;
+
+/** "CN, 31/05" từ ISO (lịch VN). */
+export function formatWeekdayDateAbbrViFromIso(iso: string): string {
+  const key = isoToCalendarDateKey(iso);
+  if (!key) return iso;
+  const weekday = WEEKDAY_ABBR_VI[weekdayYmd(key)];
+  const [, m, d] = key.split("-");
+  return `${weekday}, ${d}/${m}`;
+}
+
+/** Buổi trong ngày (chỉ tên buổi, không kèm giờ). */
+function vnPickupDayPeriod(hour24: number): string {
+  if (hour24 >= 6 && hour24 <= 10) return "sáng";
+  if (hour24 === 11 || hour24 === 12) return "trưa";
+  if (hour24 >= 13 && hour24 <= 17) return "chiều";
+  if (hour24 >= 18 && hour24 <= 23) return "tối";
+  return "đêm";
+}
+
+/**
+ * Trang /home: "07:00 sáng – CN, 31/05".
+ */
+export function formatPickupAtHomeDisplay(iso: string): string {
+  const hm = pickupHourMinuteVN(iso);
+  if (!hm) return iso;
+  const key = isoToCalendarDateKey(iso);
+  if (!key) return iso;
+  const period = vnPickupDayPeriod(hm.hour);
+  return `${pad2(hm.hour)}:${pad2(hm.minute)} ${period} – ${formatWeekdayDateAbbrViFromIso(iso)}`;
+}
+
+/**
+ * Admin mobile card: "3 giờ chiều chủ nhật hôm nay".
+ */
+export function formatPickupAtMobileCard(
+  iso: string,
+  refDate: Date = new Date(),
+): string {
+  const hm = pickupHourMinuteVN(iso);
+  if (!hm) return iso;
+  const timePhrase = vnPickupTimePhrase(hm.hour);
+  const dayPart = formatDayWithWeekdayLowerVi(iso, refDate);
+  return `${timePhrase} ${dayPart}`;
+}
+
+/** datetime-local (VN) → hiển thị HH:mm, dd/mm/yyyy. */
 export function formatPickupAtLocalVi(local: string): string {
   try {
     const { datePart, totalMinutes } = pickupLocalParts(local);
     const [y, m, d] = datePart.split("-");
     const hour = Math.floor(totalMinutes / 60);
     const minute = totalMinutes % 60;
-    return `${d}/${m}/${y}, ${pad2(hour)}:${pad2(minute)}`;
+    return `${pad2(hour)}:${pad2(minute)}, ${d}/${m}/${y}`;
   } catch {
+    const [datePart, timePart] = local.split("T");
+    if (datePart && timePart) {
+      const [y, m, d] = datePart.split("-");
+      return `${timePart}, ${d}/${m}/${y}`;
+    }
     return local.replace("T", ", ");
   }
 }

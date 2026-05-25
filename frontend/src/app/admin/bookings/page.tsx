@@ -48,6 +48,7 @@ import {
   BOOKING_PAYMENT_EDIT_OPTIONS,
   BOOKING_STATUS_EDIT_OPTIONS,
   bookingLocalDateKey,
+  canAdminDeleteBooking,
   filterAndSortMobileTodayBookings,
   isMobileTodayBookingsMode,
   sortAdminSearchBookings,
@@ -65,6 +66,7 @@ import {
   type CalendarDay,
 } from "@/lib/booking-api";
 import {
+  bookingCoversDateKeyVN,
   datetimeLocalToIso,
   isoToCalendarDateKey,
   isoToDatetimeLocal,
@@ -861,6 +863,10 @@ export default function AdminBookingsPage() {
   ]);
 
   const handleBookingDelete = useCallback((booking: Booking) => {
+    if (!canAdminDeleteBooking(booking.status)) {
+      setPatchError("Chỉ xóa được đơn chờ cọc hoặc đơn đã hủy.");
+      return;
+    }
     if (
       !window.confirm(
         `Xóa đơn ${booking.bookingCode}? Thao tác không hoàn tác.`,
@@ -937,10 +943,20 @@ export default function AdminBookingsPage() {
 
     const filtered = bookings.filter((b) => {
       if (applyDateFilter) {
-        const dateKey = filterByPickupTime
-          ? bookingLocalDateKey(b.pickupAt ?? b.startBookingDate)
-          : bookingLocalDateKey(b.startBookingDate);
-        if (dateKey !== filterDateKey) {
+        if (filterByPickupTime) {
+          const pickupKey = bookingLocalDateKey(
+            b.pickupAt ?? b.startBookingDate,
+          );
+          if (pickupKey !== filterDateKey) {
+            return false;
+          }
+        } else if (
+          !bookingCoversDateKeyVN(
+            b.startBookingDate,
+            b.endBookingDate,
+            filterDateKey,
+          )
+        ) {
           return false;
         }
       }
@@ -1127,8 +1143,10 @@ export default function AdminBookingsPage() {
         ? "Không có đơn chờ cọc, chờ lấy máy, đang thuê (trả hôm nay) hoặc hoàn tất (nhận hôm nay/ngày mai)."
         : showAllDates
           ? "Không có đơn phù hợp bộ lọc trạng thái, máy ảnh hoặc tìm kiếm."
-          : "Không có đơn trong ngày đã chọn, bộ lọc trạng thái/thanh toán/máy hoặc khớp tìm kiếm.",
-    [mobileTodayMode, showAllDates],
+          : filterByPickupTime
+            ? "Không có đơn trong ngày đã chọn, bộ lọc trạng thái/thanh toán/máy hoặc khớp tìm kiếm."
+            : "Không có đơn trong kỳ thuê ngày đã chọn, bộ lọc trạng thái/thanh toán/máy hoặc khớp tìm kiếm.",
+    [mobileTodayMode, showAllDates, filterByPickupTime],
   );
 
   const handleListPageSizeChange = useCallback((size: number) => {
@@ -1259,7 +1277,9 @@ export default function AdminBookingsPage() {
                       fontWeight="medium"
                       color="fg.muted"
                     >
-                      {filterByPickupTime ? "Ngày nhận máy" : "Ngày thuê"}
+                      {filterByPickupTime
+                        ? "Ngày nhận máy"
+                        : "Ngày trong kỳ thuê"}
                     </Text>
                     <Input
                       type="date"
@@ -1276,7 +1296,7 @@ export default function AdminBookingsPage() {
                       aria-label={
                         filterByPickupTime
                           ? "Lọc theo ngày nhận máy"
-                          : "Lọc theo ngày thuê"
+                          : "Lọc theo ngày trong kỳ thuê"
                       }
                       _focusVisible={{
                         borderColor: "ocean.500",

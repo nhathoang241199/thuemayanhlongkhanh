@@ -33,17 +33,15 @@ import { slotLabelVi } from "@/lib/booking-status";
 import { BookingCccdAction } from "./booking-cccd-action";
 import { BookingStatusMenuCell } from "./booking-menu-cells";
 import {
-  CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ClockIcon,
   NoteIcon,
 } from "./booking-list-icons";
 import type { BookingListRowProps } from "./booking-list-row";
 import {
   bookingVnDateKey,
   formatBookingDateRelative,
-  formatPickupAtRelative,
+  formatPickupAtMobileCard,
   paymentBadgeProps,
   vnd,
 } from "./booking-list-utils";
@@ -70,6 +68,10 @@ function BookingListCardInner({
     bookingVnDateKey(b.startBookingDate) !== bookingVnDateKey(b.endBookingDate)
       ? `${formatBookingDateRelative(b.startBookingDate)} → ${formatBookingDateRelative(b.endBookingDate)}`
       : formatBookingDateRelative(b.startBookingDate);
+
+  const usageDetail = `${slotLabelVi(b.slot)} ${dateLabel}`.toLocaleLowerCase(
+    "vi-VN",
+  );
 
   const pay = paymentBadgeProps(b.paymentStatus);
   const bookingSettled =
@@ -136,67 +138,68 @@ function BookingListCardInner({
         </HStack>
       </AdminDataCardHeader>
 
-      <HStack justify="space-between" align="flex-start" gap={3} pt={1} pb={1} w="full">
-        <Stack gap={1} flex="1" minW={0} fontSize="sm">
-          <HStack gap={1.5} align="center" minW={0}>
-            <CalendarIcon
-              boxSize="1rem"
+      <Stack gap={1} pt={1} pb={1} w="full">
+        <HStack justify="space-between" align="center" gap={3} w="full">
+          <Text
+            fontSize="3xl"
+            fontWeight="bold"
+            lineHeight="short"
+            flex="1"
+            minW={0}
+          >
+            {b.camera.name}
+          </Text>
+          {showTotal ? (
+            <Text
+              fontSize="xl"
+              fontWeight="bold"
+              lineHeight="short"
+              textAlign="right"
+              flexShrink={0}
+            >
+              {vnd.format(b.amount)}
+            </Text>
+          ) : showBalanceDue ? (
+            <Text
+              fontSize="xl"
+              fontWeight="bold"
+              lineHeight="short"
+              textAlign="right"
+              flexShrink={0}
+            >
+              {vnd.format(balanceDueVnd(b.amount))}
+            </Text>
+          ) : null}
+        </HStack>
+        <Stack gap={1} fontSize="sm" w="full">
+          <HStack gap={1.5} align="baseline" minW={0}>
+            <Text
               color="fg.muted"
               flexShrink={0}
-              aria-hidden
-            />
-            <Text lineHeight="short" minW={0}>
-              {dateLabel}
+              lineHeight="short"
+              fontWeight="medium"
+            >
+              Sử dụng:
+            </Text>
+            <Text color="fg.muted" lineHeight="short" minW={0} fontWeight="normal">
+              {usageDetail}
             </Text>
           </HStack>
-          <HStack gap={1.5} align="center" minW={0}>
-            <ClockIcon
-              boxSize="1rem"
+          <HStack gap={1.5} align="baseline" minW={0}>
+            <Text
               color="fg.muted"
               flexShrink={0}
-              aria-hidden
-            />
-            <Text color="fg.muted" lineHeight="short" minW={0}>
-              {b.pickupAt ? formatPickupAtRelative(b.pickupAt) : "—"}
+              lineHeight="short"
+              fontWeight="medium"
+            >
+              Nhận máy:
+            </Text>
+            <Text color="fg.muted" lineHeight="short" minW={0} fontWeight="normal">
+              {b.pickupAt ? formatPickupAtMobileCard(b.pickupAt) : "—"}
             </Text>
           </HStack>
         </Stack>
-        <Text
-          fontSize="3xl"
-          fontWeight="bold"
-          lineHeight="short"
-          textAlign="right"
-          flexShrink={0}
-        >
-          {b.camera.name}
-        </Text>
-      </HStack>
-      <HStack justify="space-between" align="center" pt={1} w="full" gap={3}>
-        <Text fontSize="md" fontWeight="medium" lineHeight="short">
-          {slotLabelVi(b.slot)}
-        </Text>
-        {showTotal ? (
-          <Text
-            fontSize="xl"
-            fontWeight="bold"
-            lineHeight="short"
-            textAlign="right"
-            flexShrink={0}
-          >
-            {vnd.format(b.amount)}
-          </Text>
-        ) : showBalanceDue ? (
-          <Text
-            fontSize="xl"
-            fontWeight="bold"
-            lineHeight="short"
-            textAlign="right"
-            flexShrink={0}
-          >
-            {vnd.format(balanceDueVnd(b.amount))}
-          </Text>
-        ) : null}
-      </HStack>
+      </Stack>
 
       <AdminDataCardActions justify="space-between">
         <HStack gap={1}>
