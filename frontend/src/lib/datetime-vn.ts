@@ -449,8 +449,27 @@ export function formatPickupAtHomeDisplay(iso: string): string {
   return `${pad2(hm.hour)}:${pad2(hm.minute)} ${period} – ${formatWeekdayDateAbbrViFromIso(iso)}`;
 }
 
+/** Ngày nhận máy gọn (không thứ): "hôm nay", "hôm qua", "ngày mai", "31-05". */
+function formatPickupDayRelativeLowerVi(
+  iso: string,
+  refDate: Date = new Date(),
+): string {
+  const key = isoToCalendarDateKey(iso);
+  if (!key) return iso;
+  const today = vnTodayDateKey(refDate);
+  const diff = Math.round(
+    (parseYmdLocal(key).getTime() - parseYmdLocal(today).getTime()) /
+      86_400_000,
+  );
+  if (diff === 0) return "hôm nay";
+  if (diff === -1) return "hôm qua";
+  if (diff === 1) return "ngày mai";
+  const [, m, d] = key.split("-");
+  return `${d}-${m}`;
+}
+
 /**
- * Admin mobile card: "3 giờ chiều chủ nhật hôm nay".
+ * Admin mobile card: "7 giờ tối hôm nay" (không kèm thứ).
  */
 export function formatPickupAtMobileCard(
   iso: string,
@@ -459,7 +478,7 @@ export function formatPickupAtMobileCard(
   const hm = pickupHourMinuteVN(iso);
   if (!hm) return iso;
   const timePhrase = vnPickupTimePhrase(hm.hour);
-  const dayPart = formatDayWithWeekdayLowerVi(iso, refDate);
+  const dayPart = formatPickupDayRelativeLowerVi(iso, refDate);
   return `${timePhrase} ${dayPart}`;
 }
 
