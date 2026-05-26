@@ -43,6 +43,7 @@ import {
   cardSurfaceProps,
   fieldInputProps,
 } from "@/lib/app-theme";
+import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { apiBase } from "@/lib/api-base";
 import { toaster } from "@/lib/toaster";
 
@@ -128,10 +129,7 @@ export default function AdminPage() {
         `${apiBase()}/api/stats/monthly-summary?year=${y}&month=${m}`,
         { credentials: "include", signal },
       );
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || res.statusText);
-      }
+      await throwIfNotOk(res, "Lỗi tải dữ liệu");
       return (await res.json()) as MonthlySummary;
     },
     [],
@@ -144,7 +142,8 @@ export default function AdminPage() {
       setData(json);
     } catch (e) {
       setData(null);
-      setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+      const msg = toastApiError(e, "Lỗi tải dữ liệu");
+      if (msg) setError(msg);
     }
   }, [fetchSummary, year, month]);
 
@@ -158,7 +157,8 @@ export default function AdminPage() {
       } catch (e) {
         if (ac.signal.aborted) return;
         setData(null);
-        setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+        const msg = toastApiError(e, "Lỗi tải dữ liệu");
+        if (msg) setError(msg);
       }
     })();
     return () => ac.abort();
@@ -222,18 +222,14 @@ export default function AdminPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Không thêm được chi phí.");
 
         closeExpenseModal();
         toaster.success({ title: "Đã thêm chi phí" });
         await refreshSummary();
       } catch (e) {
-        setExpenseModalError(
-          e instanceof Error ? e.message : "Không thêm được chi phí.",
-        );
+        const msg = toastApiError(e, "Không thêm được chi phí.");
+        if (msg) setExpenseModalError(msg);
       } finally {
         setExpenseSaving(false);
       }

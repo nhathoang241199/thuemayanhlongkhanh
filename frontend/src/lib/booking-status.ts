@@ -1,5 +1,6 @@
 import { dayCountInclusive } from "@/lib/booking-api";
 import {
+  addDaysYmd,
   formatWeekdayDateAbbrViFromIso,
   isoToCalendarDateKey,
 } from "@/lib/datetime-vn";
@@ -149,16 +150,34 @@ function bookingUsageSlotPrefix(slot: string, dayCount: number): string {
   }
 }
 
-/** Giá trị thời gian thuê (/home): "1 ngày – CN, 31/05", "sáng – T2, 01/06", … */
+function formatYmdSlashVi(ymd: string): string {
+  const [, m, d] = ymd.split("-");
+  if (!m || !d) return ymd;
+  return `${d}/${m}`;
+}
+
+/**
+ * Giá trị thời gian thuê (/home).
+ * 1 ngày: "1 ngày – CN, 31/05", "sáng – T2, 01/06", …
+ * ≥2 ngày: "27/05 → 30/05"; trả sáng hôm sau: "27/05 → 31/05(sáng)".
+ */
 export function formatBookingUsageDetailHome(
   startIso: string,
   endIso: string,
   slot: string,
+  returnNextMorning = false,
 ): string {
   const startKey = isoToCalendarDateKey(startIso);
   const endKey = isoToCalendarDateKey(endIso);
   if (!startKey || !endKey) return "—";
   const dayCount = dayCountInclusive(startKey, endKey);
+
+  if (dayCount >= 2) {
+    const endDisplayKey = returnNextMorning ? addDaysYmd(endKey, 1) : endKey;
+    const endSuffix = returnNextMorning ? "(sáng)" : "";
+    return `${formatYmdSlashVi(startKey)} → ${formatYmdSlashVi(endDisplayKey)}${endSuffix}`;
+  }
+
   const prefix = bookingUsageSlotPrefix(slot, dayCount);
   const dayPart = formatWeekdayDateAbbrViFromIso(startIso);
   return `${prefix} – ${dayPart}`;

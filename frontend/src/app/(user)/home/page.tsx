@@ -45,7 +45,6 @@ import {
   type CameraBrand,
 } from "@/lib/booking-api";
 import {
-  addDaysYmd,
   formatPickupAtHomeDisplay,
   isoToCalendarDateKey,
   pickupIsoIsYesterdayTodayOrTomorrowVn,
@@ -391,39 +390,25 @@ export default function UserHomePage() {
                       b.startBookingDate,
                       b.endBookingDate,
                       b.slot,
+                      b.returnNextMorning,
                     )}
                   </Text>
                 </Text>
-                {b.returnNextMorning ? (
-                  <Text fontSize="sm" color="fg.muted">
-                    Trả sáng hôm sau
-                    {(() => {
-                      const endKey = isoToCalendarDateKey(b.endBookingDate);
-                      if (!endKey) return "";
-                      const [, m, d] = addDaysYmd(endKey, 1).split("-");
-                      return ` (ca sáng ${d}/${m})`;
-                    })()}
-                  </Text>
-                ) : null}
+                
                 {b.pickupAt ? (
                   <Stack gap={0.5} align="stretch">
-                    <HStack
-                      justify="space-between"
-                      align="center"
-                      gap={2}
-                      w="full"
-                    >
-                      <Text fontSize="sm" color="fg.muted" flex="1" minW={0}>
-                        Nhận máy:{" "}
-                        <Text
-                          as="span"
-                          fontWeight="medium"
-                          color={titleColor}
-                        >
-                          {formatPickupAtHomeDisplay(b.pickupAt)}
-                        </Text>
+                    <Text fontSize="sm" color="fg.muted">
+                      Nhận máy:{" "}
+                      <Text
+                        as="span"
+                        fontWeight="medium"
+                        color={titleColor}
+                      >
+                        {formatPickupAtHomeDisplay(b.pickupAt)}
                       </Text>
-                      {readinessBadge ? (
+                    </Text>
+                    {readinessBadge ? (
+                      <HStack justify="flex-end" w="full">
                         <Badge
                           variant="subtle"
                           colorPalette={readinessBadge.colorPalette}
@@ -431,8 +416,8 @@ export default function UserHomePage() {
                         >
                           {readinessBadge.label}
                         </Badge>
-                      ) : null}
-                    </HStack>
+                      </HStack>
+                    ) : null}
                     {showCameraReadiness && b.cameraReady === false ? (
                       <Box {...userWarningNoteProps}>
                         <Text {...userWarningNoteTextProps}>
@@ -452,7 +437,7 @@ export default function UserHomePage() {
                     </Box>
                   </Stack>
                 ) : null}
-                <Text fontSize="sm" fontWeight="medium">
+                <Text fontSize="sm" mt={2} fontWeight="medium">
                   Tổng: {vnd.format(b.amount)}
                 </Text>
                 {balanceDue > 0 ? (

@@ -98,6 +98,7 @@ import {
   fieldInputProps,
   titleColor,
 } from "@/lib/app-theme";
+import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { toaster } from "@/lib/toaster";
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50] as const;
@@ -506,10 +507,7 @@ export default function AdminBookingsPage() {
           body: JSON.stringify(body),
         },
       );
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || res.statusText);
-      }
+      await throwIfNotOk(res);
       const updated = normalizeBooking((await res.json()) as Booking);
       setBookings((prev) =>
         prev?.map((row) => (row.id === id ? updated : row)) ?? null,
@@ -538,11 +536,8 @@ export default function AdminBookingsPage() {
       try {
         await patchBooking(id, { status });
       } catch (e) {
-        setPatchError(
-          e instanceof Error
-            ? e.message
-            : "Không cập nhật được trạng thái đơn.",
-        );
+        const msg = toastApiError(e, "Không cập nhật được trạng thái đơn.");
+        if (msg) setPatchError(msg);
       } finally {
         setStatusSavingId(null);
       }
@@ -557,11 +552,11 @@ export default function AdminBookingsPage() {
       try {
         await patchBooking(id, { paymentStatus });
       } catch (e) {
-        setPatchError(
-          e instanceof Error
-            ? e.message
-            : "Không cập nhật được trạng thái thanh toán.",
+        const msg = toastApiError(
+          e,
+          "Không cập nhật được trạng thái thanh toán.",
         );
+        if (msg) setPatchError(msg);
       } finally {
         setPaymentSavingId(null);
       }
@@ -582,9 +577,8 @@ export default function AdminBookingsPage() {
             toaster.success({ title: msg });
           }
         } catch (e) {
-          setPatchError(
-            e instanceof Error ? e.message : "Không cập nhật được đơn.",
-          );
+          const msg = toastApiError(e, "Không cập nhật được đơn.");
+          if (msg) setPatchError(msg);
         } finally {
           setQuickAdvanceSavingId(null);
         }
@@ -606,9 +600,8 @@ export default function AdminBookingsPage() {
             toaster.success({ title: msg });
           }
         } catch (e) {
-          setPatchError(
-            e instanceof Error ? e.message : "Không cập nhật được đơn.",
-          );
+          const msg = toastApiError(e, "Không cập nhật được đơn.");
+          if (msg) setPatchError(msg);
         } finally {
           setQuickAdvanceSavingId(null);
         }
@@ -624,27 +617,22 @@ export default function AdminBookingsPage() {
       const camRes = await fetch(`${apiBase()}/api/cameras`, {
         credentials: "include",
       });
-      if (!camRes.ok) {
-        throw new Error("Không tải được danh sách máy");
-      }
+      await throwIfNotOk(camRes, "Không tải được danh sách máy");
       const cameras = (await camRes.json()) as AdminCameraOption[];
       setEditCameras(cameras);
       if (mode === "edit") {
         const custRes = await fetch(`${apiBase()}/api/customers`, {
           credentials: "include",
         });
-        if (!custRes.ok) {
-          throw new Error("Không tải được danh sách khách");
-        }
+        await throwIfNotOk(custRes, "Không tải được danh sách khách");
         const customers = (await custRes.json()) as AdminCustomerOption[];
         setEditCustomers(customers);
       } else {
         setEditCustomers([]);
       }
     } catch (e) {
-      setEditError(
-        e instanceof Error ? e.message : "Không tải được dữ liệu form",
-      );
+      const msg = toastApiError(e, "Không tải được dữ liệu form");
+      if (msg) setEditError(msg);
     } finally {
       setEditOptionsLoading(false);
     }
@@ -707,7 +695,10 @@ export default function AdminBookingsPage() {
       createCalendarYm.month,
     )
       .then((data) => setCreateCalendarDays(data.days))
-      .catch(() => setCreateCalendarDays(undefined));
+      .catch((e) => {
+        toastApiError(e, "Không tải được lịch trống");
+        setCreateCalendarDays(undefined);
+      });
   }, [bookingFormMode, editForm?.cameraId, createCalendarYm]);
 
   const createBooking = useCallback(
@@ -718,10 +709,7 @@ export default function AdminBookingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || res.statusText);
-      }
+      await throwIfNotOk(res, "Không tạo được đơn");
       const created = normalizeBooking((await res.json()) as Booking);
       setBookings((prev) => (prev ? [created, ...prev] : [created]));
       return created;
@@ -841,13 +829,11 @@ export default function AdminBookingsPage() {
         }
         closeBookingForm();
       } catch (e) {
-        setEditError(
-          e instanceof Error
-            ? e.message
-            : isCreate
-              ? "Không tạo được đơn."
-              : "Không cập nhật được đơn.",
+        const msg = toastApiError(
+          e,
+          isCreate ? "Không tạo được đơn." : "Không cập nhật được đơn.",
         );
+        if (msg) setEditError(msg);
       } finally {
         setEditSaving(false);
       }
@@ -864,7 +850,9 @@ export default function AdminBookingsPage() {
 
   const handleBookingDelete = useCallback((booking: Booking) => {
     if (!canAdminDeleteBooking(booking.status)) {
-      setPatchError("Chỉ xóa được đơn chờ cọc hoặc đơn đã hủy.");
+      const msg = "Chỉ xóa được đơn chờ cọc hoặc đơn đã hủy.";
+      toaster.error({ title: msg });
+      setPatchError(msg);
       return;
     }
     if (
@@ -885,16 +873,12 @@ export default function AdminBookingsPage() {
             credentials: "include",
           },
         );
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Không xóa được đơn thuê.");
         setBookings((prev) => prev?.filter((row) => row.id !== booking.id) ?? null);
         toaster.success({ title: `Đã xóa đơn ${booking.bookingCode}` });
       } catch (e) {
-        setPatchError(
-          e instanceof Error ? e.message : "Không xóa được đơn thuê.",
-        );
+        const msg = toastApiError(e, "Không xóa được đơn thuê.");
+        if (msg) setPatchError(msg);
       } finally {
         setDeleteSavingId(null);
       }
@@ -993,16 +977,14 @@ export default function AdminBookingsPage() {
         credentials: "include",
         signal,
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || res.statusText);
-      }
+      await throwIfNotOk(res, "Lỗi tải dữ liệu đơn thuê");
       const json = (await res.json()) as Booking[];
       if (!signal?.aborted) setBookings(normalizeBookings(json));
     } catch (e) {
       if (signal?.aborted) return;
       setBookings(null);
-      setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+      const msg = toastApiError(e, "Lỗi tải dữ liệu");
+      if (msg) setError(msg);
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -1054,7 +1036,8 @@ export default function AdminBookingsPage() {
         if (res.ok) {
           setFilterCameras((await res.json()) as AdminCameraOption[]);
         }
-      } catch {
+      } catch (e) {
+        toastApiError(e, "Không tải danh sách máy lọc");
         setFilterCameras([]);
       }
     })();

@@ -1,3 +1,4 @@
+import { throwIfNotOk } from "@/lib/admin-api";
 import { apiBase } from "@/lib/api-base";
 
 export const VERIFICATION_IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
@@ -61,10 +62,7 @@ export async function uploadCustomerVerificationImage(
       body: form,
     },
   );
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(text || res.statusText);
-  }
+  await throwIfNotOk(res, "Không tải được ảnh");
   const json = (await res.json()) as { verificationImageUrls?: unknown };
   return parseVerificationUrls(json.verificationImageUrls);
 }

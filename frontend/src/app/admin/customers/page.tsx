@@ -34,6 +34,7 @@ import {
   AdminDataCardRow,
 } from "@/components/admin/admin-data-card";
 import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table";
+import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
@@ -234,10 +235,7 @@ export default function AdminCustomersPage() {
           const res = await fetch(`${apiBase()}/api/customers?${params}`, {
             credentials: "include",
           });
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error(text || res.statusText);
-          }
+          await throwIfNotOk(res, "Lỗi tải dữ liệu");
           const raw = await res.json();
           json = normalizeCustomersListResponse(
             raw,
@@ -265,7 +263,8 @@ export default function AdminCustomersPage() {
         if (cancelled) return;
         setCustomers(null);
         setTotal(0);
-        setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+        const msg = toastApiError(e, "Lỗi tải dữ liệu");
+        if (msg) setError(msg);
       } finally {
         if (!cancelled) setLoading(false);
       }

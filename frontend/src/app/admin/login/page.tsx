@@ -17,6 +17,7 @@ import {
   adminShellBg,
   cardSurfaceProps,
 } from "@/lib/app-theme";
+import { toastApiError } from "@/lib/admin-api";
 import { adminLogin } from "@/lib/admin-auth";
 
 function AdminLoginForm() {
@@ -39,7 +40,8 @@ function AdminLoginForm() {
         router.replace(from.startsWith("/admin") ? from : "/admin");
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
+        const msg = toastApiError(err, "Đăng nhập thất bại");
+        if (msg) setError(msg);
       } finally {
         setLoading(false);
       }

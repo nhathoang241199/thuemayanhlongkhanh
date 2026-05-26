@@ -18,6 +18,7 @@ import NextLink from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
@@ -84,16 +85,14 @@ export default function AdminCustomerDetailPage() {
           credentials: "include",
           signal: ac.signal,
         });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Lỗi tải dữ liệu");
         const json = normalizeCustomer((await res.json()) as Customer);
         if (!ac.signal.aborted) setCustomer(json);
       } catch (e) {
         if (ac.signal.aborted) return;
         setCustomer(null);
-        setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+        const msg = toastApiError(e, "Lỗi tải dữ liệu");
+        if (msg) setError(msg);
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
@@ -113,16 +112,12 @@ export default function AdminCustomerDetailPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isVerified: nextVerified }),
         });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Không cập nhật được xác minh");
         const json = normalizeCustomer((await res.json()) as Customer);
         setCustomer(json);
       } catch (e) {
-        setVerifyError(
-          e instanceof Error ? e.message : "Không cập nhật được xác minh",
-        );
+        const msg = toastApiError(e, "Không cập nhật được xác minh");
+        if (msg) setVerifyError(msg);
         setCustomer((c) =>
           c ? { ...c, isVerified: revertTo } : c,
         );

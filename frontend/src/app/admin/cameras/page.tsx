@@ -41,6 +41,7 @@ import {
   AdminDataCardRow,
 } from "@/components/admin/admin-data-card";
 import { AdminResponsiveTable } from "@/components/admin/admin-responsive-table";
+import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
@@ -325,16 +326,14 @@ export default function AdminCamerasPage() {
           credentials: "include",
           signal: ac.signal,
         });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Lỗi tải dữ liệu");
         const json = (await res.json()) as Camera[];
         if (!ac.signal.aborted) setCameras(json);
       } catch (e) {
         if (ac.signal.aborted) return;
         setCameras(null);
-        setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+        const msg = toastApiError(e, "Lỗi tải dữ liệu");
+        if (msg) setError(msg);
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
@@ -405,17 +404,15 @@ export default function AdminCamerasPage() {
             discountPercent: editForm.discountPercent,
           }),
         });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Lỗi lưu");
         const updated = (await res.json()) as Camera;
         setCameras((prev) =>
           prev ? prev.map((x) => (x.id === updated.id ? updated : x)) : null,
         );
         closeModal();
       } catch (e) {
-        setModalError(e instanceof Error ? e.message : "Lỗi lưu");
+        const msg = toastApiError(e, "Lỗi lưu");
+        if (msg) setModalError(msg);
       } finally {
         setSaving(false);
       }
@@ -451,15 +448,13 @@ export default function AdminCamerasPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Lỗi tạo máy");
         const created = (await res.json()) as Camera;
         setCameras((prev) => (prev ? [created, ...prev] : [created]));
         closeCreateModal();
       } catch (e) {
-        setCreateError(e instanceof Error ? e.message : "Lỗi tạo máy");
+        const msg = toastApiError(e, "Lỗi tạo máy");
+        if (msg) setCreateError(msg);
       } finally {
         setCreateSaving(false);
       }
@@ -482,10 +477,7 @@ export default function AdminCamerasPage() {
           method: "DELETE",
           credentials: "include",
         });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Lỗi xóa");
         setEditing((prev) => {
           if (prev?.id === c.id) {
             setModalError(null);
@@ -497,7 +489,8 @@ export default function AdminCamerasPage() {
           prev ? prev.filter((x) => x.id !== c.id) : null,
         );
       } catch (e) {
-        setDeleteError(e instanceof Error ? e.message : "Lỗi xóa");
+        const msg = toastApiError(e, "Lỗi xóa");
+        if (msg) setDeleteError(msg);
       } finally {
         setDeletingId(null);
       }

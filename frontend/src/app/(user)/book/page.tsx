@@ -93,6 +93,9 @@ const vnd = new Intl.NumberFormat("vi-VN", {
   maximumFractionDigits: 0,
 });
 
+/** Khoảng cách phía trên nút Tiếp tục ở mỗi step. */
+const STEP_CONTINUE_BUTTON_PROPS = { mt: 8 } as const;
+
 function nowYm(): { year: number; month: number } {
   const t = new Date();
   const vn = new Date(t.getTime() + 7 * 60 * 60 * 1000);
@@ -813,13 +816,12 @@ function BookPageContent() {
               <CheckboxHiddenInput />
               <CheckboxControl />
               <CheckboxLabel fontSize="sm">
-                Trả vào sáng hôm sau
+                Trả trễ vào buổi sáng (trước 12h)
               </CheckboxLabel>
             </CheckboxRoot>
             {returnNextMorning && returnNextMorningSurcharge > 0 ? (
               <Text fontSize="xs" color="fg.muted" ps={6}>
-                Phụ phí: +{vnd.format(returnNextMorningSurcharge)} (50% giá
-                ngày)
+                Phụ phí: +{vnd.format(returnNextMorningSurcharge)}
               </Text>
             ) : null}
             {camera && morningNextDayAvailable === false ? (
@@ -879,15 +881,12 @@ function BookPageContent() {
               <CheckboxHiddenInput />
               <CheckboxControl />
               <CheckboxLabel fontSize="sm">
-                Trả vào sáng hôm sau
+                Trả trễ vào buổi sáng (trước 12h)
               </CheckboxLabel>
             </CheckboxRoot>
             {returnNextMorning && returnNextMorningSurcharge > 0 ? (
               <Text fontSize="xs" color="fg.muted" ps={6}>
-                Phụ phí: +{vnd.format(returnNextMorningSurcharge)} (50% giá
-                ngày, gồm ca sáng
-                {morningDate ? ` ${morningDate.split("-").reverse().join("/")}` : ""}
-                )
+                Phụ phí: +{vnd.format(returnNextMorningSurcharge)}
               </Text>
             ) : null}
             {camera && morningNextDayAvailable === false ? (
@@ -958,6 +957,7 @@ function BookPageContent() {
         )}
         <Button
           {...userSolidButtonProps}
+          {...STEP_CONTINUE_BUTTON_PROPS}
           disabled={!pickupAtLocal.trim()}
           onClick={() => tryAdvanceFromPickupStep(summaryStep)}
         >
@@ -1013,14 +1013,16 @@ function BookPageContent() {
             </Text>
           ) : null}
           {returnNextMorning && endDate ? (
-            <Text fontSize="sm" color="fg.muted">
-              <strong>Trả sáng hôm sau:</strong> gồm ca sáng ngày{" "}
+            <Text fontSize="sm">
+              <strong>Trả:</strong> Sáng ngày{" "}
               {(() => {
                 const [, m, d] = addDaysYmd(endDate, 1).split("-");
                 return `${d}/${m}`;
               })()}
             </Text>
           ) : null}
+
+          <Box mt={2}>
           {isChange ? (
             <>
               {discountPercent > 0 ? (
@@ -1039,12 +1041,7 @@ function BookPageContent() {
             </>
           ) : (
             <>
-              {returnNextMorningSurcharge > 0 ? (
-                <Text fontSize="sm" color="fg.muted">
-                  Trả sáng hôm sau (+50% giá ngày): +
-                  {vnd.format(returnNextMorningSurcharge)}
-                </Text>
-              ) : null}
+              
               {discountPercent > 0 ? (
                 <DiscountedPriceLine
                   label="Tiền thuê:"
@@ -1070,6 +1067,7 @@ function BookPageContent() {
               </Text>
             </>
           )}
+          </Box>
         </Stack>
         {rangeOk === false ? (
           <Text color="red.fg" fontSize="sm">
@@ -1372,6 +1370,7 @@ function BookPageContent() {
               ) : null}
               <Button
                 {...userSolidButtonProps}
+                {...STEP_CONTINUE_BUTTON_PROPS}
                 disabled={!startDate || !endDate || !fullDayCanContinue}
                 onClick={() => setStep(3)}
               >
@@ -1385,6 +1384,7 @@ function BookPageContent() {
               {renderSlotPicker()}
               <Button
                 {...userSolidButtonProps}
+                {...STEP_CONTINUE_BUTTON_PROPS}
                 disabled={!slotStepCanContinue()}
                 onClick={() => advanceFromSlotStep(pickupStep)}
               >
@@ -1427,6 +1427,7 @@ function BookPageContent() {
               ) : null}
               <Button
                 {...userSolidButtonProps}
+                {...STEP_CONTINUE_BUTTON_PROPS}
                 disabled={!startDate || !endDate || !fullDayCanContinue}
                 onClick={() => setStep(1)}
               >
@@ -1440,6 +1441,7 @@ function BookPageContent() {
               {renderSlotPicker()}
               <Button
                 {...userSolidButtonProps}
+                {...STEP_CONTINUE_BUTTON_PROPS}
                 disabled={!slotStepCanContinue()}
                 onClick={() => advanceFromSlotStep(2)}
               >

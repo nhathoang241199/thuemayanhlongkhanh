@@ -55,6 +55,7 @@ import {
   titleColor,
 } from "@/lib/app-theme";
 import { apiBase } from "@/lib/api-base";
+import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { toaster } from "@/lib/toaster";
 
 const MONTH_LABELS_VI = [
@@ -222,10 +223,7 @@ export default function AdminExpensesPage() {
       `${apiBase()}/api/expenses?year=${y}&month=${m}`,
       { credentials: "include", signal },
     );
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || res.statusText);
-    }
+    await throwIfNotOk(res, "Lỗi tải dữ liệu");
     return (await res.json()) as Expense[];
   }, []);
 
@@ -240,7 +238,8 @@ export default function AdminExpensesPage() {
       } catch (e) {
         if (ac.signal.aborted) return;
         setExpenses(null);
-        setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+        const msg = toastApiError(e, "Lỗi tải dữ liệu");
+        if (msg) setError(msg);
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
@@ -255,7 +254,8 @@ export default function AdminExpensesPage() {
       setExpenses(json);
     } catch (e) {
       setExpenses(null);
-      setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+      const msg = toastApiError(e, "Lỗi tải dữ liệu");
+      if (msg) setError(msg);
     }
   }, [loadExpenses, year, month]);
 
@@ -328,19 +328,15 @@ export default function AdminExpensesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Không lưu được chi phí.");
         closeForm();
         toaster.success({
           title: editing ? "Đã cập nhật chi phí" : "Đã thêm chi phí",
         });
         await refreshList();
       } catch (e) {
-        setFormError(
-          e instanceof Error ? e.message : "Không lưu được chi phí.",
-        );
+        const msg = toastApiError(e, "Không lưu được chi phí.");
+        if (msg) setFormError(msg);
       } finally {
         setFormSaving(false);
       }
@@ -356,18 +352,12 @@ export default function AdminExpensesPage() {
           `${apiBase()}/api/expenses/${encodeURIComponent(deleteTarget.id)}`,
           { method: "DELETE", credentials: "include" },
         );
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Không xóa được chi phí");
         setDeleteTarget(null);
         toaster.success({ title: "Đã xóa chi phí" });
         await refreshList();
       } catch (e) {
-        toaster.error({
-          title: "Không xóa được",
-          description: e instanceof Error ? e.message : undefined,
-        });
+        toastApiError(e, "Không xóa được chi phí");
       } finally {
         setDeleteSaving(false);
       }

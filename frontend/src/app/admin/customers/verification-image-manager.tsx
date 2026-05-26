@@ -3,6 +3,7 @@
 import { Box, Button, HStack, Stack, Text } from "@chakra-ui/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
 import {
@@ -90,10 +91,7 @@ export function VerificationImageManager({
             title: files.length > 1 ? `Đã thêm ${files.length} ảnh` : "Đã thêm ảnh",
           });
         } catch (e) {
-          toaster.error({
-            title: "Không tải được ảnh",
-            description: e instanceof Error ? e.message : "Lỗi upload",
-          });
+          toastApiError(e, "Không tải được ảnh");
         } finally {
           setUploading(false);
           if (fileInputRef.current) fileInputRef.current.value = "";
@@ -142,18 +140,12 @@ export function VerificationImageManager({
             body: JSON.stringify({ url }),
           },
         );
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || res.statusText);
-        }
+        await throwIfNotOk(res, "Không xóa được ảnh");
         const json = (await res.json()) as CustomerPayload;
         onUpdated(parseVerificationUrls(json.verificationImageUrls));
         toaster.success({ title: "Đã xóa ảnh" });
       } catch (e) {
-        toaster.error({
-          title: "Không xóa được ảnh",
-          description: e instanceof Error ? e.message : "Lỗi xóa",
-        });
+        toastApiError(e, "Không xóa được ảnh");
       } finally {
         setDeletingUrl(null);
       }
