@@ -16,7 +16,10 @@ import {
   eachCalendarDayVN,
   MAX_BOOKING_RANGE_DAYS,
   OCCUPYING_STATUSES,
+  isReturnNextMorningEligible,
   remainingForSlot,
+  returnNextMorningDate,
+  returnNextMorningOccupancyDate,
   todayCalendarDayVN,
 } from '../common/booking-schedule';
 import { PrismaService } from '../prisma/prisma.service';
@@ -56,6 +59,7 @@ export class AvailabilityService {
         slot: true,
         startBookingDate: true,
         endBookingDate: true,
+        returnNextMorning: true,
       },
     });
   }
@@ -91,8 +95,66 @@ export class AvailabilityService {
           c.fd++;
           break;
       }
+      if (b.returnNextMorning) {
+        const morningDay = returnNextMorningOccupancyDate(b.endBookingDate);
+        if (dateStr === morningDay) {
+          c.m++;
+        }
+      }
     }
     return c;
+  }
+
+  async isReturnNextMorningAvailable(
+    cameraId: string,
+    endDate: string,
+    excludeBookingId?: string,
+  ): Promise<{ available: boolean; remaining: number }> {
+    const morningDate = returnNextMorningDate(endDate);
+    return this.isSlotAvailable(
+      cameraId,
+      morningDate,
+      BookingSlot.MORNING,
+      excludeBookingId,
+    );
+  }
+
+  async assertBookingAvailable(
+    cameraId: string,
+    startDate: string,
+    endDate: string,
+    slot: BookingSlot,
+    returnNextMorning: boolean,
+    excludeBookingId?: string,
+  ): Promise<void> {
+    const { available } = await this.isRangeAvailable(
+      cameraId,
+      startDate,
+      endDate,
+      slot,
+      excludeBookingId,
+    );
+    if (!available) {
+      throw new BadRequestException(
+        'Không còn chỗ trong một hoặc nhiều ngày đã chọn',
+      );
+    }
+    if (!returnNextMorning) return;
+    if (!isReturnNextMorningEligible(slot)) {
+      throw new BadRequestException(
+        'Chỉ ca Cả ngày hoặc Tối mới được chọn trả sáng hôm sau',
+      );
+    }
+    const morning = await this.isReturnNextMorningAvailable(
+      cameraId,
+      endDate,
+      excludeBookingId,
+    );
+    if (!morning.available) {
+      throw new BadRequestException(
+        'Ca sáng ngày hôm sau đã hết chỗ cho máy này',
+      );
+    }
   }
 
   validateDateRange(startDate: string, endDate: string): void {

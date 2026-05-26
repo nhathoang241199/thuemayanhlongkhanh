@@ -183,6 +183,7 @@ function BookingListCardInner({
             </Text>
             <Text color="fg.muted" lineHeight="short" minW={0} fontWeight="normal">
               {usageDetail}
+              {b.returnNextMorning ? " · Trả sáng hôm sau" : ""}
             </Text>
           </HStack>
           <HStack gap={1.5} align="baseline" minW={0}>

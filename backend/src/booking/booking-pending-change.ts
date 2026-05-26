@@ -5,6 +5,7 @@ export type PendingChangePayload = {
   startDate: string;
   endDate: string;
   slot: BookingSlot;
+  returnNextMorning?: boolean;
   newAmount: number;
   delta: number;
   note?: string;
@@ -29,6 +30,8 @@ export function parsePendingChange(raw: unknown): PendingChangePayload | null {
     startDate: o.startDate,
     endDate: o.endDate,
     slot: o.slot as BookingSlot,
+    returnNextMorning:
+      typeof o.returnNextMorning === 'boolean' ? o.returnNextMorning : false,
     newAmount: o.newAmount,
     delta: o.delta,
     note: typeof o.note === 'string' ? o.note : undefined,

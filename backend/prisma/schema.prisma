@@ -66,6 +66,7 @@ model Booking {
   endBookingDate   DateTime
   slot             BookingSlot
   pickupAt         DateTime?
+  returnNextMorning Boolean      @default(false)
   amount        Int
   discountPercent Int           @default(0)
   note          String?

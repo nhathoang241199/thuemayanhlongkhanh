@@ -249,13 +249,52 @@ export function eachCalendarDayVN(
   return days;
 }
 
-function addDaysDateStr(dateStr: string, n: number): string {
+export function addDaysDateStr(dateStr: string, n: number): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + n));
   const yy = dt.getUTCFullYear();
   const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
   const dd = String(dt.getUTCDate()).padStart(2, '0');
   return `${yy}-${mm}-${dd}`;
+}
+
+/** Phụ phí trả sáng hôm sau = 50% giá ngày. */
+export const RETURN_NEXT_MORNING_SURCHARGE_RATIO = 0.5;
+
+export function isReturnNextMorningEligible(
+  slot: BookingSlotValue | BookingSlot,
+): boolean {
+  return slot === 'FULL_DAY' || slot === 'EVENING';
+}
+
+export function returnNextMorningSurchargeVnd(dayPrice: number): number {
+  return Math.round(dayPrice * RETURN_NEXT_MORNING_SURCHARGE_RATIO);
+}
+
+/** Ngày lịch chiếm ca Sáng (ngày sau ngày kết thúc thuê). */
+export function returnNextMorningDate(endDate: string): string {
+  assertDateStr(endDate);
+  return addDaysDateStr(endDate, 1);
+}
+
+/** Tiền thuê gốc + phụ phí trả sáng hôm sau (chưa giảm %). */
+export function rentalAmountWithOptionsVnd(
+  dayCount: number,
+  dayPrice: number,
+  shiftPrice: number,
+  slot: BookingSlotValue | BookingSlot,
+  returnNextMorning = false,
+): number {
+  const base = rentalAmountVnd(dayCount, dayPrice, shiftPrice, slot);
+  if (!returnNextMorning || !isReturnNextMorningEligible(slot)) {
+    return base;
+  }
+  return base + returnNextMorningSurchargeVnd(dayPrice);
+}
+
+/** Ngày chiếm ca Sáng từ endBookingDate (VN) của đơn có returnNextMorning. */
+export function returnNextMorningOccupancyDate(endBookingDate: Date): string {
+  return returnNextMorningDate(toCalendarDayVN(endBookingDate));
 }
 
 export function dayCountInclusive(startDate: string, endDate: string): number {

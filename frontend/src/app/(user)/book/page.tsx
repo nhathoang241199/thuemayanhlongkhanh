@@ -38,6 +38,7 @@ import {
   fetchRangeAvailability,
   fetchRangeSlotsAnyAvailability,
   fetchRangeSlotsAvailability,
+  fetchSlots,
   formatBookingRangeLabel,
   type BookingSlot,
   type CameraBrand,
@@ -54,13 +55,19 @@ import {
 } from "@/lib/api";
 import { DELIVERY_FEE_VND } from "@/lib/booking-status";
 import {
+  addDaysYmd,
   datetimeLocalToIso,
   formatPickupAtLocalVi,
   isSundayYmd,
   slotPickupBounds,
   validatePickupAtLocal,
 } from "@/lib/datetime-vn";
-import { rentalAmountVnd, bookingAmountVnd } from "@/lib/rental-pricing";
+import {
+  bookingAmountVnd,
+  isReturnNextMorningEligible,
+  rentalAmountWithOptionsVnd,
+  returnNextMorningSurchargeVnd,
+} from "@/lib/rental-pricing";
 import { getSession, setSession } from "@/lib/customer-session";
 import {
   APP_COLOR_PALETTE,
@@ -118,6 +125,10 @@ function BookPageContent() {
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
   const [slot, setSlot] = useState<BookingSlot | null>("FULL_DAY");
+  const [returnNextMorning, setReturnNextMorning] = useState(false);
+  const [morningNextDayAvailable, setMorningNextDayAvailable] = useState<
+    boolean | null
+  >(null);
   const [note, setNote] = useState("");
   const [pickupAtLocal, setPickupAtLocal] = useState("");
   const [pickupAtError, setPickupAtError] = useState<string | null>(null);
@@ -190,15 +201,24 @@ function BookPageContent() {
   const deliverySelected =
     canRequestDelivery && wantDelivery;
 
+  const showReturnNextMorningOption =
+    !!effectiveSlot && isReturnNextMorningEligible(effectiveSlot);
+
+  const returnNextMorningSurcharge = useMemo(() => {
+    if (!returnNextMorning || !camera) return 0;
+    return returnNextMorningSurchargeVnd(camera.dayPrice);
+  }, [returnNextMorning, camera]);
+
   const estimatedRental = useMemo(() => {
     if (!camera || !effectiveSlot || dayCount < 1) return 0;
-    return rentalAmountVnd(
+    return rentalAmountWithOptionsVnd(
       dayCount,
       camera.dayPrice,
       camera.shiftPrice,
       effectiveSlot,
+      returnNextMorning,
     );
-  }, [camera, effectiveSlot, dayCount]);
+  }, [camera, effectiveSlot, dayCount, returnNextMorning]);
 
   const discountPercent = camera?.discountPercent ?? 0;
 
@@ -286,6 +306,30 @@ function BookPageContent() {
   useEffect(() => {
     if (forceFullDay) setSlot("FULL_DAY");
   }, [forceFullDay]);
+
+  useEffect(() => {
+    if (!showReturnNextMorningOption) {
+      setReturnNextMorning(false);
+    }
+  }, [showReturnNextMorningOption, startDate, endDate, effectiveSlot]);
+
+  useEffect(() => {
+    if (!camera?.id || !endDate || !showReturnNextMorningOption) {
+      setMorningNextDayAvailable(null);
+      return;
+    }
+    const morningDate = addDaysYmd(endDate, 1);
+    void fetchSlots(camera.id, morningDate, modifyBookingId)
+      .then((r) => {
+        setMorningNextDayAvailable(r.slots.MORNING?.available ?? false);
+      })
+      .catch(() => setMorningNextDayAvailable(false));
+  }, [
+    camera?.id,
+    endDate,
+    showReturnNextMorningOption,
+    modifyBookingId,
+  ]);
 
   useEffect(() => {
     setPickupAtError(null);
@@ -524,8 +568,12 @@ function BookPageContent() {
     ) {
       return;
     }
-    if (rangeOk === false) {
-      setError("Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại.");
+    if (!bookingAvailabilityOk) {
+      setError(
+        rangeOk === false
+          ? "Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại."
+          : "Ca sáng ngày hôm sau không còn chỗ. Vui lòng bỏ tùy chọn trả sáng hôm sau.",
+      );
       return;
     }
     const pickupAt = resolvePickupAtIso();
@@ -545,6 +593,7 @@ function BookPageContent() {
         startDate,
         endDate,
         slot: effectiveSlot,
+        returnNextMorning,
         pickupAt,
         note: note || undefined,
         shippingAddress:
@@ -571,8 +620,12 @@ function BookPageContent() {
     ) {
       return;
     }
-    if (rangeOk === false) {
-      setError("Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại.");
+    if (!bookingAvailabilityOk) {
+      setError(
+        rangeOk === false
+          ? "Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại."
+          : "Ca sáng ngày hôm sau không còn chỗ. Vui lòng bỏ tùy chọn trả sáng hôm sau.",
+      );
       return;
     }
     if (
@@ -600,6 +653,7 @@ function BookPageContent() {
         startDate,
         endDate,
         slot: effectiveSlot,
+        returnNextMorning,
         pickupAt,
         note: note || undefined,
         shippingAddress:
@@ -617,8 +671,12 @@ function BookPageContent() {
   async function handlePay() {
     const session = getSession();
     if (!session || !camera || !startDate || !endDate || !effectiveSlot) return;
-    if (rangeOk === false) {
-      setError("Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại.");
+    if (!bookingAvailabilityOk) {
+      setError(
+        rangeOk === false
+          ? "Một hoặc nhiều ngày không còn chỗ. Vui lòng chọn lại."
+          : "Ca sáng ngày hôm sau không còn chỗ. Vui lòng bỏ tùy chọn trả sáng hôm sau.",
+      );
       return;
     }
     if (
@@ -646,6 +704,7 @@ function BookPageContent() {
         startDate,
         endDate,
         slot: effectiveSlot,
+        returnNextMorning,
         pickupAt,
         note: note || undefined,
         shippingAddress:
@@ -724,6 +783,7 @@ function BookPageContent() {
 
   function renderSlotPicker() {
     if (forceFullDay) {
+      const morningDate = endDate ? addDaysYmd(endDate, 1) : null;
       return (
         <Stack gap={3}>
           <Text fontSize="sm" color="fg.muted">
@@ -739,42 +799,125 @@ function BookPageContent() {
           >
             <SlotHoursLabel slot="FULL_DAY" />
           </Badge>
+          <Stack gap={1} align="stretch">
+            <CheckboxRoot
+              checked={returnNextMorning}
+              disabled={
+                !morningDate ||
+                (camera !== null && morningNextDayAvailable === false)
+              }
+              onCheckedChange={(e) =>
+                setReturnNextMorning(!!e.checked)
+              }
+            >
+              <CheckboxHiddenInput />
+              <CheckboxControl />
+              <CheckboxLabel fontSize="sm">
+                Trả vào sáng hôm sau
+              </CheckboxLabel>
+            </CheckboxRoot>
+            {returnNextMorning && returnNextMorningSurcharge > 0 ? (
+              <Text fontSize="xs" color="fg.muted" ps={6}>
+                Phụ phí: +{vnd.format(returnNextMorningSurcharge)} (50% giá
+                ngày)
+              </Text>
+            ) : null}
+            {camera && morningNextDayAvailable === false ? (
+              <Text fontSize="xs" color="red.fg" ps={6}>
+                Ca sáng ngày hôm sau đã hết chỗ cho máy này.
+              </Text>
+            ) : null}
+          </Stack>
         </Stack>
       );
     }
     if (showSlotSkeleton) {
       return renderSlotSkeletons();
     }
+    const morningDate =
+      endDate && showReturnNextMorningOption ? addDaysYmd(endDate, 1) : null;
+
     return (
-      <Stack gap={2}>
-        {SLOTS.map((s) => {
-          const unavailable = slotAvailability?.[s] === false;
-          return (
-            <Button
-              key={s}
-              w="full"
-              size="lg"
-              position="relative"
-              {...(slot === s
-                ? { variant: "solid" as const, colorPalette: APP_COLOR_PALETTE }
-                : userOutlineButtonProps)}
-              disabled={unavailable}
-              opacity={unavailable ? 0.5 : 1}
-              onClick={() => setSlot(s)}
+      <Stack gap={3}>
+        <Stack gap={2}>
+          {SLOTS.map((s) => {
+            const unavailable = slotAvailability?.[s] === false;
+            return (
+              <Button
+                key={s}
+                w="full"
+                size="lg"
+                position="relative"
+                {...(slot === s
+                  ? {
+                      variant: "solid" as const,
+                      colorPalette: APP_COLOR_PALETTE,
+                    }
+                  : userOutlineButtonProps)}
+                disabled={unavailable}
+                opacity={unavailable ? 0.5 : 1}
+                onClick={() => setSlot(s)}
+              >
+                <SlotHoursLabel slot={s} />
+                {unavailable ? " (Hết chỗ)" : ""}
+              </Button>
+            );
+          })}
+        </Stack>
+        {showReturnNextMorningOption ? (
+          <Stack gap={1} align="stretch">
+            <CheckboxRoot
+              checked={returnNextMorning}
+              disabled={
+                !morningDate ||
+                (camera !== null && morningNextDayAvailable === false)
+              }
+              onCheckedChange={(e) =>
+                setReturnNextMorning(!!e.checked)
+              }
             >
-              <SlotHoursLabel slot={s} />
-              {unavailable ? " (Hết chỗ)" : ""}
-            </Button>
-          );
-        })}
+              <CheckboxHiddenInput />
+              <CheckboxControl />
+              <CheckboxLabel fontSize="sm">
+                Trả vào sáng hôm sau
+              </CheckboxLabel>
+            </CheckboxRoot>
+            {returnNextMorning && returnNextMorningSurcharge > 0 ? (
+              <Text fontSize="xs" color="fg.muted" ps={6}>
+                Phụ phí: +{vnd.format(returnNextMorningSurcharge)} (50% giá
+                ngày, gồm ca sáng
+                {morningDate ? ` ${morningDate.split("-").reverse().join("/")}` : ""}
+                )
+              </Text>
+            ) : null}
+            {camera && morningNextDayAvailable === false ? (
+              <Text fontSize="xs" color="red.fg" ps={6}>
+                Ca sáng ngày hôm sau đã hết chỗ cho máy này.
+              </Text>
+            ) : null}
+            {!camera ? (
+              <Text fontSize="xs" color="fg.muted" ps={6}>
+                Chỗ trống ca sáng sẽ được kiểm tra sau khi chọn máy.
+              </Text>
+            ) : null}
+          </Stack>
+        ) : null}
       </Stack>
     );
   }
 
   function slotStepCanContinue(): boolean {
     if (slotsLoading || slotAvailability === null) return false;
-    return !!slot && slotAvailability[slot] === true;
+    if (!slot || slotAvailability[slot] !== true) return false;
+    if (returnNextMorning && camera) {
+      if (morningNextDayAvailable !== true) return false;
+    }
+    return true;
   }
+
+  const bookingAvailabilityOk =
+    rangeOk !== false &&
+    (!returnNextMorning || morningNextDayAvailable === true);
 
   function renderPickupTimeFields() {
     if (!startDate || !effectiveSlot || !pickupBounds) return null;
@@ -869,6 +1012,15 @@ function BookPageContent() {
               </Text>
             </Text>
           ) : null}
+          {returnNextMorning && endDate ? (
+            <Text fontSize="sm" color="fg.muted">
+              <strong>Trả sáng hôm sau:</strong> gồm ca sáng ngày{" "}
+              {(() => {
+                const [, m, d] = addDaysYmd(endDate, 1).split("-");
+                return `${d}/${m}`;
+              })()}
+            </Text>
+          ) : null}
           {isChange ? (
             <>
               {discountPercent > 0 ? (
@@ -887,6 +1039,12 @@ function BookPageContent() {
             </>
           ) : (
             <>
+              {returnNextMorningSurcharge > 0 ? (
+                <Text fontSize="sm" color="fg.muted">
+                  Trả sáng hôm sau (+50% giá ngày): +
+                  {vnd.format(returnNextMorningSurcharge)}
+                </Text>
+              ) : null}
               {discountPercent > 0 ? (
                 <DiscountedPriceLine
                   label="Tiền thuê:"
@@ -916,6 +1074,11 @@ function BookPageContent() {
         {rangeOk === false ? (
           <Text color="red.fg" fontSize="sm">
             Một hoặc nhiều ngày trong khoảng đã hết chỗ.
+          </Text>
+        ) : null}
+        {returnNextMorning && morningNextDayAvailable === false ? (
+          <Text color="red.fg" fontSize="sm">
+            Ca sáng ngày hôm sau đã hết chỗ cho máy này.
           </Text>
         ) : null}
         <Textarea
@@ -967,7 +1130,7 @@ function BookPageContent() {
           w="full"
           loading={paying}
           disabled={
-            !effectiveSlot || rangeOk === false || !pickupValidated
+            !effectiveSlot || !bookingAvailabilityOk || !pickupValidated
           }
           onClick={() =>
             void (

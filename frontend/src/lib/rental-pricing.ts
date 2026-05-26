@@ -18,6 +18,17 @@ export function multiDayRentalMultiplier(dayCount: number): number {
   }
 }
 
+/** Phụ phí trả sáng hôm sau — đồng bộ backend. */
+export const RETURN_NEXT_MORNING_SURCHARGE_RATIO = 0.5;
+
+export function isReturnNextMorningEligible(slot: BookingSlot): boolean {
+  return slot === "FULL_DAY" || slot === "EVENING";
+}
+
+export function returnNextMorningSurchargeVnd(dayPrice: number): number {
+  return Math.round(dayPrice * RETURN_NEXT_MORNING_SURCHARGE_RATIO);
+}
+
 /** Tiền thuê máy (VNĐ), chưa gồm phí giao. */
 export function rentalAmountVnd(
   dayCount: number,
@@ -28,6 +39,19 @@ export function rentalAmountVnd(
   if (dayCount < 1) return 0;
   if (dayCount === 1 && slot !== "FULL_DAY") return shiftPrice;
   return Math.round(dayPrice * multiDayRentalMultiplier(dayCount));
+}
+
+/** Tiền thuê gốc + phụ phí trả sáng hôm sau (chưa giảm %). */
+export function rentalAmountWithOptionsVnd(
+  dayCount: number,
+  dayPrice: number,
+  shiftPrice: number,
+  slot: BookingSlot,
+  returnNextMorning = false,
+): number {
+  const base = rentalAmountVnd(dayCount, dayPrice, shiftPrice, slot);
+  if (!returnNextMorning || !isReturnNextMorningEligible(slot)) return base;
+  return base + returnNextMorningSurchargeVnd(dayPrice);
 }
 
 export function clampDiscountPercent(discountPercent: number): number {

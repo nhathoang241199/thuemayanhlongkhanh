@@ -19,6 +19,7 @@ export type Booking = {
   startBookingDate: string;
   endBookingDate: string;
   pickupAt: string | null;
+  returnNextMorning?: boolean;
   slot: string;
   amount: number;
   note: string | null;

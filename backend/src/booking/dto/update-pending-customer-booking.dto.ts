@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BookingSlot } from '../../../generated/prisma/enums';
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -53,4 +54,9 @@ export class UpdatePendingCustomerBookingDto {
   @IsString()
   @MaxLength(500)
   shippingAddress?: string | null;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  returnNextMorning?: boolean;
 }

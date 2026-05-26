@@ -45,6 +45,7 @@ import {
   type CameraBrand,
 } from "@/lib/booking-api";
 import {
+  addDaysYmd,
   formatPickupAtHomeDisplay,
   isoToCalendarDateKey,
   pickupIsoIsYesterdayTodayOrTomorrowVn,
@@ -393,6 +394,17 @@ export default function UserHomePage() {
                     )}
                   </Text>
                 </Text>
+                {b.returnNextMorning ? (
+                  <Text fontSize="sm" color="fg.muted">
+                    Trả sáng hôm sau
+                    {(() => {
+                      const endKey = isoToCalendarDateKey(b.endBookingDate);
+                      if (!endKey) return "";
+                      const [, m, d] = addDaysYmd(endKey, 1).split("-");
+                      return ` (ca sáng ${d}/${m})`;
+                    })()}
+                  </Text>
+                ) : null}
                 {b.pickupAt ? (
                   <Stack gap={0.5} align="stretch">
                     <HStack

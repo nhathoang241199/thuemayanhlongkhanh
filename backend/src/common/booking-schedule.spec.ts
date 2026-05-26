@@ -1,5 +1,10 @@
 import {
   assertPickupAtValid,
+  isReturnNextMorningEligible,
+  rentalAmountWithOptionsVnd,
+  returnNextMorningDate,
+  returnNextMorningOccupancyDate,
+  returnNextMorningSurchargeVnd,
   vnDateTimeToUtc,
 } from './booking-schedule';
 
@@ -48,5 +53,40 @@ describe('assertPickupAtValid FULL_DAY same-day pickup', () => {
         vnDateTimeToUtc(startDate, 6, 30),
       ),
     ).not.toThrow();
+  });
+});
+
+describe('return next morning', () => {
+  it('charges 50% of day price as surcharge', () => {
+    expect(returnNextMorningSurchargeVnd(700_000)).toBe(350_000);
+  });
+
+  it('adds surcharge only for FULL_DAY and EVENING', () => {
+    const day = 700_000;
+    const shift = 400_000;
+    expect(
+      rentalAmountWithOptionsVnd(1, day, shift, 'FULL_DAY', true),
+    ).toBe(day + 350_000);
+    expect(
+      rentalAmountWithOptionsVnd(1, day, shift, 'EVENING', true),
+    ).toBe(shift + 350_000);
+    expect(
+      rentalAmountWithOptionsVnd(1, day, shift, 'MORNING', true),
+    ).toBe(shift);
+  });
+
+  it('targets morning on calendar day after rental end', () => {
+    expect(returnNextMorningDate('2026-05-31')).toBe('2026-06-01');
+    expect(
+      returnNextMorningOccupancyDate(
+        vnDateTimeToUtc('2026-05-31', 23, 0),
+      ),
+    ).toBe('2026-06-01');
+  });
+
+  it('eligibility', () => {
+    expect(isReturnNextMorningEligible('FULL_DAY')).toBe(true);
+    expect(isReturnNextMorningEligible('EVENING')).toBe(true);
+    expect(isReturnNextMorningEligible('MORNING')).toBe(false);
   });
 });

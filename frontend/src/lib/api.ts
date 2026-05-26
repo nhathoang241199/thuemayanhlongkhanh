@@ -51,6 +51,7 @@ export type MyBooking = {
   endBookingDate: string;
   pickupAt: string | null;
   slot: string;
+  returnNextMorning?: boolean;
   amount: number;
   status: string;
   paymentStatus: string;
@@ -92,6 +93,7 @@ export async function updatePendingCustomerBooking(
     endDate: string;
     slot: string;
     pickupAt: string;
+    returnNextMorning?: boolean;
     note?: string;
     shippingAddress?: string | null;
   },
@@ -120,6 +122,7 @@ export async function requestCustomerBookingChange(
     endDate: string;
     slot: string;
     pickupAt: string;
+    returnNextMorning?: boolean;
     note?: string;
     shippingAddress?: string;
   },

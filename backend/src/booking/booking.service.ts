@@ -19,7 +19,8 @@ import {
   bookingAmountVnd,
   dayCountInclusive,
   deliveryFeeVnd,
-  rentalAmountVnd,
+  isReturnNextMorningEligible,
+  rentalAmountWithOptionsVnd,
   slotWindow,
 } from '../common/booking-schedule';
 import {
@@ -211,14 +212,19 @@ export class BookingService {
     const pending = parsePendingChange(booking.pendingChange);
     if (!pending) return false;
 
-    const { available } = await this.availability.isRangeAvailable(
-      pending.cameraId,
-      pending.startDate,
-      pending.endDate,
-      pending.slot,
-      booking.id,
-    );
-    if (!available) return false;
+    const returnNextMorning = pending.returnNextMorning ?? false;
+    try {
+      await this.availability.assertBookingAvailable(
+        pending.cameraId,
+        pending.startDate,
+        pending.endDate,
+        pending.slot,
+        returnNextMorning,
+        booking.id,
+      );
+    } catch {
+      return false;
+    }
 
     const { startBookingDate } = slotWindow(pending.startDate, pending.slot);
     const { endBookingDate } = slotWindow(pending.endDate, pending.slot);
@@ -229,6 +235,7 @@ export class BookingService {
       pending.endDate,
       pending.slot,
       pending.shippingAddress ?? booking.shippingAddress,
+      returnNextMorning,
     );
 
     await this.prisma.booking.update({
@@ -238,6 +245,7 @@ export class BookingService {
         startBookingDate,
         endBookingDate,
         slot: pending.slot,
+        returnNextMorning,
         amount: pricing.amount,
         discountPercent: pricing.discountPercent,
         note: pending.note ?? booking.note,
@@ -321,12 +329,26 @@ export class BookingService {
     };
   }
 
+  private normalizeReturnNextMorning(
+    slot: BookingSlot,
+    returnNextMorning?: boolean,
+  ): boolean {
+    if (!returnNextMorning) return false;
+    if (!isReturnNextMorningEligible(slot)) {
+      throw new BadRequestException(
+        'Chỉ ca Cả ngày hoặc Tối mới được chọn trả sáng hôm sau',
+      );
+    }
+    return true;
+  }
+
   private async computeBookingPricing(
     cameraId: string,
     startDate: string,
     endDate: string,
     slot: BookingSlot,
     shippingAddress?: string | null,
+    returnNextMorning = false,
   ): Promise<{ amount: number; discountPercent: number }> {
     const camera = await this.prisma.camera.findUnique({
       where: { id: cameraId },
@@ -336,11 +358,12 @@ export class BookingService {
     }
     const discountPercent = camera.discountPercent ?? 0;
     const dayCount = dayCountInclusive(startDate, endDate);
-    const rental = rentalAmountVnd(
+    const rental = rentalAmountWithOptionsVnd(
       dayCount,
       camera.dayPrice,
       camera.shiftPrice,
       slot,
+      returnNextMorning,
     );
     return {
       amount: bookingAmountVnd(
@@ -401,18 +424,19 @@ export class BookingService {
       dto.slot,
     );
 
-    const { available } = await this.availability.isRangeAvailable(
+    const returnNextMorning = this.normalizeReturnNextMorning(
+      dto.slot,
+      dto.returnNextMorning,
+    );
+
+    await this.availability.assertBookingAvailable(
       dto.cameraId,
       dto.startDate,
       dto.endDate,
       dto.slot,
+      returnNextMorning,
       booking.id,
     );
-    if (!available) {
-      throw new BadRequestException(
-        'Không còn chỗ trong một hoặc nhiều ngày đã chọn',
-      );
-    }
 
     this.assertDeliveryAllowed(booking.customer, dto.shippingAddress);
 
@@ -422,6 +446,7 @@ export class BookingService {
       dto.endDate,
       dto.slot,
       dto.shippingAddress,
+      returnNextMorning,
     );
 
     const { startBookingDate } = slotWindow(dto.startDate, dto.slot);
@@ -435,6 +460,7 @@ export class BookingService {
         startBookingDate,
         endBookingDate,
         slot: dto.slot,
+        returnNextMorning,
         pickupAt,
         amount: pricing.amount,
         discountPercent: pricing.discountPercent,
@@ -489,18 +515,19 @@ export class BookingService {
       dto.slot,
     );
 
-    const { available } = await this.availability.isRangeAvailable(
+    const returnNextMorning = this.normalizeReturnNextMorning(
+      dto.slot,
+      dto.returnNextMorning,
+    );
+
+    await this.availability.assertBookingAvailable(
       dto.cameraId,
       dto.startDate,
       dto.endDate,
       dto.slot,
+      returnNextMorning,
       booking.id,
     );
-    if (!available) {
-      throw new BadRequestException(
-        'Không còn chỗ trong một hoặc nhiều ngày đã chọn',
-      );
-    }
 
     const shippingAddress =
       dto.shippingAddress === undefined
@@ -515,6 +542,7 @@ export class BookingService {
       dto.endDate,
       dto.slot,
       shippingAddress,
+      returnNextMorning,
     );
 
     const { startBookingDate } = slotWindow(dto.startDate, dto.slot);
@@ -528,6 +556,7 @@ export class BookingService {
         startBookingDate,
         endBookingDate,
         slot: dto.slot,
+        returnNextMorning,
         pickupAt,
         amount: pricing.amount,
         discountPercent: pricing.discountPercent,
@@ -563,17 +592,18 @@ export class BookingService {
       dto.slot,
     );
 
-    const { available } = await this.availability.isRangeAvailable(
+    const returnNextMorning = this.normalizeReturnNextMorning(
+      dto.slot,
+      dto.returnNextMorning,
+    );
+
+    await this.availability.assertBookingAvailable(
       dto.cameraId,
       dto.startDate,
       dto.endDate,
       dto.slot,
+      returnNextMorning,
     );
-    if (!available) {
-      throw new BadRequestException(
-        'Không còn chỗ trong một hoặc nhiều ngày đã chọn',
-      );
-    }
 
     this.assertDeliveryAllowed(customer, dto.shippingAddress);
 
@@ -583,6 +613,7 @@ export class BookingService {
       dto.endDate,
       dto.slot,
       dto.shippingAddress,
+      returnNextMorning,
     );
 
     const { startBookingDate } = slotWindow(dto.startDate, dto.slot);
@@ -607,6 +638,7 @@ export class BookingService {
           startBookingDate,
           endBookingDate,
           slot: dto.slot,
+          returnNextMorning,
           pickupAt,
           amount: pricing.amount,
           discountPercent: pricing.discountPercent,
