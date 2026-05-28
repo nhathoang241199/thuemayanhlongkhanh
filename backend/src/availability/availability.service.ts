@@ -22,6 +22,7 @@ import {
   returnNextMorningOccupancyDate,
   todayCalendarDayVN,
 } from '../common/booking-schedule';
+import { publicListedCameraWhere } from '../common/camera-listing';
 import { PrismaService } from '../prisma/prisma.service';
 
 type SlotCounts = { m: number; a: number; e: number; fd: number };
@@ -346,7 +347,7 @@ export class AvailabilityService {
     this.validateDateRange(startDate, endDate);
     const check = this.slotsToCheckForRange(startDate, endDate);
     const cameras = await this.prisma.camera.findMany({
-      where: brand ? { brand } : undefined,
+      where: publicListedCameraWhere(brand),
       orderBy: { name: 'asc' },
     });
     const slots = {} as Record<BookingSlot, { available: boolean }>;
@@ -384,7 +385,7 @@ export class AvailabilityService {
     this.validateDateRange(startDate, endDate);
     this.validateSlotForRange(startDate, endDate, slot);
     const cameras = await this.prisma.camera.findMany({
-      where: brand ? { brand } : undefined,
+      where: publicListedCameraWhere(brand),
       orderBy: [{ dayPrice: 'desc' }, { shiftPrice: 'desc' }, { name: 'asc' }],
     });
     const result: {

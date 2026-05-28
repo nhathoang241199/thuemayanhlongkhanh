@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { CameraBrand } from '../../generated/prisma/enums';
 import { Prisma } from '../../generated/prisma/client';
+import { publicListedCameraWhere } from '../common/camera-listing';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCameraDto } from './dto/create-camera.dto';
 import { UpdateCameraDto } from './dto/update-camera.dto';
@@ -21,7 +22,7 @@ export class CameraService {
 
   findPublic(brand?: CameraBrand) {
     return this.prisma.camera.findMany({
-      where: brand ? { brand } : undefined,
+      where: publicListedCameraWhere(brand),
       orderBy: [{ dayPrice: 'desc' }, { shiftPrice: 'desc' }, { name: 'asc' }],
       select: {
         id: true,
