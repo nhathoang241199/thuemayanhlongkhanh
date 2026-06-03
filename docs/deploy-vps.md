@@ -2,6 +2,8 @@
 
 Hướng dẫn deploy production trên Linux (Ubuntu/Debian). Một domain: web + API (`/api`).
 
+**Nhiều site (Long Khánh / Bình Thạnh, …):** xem [multi-site-deploy.md](./multi-site-deploy.md) — branding qua `NEXT_PUBLIC_SITE_LOCATION_NAME` và `NEXT_PUBLIC_STORE_MAP_URL` trong `frontend/.env.production`.
+
 ## Kiến trúc
 
 | Thành phần | Cổng nội bộ | URL công khai |

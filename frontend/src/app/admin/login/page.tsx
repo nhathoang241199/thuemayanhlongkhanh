@@ -19,6 +19,7 @@ import {
 } from "@/lib/app-theme";
 import { toastApiError } from "@/lib/admin-api";
 import { adminLogin } from "@/lib/admin-auth";
+import { getSiteTitle } from "@/lib/site-config";
 
 function AdminLoginForm() {
   const router = useRouter();
@@ -62,7 +63,7 @@ function AdminLoginForm() {
           <Stack gap={5} as="form" onSubmit={submit}>
             <CardTitle textStyle="xl">Đăng nhập Admin</CardTitle>
             <Text fontSize="sm" color="fg.muted">
-              Thuê máy ảnh Long Khánh — khu vực quản trị
+              {getSiteTitle()} — khu vực quản trị
             </Text>
             <Stack gap={2}>
               <Text fontSize="sm" fontWeight="medium">

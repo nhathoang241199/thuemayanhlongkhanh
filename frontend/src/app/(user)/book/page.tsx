@@ -28,6 +28,7 @@ import { MonthCalendar } from "@/components/booking/month-calendar";
 import { PickupTimePicker } from "@/components/booking/pickup-time-picker";
 import { SlotHoursLabel } from "@/components/booking/slot-hours-label";
 import { BRAND_LABEL, CAMERA_BRAND_OPTIONS } from "@/lib/camera-brands";
+import { getDeliveryAreaLabel } from "@/lib/site-config";
 import {
   createCustomerBooking,
   dayCountInclusive,
@@ -1107,7 +1108,7 @@ function BookPageContent() {
                   }}
                 />
                 <CheckboxLabel fontSize="sm" color="fg.muted">
-                  Giao & trả máy tận nơi Long Khánh (+
+                  {getDeliveryAreaLabel()} (+
                   {vnd.format(DELIVERY_FEE_VND)})
                 </CheckboxLabel>
               </CheckboxRoot>

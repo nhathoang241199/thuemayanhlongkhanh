@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Provider } from "@/components/ui/provider";
+import { getSiteTitle } from "@/lib/site-config";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Thuê máy ảnh Long Khánh",
+  title: getSiteTitle(),
   description: "Đặt lịch thuê máy ảnh",
   themeColor: "#5c3d29",
 };

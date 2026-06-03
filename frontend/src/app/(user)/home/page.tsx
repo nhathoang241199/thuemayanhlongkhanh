@@ -66,8 +66,7 @@ import {
   userWarningNoteProps,
   userWarningNoteTextProps,
 } from "@/lib/user-theme";
-
-const STORE_MAP_URL = "https://maps.app.goo.gl/p7E56GSttpufsQVx5";
+import { getStoreMapUrl } from "@/lib/site-config";
 
 const inlineTextLinkProps = {
   fontSize: "sm",
@@ -295,7 +294,7 @@ export default function UserHomePage() {
           Đơn đặt lịch của bạn
         </Text>
         <Link
-          href={STORE_MAP_URL}
+          href={getStoreMapUrl()}
           target="_blank"
           rel="noopener noreferrer"
           flexShrink={0}
@@ -449,7 +448,7 @@ export default function UserHomePage() {
                       </Text>
                     </Text>
                     <Link
-                      href={STORE_MAP_URL}
+                      href={getStoreMapUrl()}
                       target="_blank"
                       rel="noopener noreferrer"
                       flexShrink={0}

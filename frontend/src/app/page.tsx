@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { identifyCustomer, sessionFromIdentify } from "@/lib/api";
 import { getSession, setSession } from "@/lib/customer-session";
 import { normalizePhone } from "@/lib/normalize-phone";
+import { getSiteTitle } from "@/lib/site-config";
 import {
   APP_COLOR_PALETTE,
   titleColor,
@@ -98,7 +99,7 @@ export default function OnboardingPage() {
       <CardRoot w="full" maxW="md" {...userCardProps}>
         <CardHeader>
           <CardTitle textStyle="xl" color={titleColor}>
-            Thuê máy ảnh Long Khánh
+            {getSiteTitle()}
           </CardTitle>
           <Text fontSize="sm" color="fg.muted" mt={1}>
             Nhập thông tin để xem và đặt lịch thuê máy
