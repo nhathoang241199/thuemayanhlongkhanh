@@ -379,13 +379,19 @@ function todayLocalDateKey(): string {
   return toLocalDateKey(new Date());
 }
 
-type QuickFilterKey = "all" | "today" | "renting" | "pending_payment";
+type QuickFilterKey =
+  | "all"
+  | "today"
+  | "renting"
+  | "pending_payment"
+  | "pending_refund_cancel";
 
 const QUICK_FILTER_OPTIONS: { value: QuickFilterKey; label: string }[] = [
   { value: "all", label: "Tất cả đơn" },
   { value: "today", label: "Đơn thuê hôm nay" },
   { value: "renting", label: "Đơn đang thuê" },
   { value: "pending_payment", label: "Đơn chờ cọc" },
+  { value: "pending_refund_cancel", label: "Đơn chờ hoàn cọc" },
 ];
 
 function deriveQuickFilter(params: {
@@ -424,6 +430,13 @@ function deriveQuickFilter(params: {
   }
   if (showAllDates && statusFilter === "PENDING_PAYMENT" && baseFiltersDefault) {
     return "pending_payment";
+  }
+  if (
+    showAllDates &&
+    statusFilter === "PENDING_REFUND_CANCEL" &&
+    baseFiltersDefault
+  ) {
+    return "pending_refund_cancel";
   }
   return null;
 }
@@ -1098,8 +1111,22 @@ export default function AdminBookingsPage() {
         setCameraFilter("ALL");
         setSearchQuery("");
         break;
+      case "pending_refund_cancel":
+        setSearchField("phone");
+        setShowAllDates(true);
+        setStatusFilter("PENDING_REFUND_CANCEL");
+        setPaymentStatusFilter("ALL");
+        setCameraFilter("ALL");
+        setSearchQuery("");
+        break;
     }
   }, []);
+
+  const pendingRefundCancelCount = useMemo(
+    () =>
+      bookings?.filter((b) => b.status === "PENDING_REFUND_CANCEL").length ?? 0,
+    [bookings],
+  );
 
   const pagedBookingRows = useMemo(
     () =>
@@ -1207,20 +1234,64 @@ export default function AdminBookingsPage() {
               </HStack>
               {bookings !== null ? (
                 <HStack gap={2} flexWrap="wrap" justify="flex-end">
-                  {QUICK_FILTER_OPTIONS.map((opt) => (
-                    <Button
-                      key={opt.value}
-                      type="button"
-                      size="sm"
-                      variant={
-                        activeQuickFilter === opt.value ? "solid" : "outline"
-                      }
-                      colorPalette={APP_COLOR_PALETTE}
-                      onClick={() => applyQuickFilter(opt.value)}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
+                  {QUICK_FILTER_OPTIONS.map((opt) => {
+                    const showRefundBadge =
+                      opt.value === "pending_refund_cancel" &&
+                      pendingRefundCancelCount > 0;
+                    const refundBadgeLabel =
+                      pendingRefundCancelCount > 99
+                        ? "99+"
+                        : String(pendingRefundCancelCount);
+                    return (
+                      <Box
+                        key={opt.value}
+                        position="relative"
+                        display="inline-block"
+                      >
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={
+                            activeQuickFilter === opt.value
+                              ? "solid"
+                              : "outline"
+                          }
+                          colorPalette={APP_COLOR_PALETTE}
+                          onClick={() => applyQuickFilter(opt.value)}
+                          aria-label={
+                            showRefundBadge
+                              ? `${opt.label} (${pendingRefundCancelCount})`
+                              : opt.label
+                          }
+                        >
+                          {opt.label}
+                        </Button>
+                        {showRefundBadge ? (
+                          <Box
+                            position="absolute"
+                            top="-6px"
+                            right="-6px"
+                            minW="18px"
+                            h="18px"
+                            px={1}
+                            borderRadius="full"
+                            bg="red.500"
+                            color="white"
+                            fontSize="xs"
+                            fontWeight="bold"
+                            lineHeight="1"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                            pointerEvents="none"
+                            aria-hidden
+                          >
+                            {refundBadgeLabel}
+                          </Box>
+                        ) : null}
+                      </Box>
+                    );
+                  })}
                 </HStack>
               ) : null}
             </HStack>
