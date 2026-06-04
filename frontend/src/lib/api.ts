@@ -60,6 +60,7 @@ export type MyBooking = {
   /** CONFIRMED: máy vật lý sẵn sàng nhận; null: không hiện badge */
   cameraReady?: boolean | null;
   camera: { id: string; name: string; brand: string };
+  lens?: { id: string; name: string; brand: string } | null;
 };
 
 export type RequestChangeResult = {
@@ -89,6 +90,7 @@ export async function updatePendingCustomerBooking(
   body: {
     phone: string;
     cameraId: string;
+    lensId?: string | null;
     startDate: string;
     endDate: string;
     slot: string;
@@ -118,6 +120,7 @@ export async function requestCustomerBookingChange(
   body: {
     phone: string;
     cameraId: string;
+    lensId?: string | null;
     startDate: string;
     endDate: string;
     slot: string;

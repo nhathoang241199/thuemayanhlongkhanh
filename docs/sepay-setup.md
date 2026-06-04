@@ -12,7 +12,7 @@ Hướng dẫn cấu hình thanh toán chuyển khoản qua [SePay Webhooks](htt
 
 | Biến                    | Mô tả                                                                               |
 | ----------------------- | ----------------------------------------------------------------------------------- |
-| `SEPAY_WEBHOOK_API_KEY` | API Key đăng ký trên SePay — header `Authorization: Apikey ...` khi webhook gọi vào |
+| `SEPAY_WEBHOOK_API_KEY` | API Key đăng ký trên SePay — header `Authorization: Apikey ...` khi webhook gọi vào. **Bọc trong dấu ngoặc kép** nếu key có `#` hoặc `!` (trong `.env`, `#` là comment) |
 | `SEPAY_BANK_BIN`        | Mã BIN ngân hàng (6 số) cho VietQR, vd. `970436`                                    |
 | `SEPAY_BANK_ACCOUNT`    | Số tài khoản nhận tiền                                                              |
 | `SEPAY_ACCOUNT_NAME`    | Tên chủ TK (hiển thị + VietQR)                                                      |

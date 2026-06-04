@@ -152,6 +152,9 @@ function BookingListRowInner({
           {b.camera.brand}
         </Text>
         <Text fontWeight="medium">{b.camera.name}</Text>
+        <Text fontSize="xs" color="fg.muted">
+          {b.lens?.name ?? "Kit miễn phí"}
+        </Text>
       </TableCell>
       <TableCell {...tableCellPad} textAlign="end">
         <Text fontSize="sm">{vnd.format(b.amount)}</Text>

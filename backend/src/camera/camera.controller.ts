@@ -37,6 +37,14 @@ export class CameraController {
   }
 
   @Public()
+  @Get('public/brands')
+  @ApiOperation({ summary: 'Hãng có ít nhất một máy đang cho thuê' })
+  @ApiOkResponse({ description: 'Mảng CameraBrand' })
+  findPublicBrands() {
+    return this.cameraService.findPublicBrands();
+  }
+
+  @Public()
   @Get('public')
   @ApiOperation({ summary: 'Danh sách máy (khách)' })
   @ApiOkResponse({ description: 'Máy theo hãng, field public' })

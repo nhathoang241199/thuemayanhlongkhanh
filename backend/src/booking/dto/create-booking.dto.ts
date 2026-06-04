@@ -12,6 +12,7 @@ import {
   IsString,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { IsEndBookingAfterStart } from './booking-date-range.validator';
 
@@ -32,6 +33,12 @@ export class CreateBookingDto {
   @ApiProperty()
   @IsString()
   cameraId: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @ValidateIf((_, v) => v != null)
+  @IsString()
+  lensId?: string | null;
 
   @ApiProperty({ example: '2026-05-20T08:00:00.000Z' })
   @IsDateString()

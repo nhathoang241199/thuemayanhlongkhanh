@@ -12,11 +12,11 @@ import NextLink from "next/link";
 
 import { CameraDiscountBadge } from "@/components/camera/camera-discount-badge";
 import { DiscountedPriceLine } from "@/components/camera/discounted-price-line";
-import type { PublicCamera } from "@/lib/booking-api";
+import type { RentalPickerItem } from "@/lib/booking-api";
 import { titleColor, userBookingCardProps } from "@/lib/user-theme";
 
 type CameraPickerCardProps = {
-  camera: PublicCamera;
+  camera: RentalPickerItem;
   href?: string;
   onClick?: () => void;
   disabled?: boolean;

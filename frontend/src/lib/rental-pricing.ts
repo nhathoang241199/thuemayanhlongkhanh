@@ -75,3 +75,18 @@ export function bookingAmountVnd(
 ): number {
   return discountedRentalVnd(rental, discountPercent) + delivery;
 }
+
+/** Tổng đơn: thuê máy + lens (giảm % riêng từng phần) + phí giao. */
+export function bookingAmountWithLensVnd(
+  cameraRental: number,
+  cameraDiscountPercent: number,
+  lensRental: number,
+  lensDiscountPercent: number,
+  delivery: number,
+): number {
+  return (
+    discountedRentalVnd(cameraRental, cameraDiscountPercent) +
+    discountedRentalVnd(lensRental, lensDiscountPercent) +
+    delivery
+  );
+}

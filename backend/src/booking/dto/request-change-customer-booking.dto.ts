@@ -9,6 +9,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 export class RequestChangeCustomerBookingDto {
@@ -21,6 +22,12 @@ export class RequestChangeCustomerBookingDto {
   @ApiProperty()
   @IsString()
   cameraId: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @ValidateIf((_, v) => v != null)
+  @IsString()
+  lensId?: string | null;
 
   @ApiProperty({ example: '2026-05-20' })
   @IsString()

@@ -171,6 +171,9 @@ function BookingListCardInner({
             </Text>
           ) : null}
         </HStack>
+        <Text fontSize="sm" color="fg.muted">
+          {b.lens?.name ?? "Kit miễn phí"}
+        </Text>
         <Stack gap={1} fontSize="sm" w="full">
           <HStack gap={1.5} align="baseline" minW={0}>
             <Text

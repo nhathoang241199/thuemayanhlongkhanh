@@ -32,10 +32,12 @@ import { getDeliveryAreaLabel } from "@/lib/site-config";
 import {
   createCustomerBooking,
   dayCountInclusive,
+  fetchBrandsWithCameras,
   fetchCalendarMonth,
   fetchCamerasForRange,
   fetchPublicCamera,
   fetchPublicCameras,
+  fetchPublicLenses,
   fetchRangeAvailability,
   fetchRangeSlotsAnyAvailability,
   fetchRangeSlotsAvailability,
@@ -45,7 +47,24 @@ import {
   type CameraBrand,
   type CameraWithAvailability,
   type PublicCamera,
+  type PublicLens,
 } from "@/lib/booking-api";
+import {
+  WIZARD_STEP,
+  wizardBrandStep,
+  wizardCameraStep,
+  wizardDateStep,
+  wizardLensStep,
+  wizardPickupStep,
+  wizardSlotStep,
+  wizardSummaryStep,
+  type BookWizardMode,
+} from "@/lib/book-wizard-steps";
+import {
+  lensDisplayLabel,
+  lensIdAfterSkip,
+  shouldSkipLensStep,
+} from "@/lib/lens-step";
 import { balanceDueVnd } from "@/lib/booking-payment";
 import {
   fetchCustomerVerification,
@@ -64,7 +83,7 @@ import {
   validatePickupAtLocal,
 } from "@/lib/datetime-vn";
 import {
-  bookingAmountVnd,
+  bookingAmountWithLensVnd,
   isReturnNextMorningEligible,
   rentalAmountWithOptionsVnd,
   returnNextMorningSurchargeVnd,
@@ -122,6 +141,9 @@ function BookPageContent() {
   const [step, setStep] = useState(0);
   const [brand, setBrand] = useState<CameraBrand | null>(null);
   const [camera, setCamera] = useState<PublicCamera | null>(null);
+  const [lens, setLens] = useState<PublicLens | null>(null);
+  const [lenses, setLenses] = useState<PublicLens[]>([]);
+  const [listedBrands, setListedBrands] = useState<CameraBrand[]>([]);
   const [cameras, setCameras] = useState<PublicCamera[]>([]);
   const [camerasAvail, setCamerasAvail] = useState<CameraWithAvailability[]>(
     [],
@@ -164,8 +186,7 @@ function BookPageContent() {
       .then((cam) => {
         setMode("BY_CAMERA");
         setBrand(cam.brand);
-        setCamera(cam);
-        setStep(2);
+        void advanceAfterCameraSelect(cam, "BY_CAMERA");
       })
       .catch(() => {
         setError("Không tải được thông tin máy đã chọn.");
@@ -226,11 +247,39 @@ function BookPageContent() {
 
   const discountPercent = camera?.discountPercent ?? 0;
 
+  const estimatedLensRental = useMemo(() => {
+    if (!lens || !effectiveSlot || dayCount < 1) return 0;
+    return rentalAmountWithOptionsVnd(
+      dayCount,
+      lens.dayPrice,
+      lens.shiftPrice,
+      effectiveSlot,
+      returnNextMorning,
+    );
+  }, [lens, effectiveSlot, dayCount, returnNextMorning]);
+
+  const lensDiscountPercent = lens?.discountPercent ?? 0;
+
   const estimatedAmount = useMemo(() => {
     if (!camera || !effectiveSlot || dayCount < 1) return 0;
     const delivery = deliverySelected ? DELIVERY_FEE_VND : 0;
-    return bookingAmountVnd(estimatedRental, discountPercent, delivery);
-  }, [camera, effectiveSlot, dayCount, deliverySelected, estimatedRental, discountPercent]);
+    return bookingAmountWithLensVnd(
+      estimatedRental,
+      discountPercent,
+      estimatedLensRental,
+      lensDiscountPercent,
+      delivery,
+    );
+  }, [
+    camera,
+    effectiveSlot,
+    dayCount,
+    deliverySelected,
+    estimatedRental,
+    discountPercent,
+    estimatedLensRental,
+    lensDiscountPercent,
+  ]);
 
   const loadCalendar = useCallback(
     async (cameraId: string) => {
@@ -367,14 +416,16 @@ function BookPageContent() {
   }, [camera, startDate, endDate, effectiveSlot, modifyBookingId]);
 
   const onSlotStep =
-    (mode === "BY_CAMERA" && step === 3 && !!camera) ||
-    (mode === "BY_DATE" && step === 1);
+    (mode === "BY_CAMERA" && step === WIZARD_STEP.BY_CAMERA.SLOT && !!camera) ||
+    (mode === "BY_DATE" && step === WIZARD_STEP.BY_DATE.SLOT);
   const onDateStepForceFullDay =
     forceFullDay &&
     !!startDate &&
     !!endDate &&
-    ((mode === "BY_CAMERA" && step === 2 && !!camera) ||
-      (mode === "BY_DATE" && step === 0));
+    ((mode === "BY_CAMERA" &&
+      step === WIZARD_STEP.BY_CAMERA.DATE &&
+      !!camera) ||
+      (mode === "BY_DATE" && step === WIZARD_STEP.BY_DATE.DATE));
 
   useEffect(() => {
     if (!startDate || !endDate) {
@@ -473,21 +524,64 @@ function BookPageContent() {
   }
 
   useEffect(() => {
-    if (mode !== "BY_CAMERA" || step !== 1 || !brand) return;
+    if (!mode) return;
+    void fetchBrandsWithCameras()
+      .then(setListedBrands)
+      .catch(() => setListedBrands([]));
+  }, [mode]);
+
+  const brandOptions = useMemo(
+    () => CAMERA_BRAND_OPTIONS.filter((b) => listedBrands.includes(b.id)),
+    [listedBrands],
+  );
+
+  useEffect(() => {
+    if (mode !== "BY_CAMERA" || step !== WIZARD_STEP.BY_CAMERA.CAMERA || !brand)
+      return;
     void loadCamerasForBrand(brand);
   }, [mode, step, brand]);
 
   useEffect(() => {
-    if (mode !== "BY_DATE" || step !== 3 || !brand) return;
+    if (mode !== "BY_DATE" || step !== WIZARD_STEP.BY_DATE.CAMERA || !brand)
+      return;
     if (!startDate || !endDate || !effectiveSlot) return;
     void loadCamerasAvail(brand);
   }, [mode, step, brand, startDate, endDate, effectiveSlot]);
+
+  async function advanceAfterCameraSelect(
+    selected: PublicCamera,
+    wizardMode: BookWizardMode,
+  ) {
+    setCamera(selected);
+    setLens(null);
+    setLenses([]);
+    setLoading(true);
+    setError(null);
+    try {
+      const list = await fetchPublicLenses(selected.brand);
+      setLenses(list);
+      if (shouldSkipLensStep(list)) {
+        const autoId = lensIdAfterSkip(list);
+        setLens(autoId ? (list.find((l) => l.id === autoId) ?? null) : null);
+        setStep(wizardDateStep(wizardMode));
+      } else {
+        setStep(wizardLensStep(wizardMode));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Lỗi tải ống kính");
+      setStep(wizardCameraStep(wizardMode));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function resetWizard(m: Mode) {
     setMode(m);
     setStep(0);
     setBrand(null);
     setCamera(null);
+    setLens(null);
+    setLenses([]);
     setCameras([]);
     setCamerasAvail([]);
     setStartDate(null);
@@ -594,6 +688,7 @@ function BookPageContent() {
       await requestCustomerBookingChange(changeSource.id, {
         phone: session.phone,
         cameraId: camera.id,
+        lensId: lens?.id ?? null,
         startDate,
         endDate,
         slot: effectiveSlot,
@@ -654,6 +749,7 @@ function BookPageContent() {
       await updatePendingCustomerBooking(editSource.id, {
         phone: session.phone,
         cameraId: camera.id,
+        lensId: lens?.id ?? null,
         startDate,
         endDate,
         slot: effectiveSlot,
@@ -705,6 +801,7 @@ function BookPageContent() {
       const booking = await createCustomerBooking({
         customerId: session.id,
         cameraId: camera.id,
+        lensId: lens?.id ?? null,
         startDate,
         endDate,
         slot: effectiveSlot,
@@ -726,6 +823,7 @@ function BookPageContent() {
   const stepsByCamera = [
     "Hãng",
     "Máy",
+    "Ống kính",
     "Ngày",
     "Buổi",
     "Nhận máy",
@@ -736,20 +834,18 @@ function BookPageContent() {
     "Buổi",
     "Hãng",
     "Máy",
+    "Ống kính",
     "Nhận máy",
     "Xác nhận",
   ];
   const steps = mode === "BY_CAMERA" ? stepsByCamera : stepsByDate;
-  const summaryStep = 5;
-  const pickupStep = 4;
-  const brandStep = mode === "BY_CAMERA" ? 0 : 2;
-  const isBrandStep =
-    (mode === "BY_CAMERA" && step === 0) ||
-    (mode === "BY_DATE" && step === 2);
-  const isCameraStep =
-    (mode === "BY_CAMERA" && step === 1) ||
-    (mode === "BY_DATE" && step === 3);
-  const isPickupStep = step === pickupStep && !!camera;
+  const summaryStep = mode ? wizardSummaryStep(mode) : 6;
+  const pickupStep = mode ? wizardPickupStep(mode) : 5;
+  const brandStep = mode ? wizardBrandStep(mode) : 0;
+  const isBrandStep = mode != null && step === wizardBrandStep(mode);
+  const isCameraStep = mode != null && step === wizardCameraStep(mode);
+  const isLensStep = mode != null && step === wizardLensStep(mode);
+  const isPickupStep = mode != null && step === pickupStep && !!camera;
 
   function renderDateStepHeader() {
     return (
@@ -985,6 +1081,9 @@ function BookPageContent() {
               <CameraDiscountBadge discountPercent={discountPercent} />
             ) : null}
           </HStack>
+          <Text>
+            <strong>Ống kính:</strong> {lensDisplayLabel(lens)}
+          </Text>
           <Text>
             <strong>Ngày:</strong>{" "}
             {startDate && endDate
@@ -1243,18 +1342,25 @@ function BookPageContent() {
             Chọn hãng để tiếp tục đặt lịch.
           </Text>
           <Stack gap={2}>
-            {CAMERA_BRAND_OPTIONS.map((b) => (
+            {brandOptions.length === 0 ? (
+              <Text fontSize="sm" color="fg.muted">
+                Đang tải hãng…
+              </Text>
+            ) : null}
+            {brandOptions.map((b) => (
               <BrandPickerButton
                 key={b.id}
                 brand={b}
                 onClick={() => {
                   setBrand(b.id);
+                  setLens(null);
+                  setCamera(null);
                   if (mode === "BY_CAMERA") {
                     void loadCamerasForBrand(b.id);
-                    setStep(1);
+                    setStep(wizardCameraStep("BY_CAMERA"));
                   } else {
                     void loadCamerasAvail(b.id);
-                    setStep(3);
+                    setStep(wizardCameraStep("BY_DATE"));
                   }
                 }}
               />
@@ -1273,6 +1379,8 @@ function BookPageContent() {
             onClick={() => {
               setStep(brandStep);
               setCamera(null);
+              setLens(null);
+              setLenses([]);
             }}
           >
             ← Chọn hãng khác
@@ -1315,8 +1423,8 @@ function BookPageContent() {
                     key={c.id}
                     camera={c}
                     onClick={() => {
-                      setCamera(c);
-                      setStep(2);
+                      if (!mode) return;
+                      void advanceAfterCameraSelect(c, "BY_CAMERA");
                     }}
                   />
                 ))
@@ -1329,8 +1437,8 @@ function BookPageContent() {
                       !c.available ? "Hết chỗ" : undefined
                     }
                     onClick={() => {
-                      setCamera(c);
-                      setStep(4);
+                      if (!mode) return;
+                      void advanceAfterCameraSelect(c, "BY_DATE");
                     }}
                   />
                 ))}
@@ -1338,10 +1446,51 @@ function BookPageContent() {
         </>
       ) : null}
 
-      {!isBrandStep && !isCameraStep ? (
+      {isLensStep && brand ? (
+        <>
+          <Button
+            size="sm"
+            w="fit-content"
+            variant="ghost"
+            colorPalette={APP_COLOR_PALETTE}
+            onClick={() => {
+              if (!mode) return;
+              setLens(null);
+              setStep(wizardCameraStep(mode));
+            }}
+          >
+            ← Chọn máy khác
+          </Button>
+          <Text fontSize="sm" color="fg.muted">
+            Ống kính {BRAND_LABEL[brand]} — chọn để tiếp tục.
+          </Text>
+          {loading ? (
+            <Text color="fg.muted" fontSize="sm">
+              Đang tải…
+            </Text>
+          ) : null}
+          <Stack gap={3}>
+            {lenses.map((l) => (
+              <CameraPickerCard
+                key={l.id}
+                camera={l}
+                onClick={() => {
+                  if (!mode) return;
+                  setLens(l);
+                  setStep(wizardDateStep(mode));
+                }}
+              />
+            ))}
+          </Stack>
+        </>
+      ) : null}
+
+      {!isBrandStep && !isCameraStep && !isLensStep ? (
         <CardRoot {...userCardProps}>
           <CardBody>
-          {mode === "BY_CAMERA" && step === 2 && camera && (
+          {mode === "BY_CAMERA" &&
+            step === WIZARD_STEP.BY_CAMERA.DATE &&
+            camera && (
             <Stack gap={4}>
               {renderDateStepHeader()}
               <MonthCalendar
@@ -1373,14 +1522,14 @@ function BookPageContent() {
                 {...userSolidButtonProps}
                 {...STEP_CONTINUE_BUTTON_PROPS}
                 disabled={!startDate || !endDate || !fullDayCanContinue}
-                onClick={() => setStep(3)}
+                onClick={() => setStep(WIZARD_STEP.BY_CAMERA.SLOT)}
               >
                 Tiếp tục
               </Button>
             </Stack>
           )}
 
-          {mode === "BY_CAMERA" && step === 3 && (
+          {mode === "BY_CAMERA" && step === WIZARD_STEP.BY_CAMERA.SLOT && (
             <Stack gap={4}>
               {renderSlotPicker()}
               <Button
@@ -1398,7 +1547,7 @@ function BookPageContent() {
 
           {mode === "BY_CAMERA" && step === summaryStep && renderSummary()}
 
-          {mode === "BY_DATE" && step === 0 && (
+          {mode === "BY_DATE" && step === WIZARD_STEP.BY_DATE.DATE && (
             <Stack gap={4}>
               {renderDateStepHeader()}
               <MonthCalendar
@@ -1430,21 +1579,21 @@ function BookPageContent() {
                 {...userSolidButtonProps}
                 {...STEP_CONTINUE_BUTTON_PROPS}
                 disabled={!startDate || !endDate || !fullDayCanContinue}
-                onClick={() => setStep(1)}
+                onClick={() => setStep(WIZARD_STEP.BY_DATE.SLOT)}
               >
                 Tiếp tục
               </Button>
             </Stack>
           )}
 
-          {mode === "BY_DATE" && step === 1 && (
+          {mode === "BY_DATE" && step === WIZARD_STEP.BY_DATE.SLOT && (
             <Stack gap={4}>
               {renderSlotPicker()}
               <Button
                 {...userSolidButtonProps}
                 {...STEP_CONTINUE_BUTTON_PROPS}
                 disabled={!slotStepCanContinue()}
-                onClick={() => advanceFromSlotStep(2)}
+                onClick={() => advanceFromSlotStep(wizardBrandStep("BY_DATE"))}
               >
                 Tiếp tục
               </Button>

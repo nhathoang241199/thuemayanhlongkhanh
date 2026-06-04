@@ -11,6 +11,12 @@ export type BookingCamera = {
   brand: string;
 };
 
+export type BookingLens = {
+  id: string;
+  name: string;
+  brand: string;
+};
+
 export type Booking = {
   id: string;
   bookingCode: string;
@@ -30,6 +36,7 @@ export type Booking = {
   updatedAt: string;
   customer: BookingCustomer;
   camera: BookingCamera;
+  lens?: BookingLens | null;
 };
 
 export type BookingStatusValue =

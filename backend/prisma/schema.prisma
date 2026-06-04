@@ -27,6 +27,19 @@ model Camera {
   bookings         Booking[]
 }
 
+model Lens {
+  id              String      @id @default(cuid())
+  brand           CameraBrand
+  name            String
+  quantity        Int
+  dayPrice        Int
+  shiftPrice      Int
+  discountPercent Int         @default(0)
+  imageUrl        String?
+  createdAt       DateTime    @default(now())
+  bookings        Booking[]
+}
+
 enum CameraBrand {
   FUJIFILM
   CANON
@@ -62,6 +75,8 @@ model Booking {
   customer      Customer      @relation(fields: [customerId], references: [id])
   cameraId      String
   camera        Camera        @relation(fields: [cameraId], references: [id])
+  lensId        String?
+  lens          Lens?         @relation(fields: [lensId], references: [id])
   startBookingDate DateTime
   endBookingDate   DateTime
   slot             BookingSlot

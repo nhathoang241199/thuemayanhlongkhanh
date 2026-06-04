@@ -12,6 +12,7 @@ module.exports = {
       instances: 1,
       autorestart: true,
       max_memory_restart: "500M",
+      env_file: path.join(root, "backend", ".env"),
       env: {
         NODE_ENV: "production",
       },

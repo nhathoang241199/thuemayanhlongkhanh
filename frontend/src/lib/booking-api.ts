@@ -22,6 +22,22 @@ export type PublicCameraDetail = PublicCamera & {
   tutorialVideoUrl: string | null;
 };
 
+export type PublicLens = {
+  id: string;
+  brand: CameraBrand;
+  name: string;
+  quantity: number;
+  dayPrice: number;
+  shiftPrice: number;
+  discountPercent: number;
+  imageUrl: string | null;
+};
+
+export type RentalPickerItem = Pick<
+  PublicCamera,
+  "id" | "name" | "dayPrice" | "shiftPrice" | "discountPercent" | "imageUrl"
+>;
+
 export type CalendarDay = {
   date: string;
   available: boolean;
@@ -55,6 +71,19 @@ export async function fetchPublicCameras(
   const params = new URLSearchParams();
   if (brand) params.set("brand", brand);
   const res = await fetch(`${apiBase()}/api/cameras/public?${params}`);
+  return parseJson(res);
+}
+
+export async function fetchBrandsWithCameras(): Promise<CameraBrand[]> {
+  const res = await fetch(`${apiBase()}/api/cameras/public/brands`);
+  return parseJson(res);
+}
+
+export async function fetchPublicLenses(
+  brand: CameraBrand,
+): Promise<PublicLens[]> {
+  const params = new URLSearchParams({ brand });
+  const res = await fetch(`${apiBase()}/api/lenses/public?${params}`);
   return parseJson(res);
 }
 
@@ -170,6 +199,7 @@ export type CustomerBooking = {
 export async function createCustomerBooking(body: {
   customerId: string;
   cameraId: string;
+  lensId?: string | null;
   startDate: string;
   endDate: string;
   slot: BookingSlot;

@@ -55,6 +55,7 @@ import {
   isCancelRefundEligible,
 } from "@/lib/booking-payment";
 import { BRAND_LABEL } from "@/lib/camera-brands";
+import { lensDisplayLabel } from "@/lib/lens-step";
 import { getSession, type CustomerSession } from "@/lib/customer-session";
 import {
   APP_COLOR_PALETTE,
@@ -378,6 +379,12 @@ export default function UserHomePage() {
                     Hướng dẫn sử dụng
                   </Text>
                 </HStack>
+                <Text fontSize="sm" color="fg.muted">
+                  Ống kính:{" "}
+                  <Text as="span" fontWeight="medium" color={titleColor}>
+                    {lensDisplayLabel(b.lens)}
+                  </Text>
+                </Text>
                 <Text fontSize="sm" color="fg.muted">
                   Sử dụng:{" "}
                   <Text

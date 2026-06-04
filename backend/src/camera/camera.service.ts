@@ -20,6 +20,16 @@ export class CameraService {
     });
   }
 
+  async findPublicBrands(): Promise<CameraBrand[]> {
+    const rows = await this.prisma.camera.findMany({
+      where: publicListedCameraWhere(),
+      distinct: ['brand'],
+      select: { brand: true },
+      orderBy: { brand: 'asc' },
+    });
+    return rows.map((r) => r.brand);
+  }
+
   findPublic(brand?: CameraBrand) {
     return this.prisma.camera.findMany({
       where: publicListedCameraWhere(brand),

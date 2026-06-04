@@ -34,6 +34,9 @@ function adminBreadcrumbs(pathname: string): Crumb[] {
   if (pathname === "/admin/cameras") {
     return [home, admin, { href: null, label: "Máy ảnh" }];
   }
+  if (pathname === "/admin/lenses") {
+    return [home, admin, { href: null, label: "Ống kính" }];
+  }
   if (pathname === "/admin/customers") {
     return [home, admin, { href: null, label: "Khách hàng" }];
   }

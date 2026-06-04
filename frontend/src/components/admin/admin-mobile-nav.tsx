@@ -231,6 +231,16 @@ export function AdminMobileNavDrawer({
             >
               <NextLink href="/admin/cameras">Máy ảnh</NextLink>
             </Button>
+            <Button
+              asChild
+              variant={navVariant(pathname === "/admin/lenses")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+              justifyContent="flex-start"
+              onClick={close}
+            >
+              <NextLink href="/admin/lenses">Ống kính</NextLink>
+            </Button>
           </Stack>
           <Button
             type="button"
@@ -305,6 +315,14 @@ export function AdminDesktopNav({
               size="sm"
             >
               <NextLink href="/admin/cameras">Máy ảnh</NextLink>
+            </Button>
+            <Button
+              asChild
+              variant={navVariant(pathname === "/admin/lenses")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+            >
+              <NextLink href="/admin/lenses">Ống kính</NextLink>
             </Button>
           </HStack>
           <Button

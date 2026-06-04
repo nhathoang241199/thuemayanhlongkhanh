@@ -8,6 +8,7 @@ import {
   IsString,
   Matches,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 
 export class CreateCustomerBookingDto {
@@ -18,6 +19,15 @@ export class CreateCustomerBookingDto {
   @ApiProperty()
   @IsString()
   cameraId: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Bỏ trống = kit miễn phí',
+  })
+  @IsOptional()
+  @ValidateIf((_, v) => v != null)
+  @IsString()
+  lensId?: string | null;
 
   @ApiProperty({ example: '2026-05-01' })
   @IsDateString()
