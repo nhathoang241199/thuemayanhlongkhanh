@@ -53,6 +53,13 @@ export function wizardDateStep(mode: BookWizardMode): number {
     : WIZARD_STEP.BY_DATE.DATE;
 }
 
+/** Bước tiếp theo sau khi xong lens (chọn hoặc skip). */
+export function wizardStepAfterLens(mode: BookWizardMode): number {
+  return mode === "BY_CAMERA"
+    ? WIZARD_STEP.BY_CAMERA.DATE
+    : WIZARD_STEP.BY_DATE.PICKUP;
+}
+
 export function wizardSlotStep(mode: BookWizardMode): number {
   return mode === "BY_CAMERA"
     ? WIZARD_STEP.BY_CAMERA.SLOT

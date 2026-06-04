@@ -53,9 +53,9 @@ import {
   WIZARD_STEP,
   wizardBrandStep,
   wizardCameraStep,
-  wizardDateStep,
   wizardLensStep,
   wizardPickupStep,
+  wizardStepAfterLens,
   wizardSlotStep,
   wizardSummaryStep,
   type BookWizardMode,
@@ -563,7 +563,7 @@ function BookPageContent() {
       if (shouldSkipLensStep(list)) {
         const autoId = lensIdAfterSkip(list);
         setLens(autoId ? (list.find((l) => l.id === autoId) ?? null) : null);
-        setStep(wizardDateStep(wizardMode));
+        setStep(wizardStepAfterLens(wizardMode));
       } else {
         setStep(wizardLensStep(wizardMode));
       }
@@ -1478,7 +1478,7 @@ function BookPageContent() {
                 onClick={() => {
                   if (!mode) return;
                   setLens(l);
-                  setStep(wizardDateStep(mode));
+                  setStep(wizardStepAfterLens(mode));
                 }}
               />
             ))}
