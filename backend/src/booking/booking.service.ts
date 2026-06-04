@@ -23,8 +23,7 @@ import {
   rentalAmountWithOptionsVnd,
   slotWindow,
 } from '../common/booking-schedule';
-import { publicListedLensWhere } from '../common/lens-listing';
-import { CameraBrand } from '../../generated/prisma/enums';
+import { publicListedLensForCameraWhere } from '../common/lens-listing';
 import {
   BOOKING_CANCEL_REFUND_VND,
   BOOKING_DEPOSIT_VND,
@@ -55,7 +54,7 @@ const bookingInclude = {
   },
   camera: { select: { id: true, name: true, brand: true } },
   lens: {
-    select: { id: true, name: true, brand: true, dayPrice: true, shiftPrice: true },
+    select: { id: true, name: true, dayPrice: true, shiftPrice: true },
   },
 } as const;
 
@@ -350,19 +349,18 @@ export class BookingService {
 
   private async resolveLensId(
     lensId: string | null | undefined,
-    cameraBrand: CameraBrand,
+    cameraId: string,
   ): Promise<string | null> {
     if (lensId == null || lensId === '') return null;
     const lens = await this.prisma.lens.findFirst({
       where: {
         id: lensId,
-        brand: cameraBrand,
-        ...publicListedLensWhere(),
+        ...publicListedLensForCameraWhere(cameraId),
       },
     });
     if (!lens) {
       throw new BadRequestException(
-        'Ống kính không hợp lệ, không cùng hãng hoặc đã hết hàng',
+        'Ống kính không hợp lệ, không gắn được máy đã chọn hoặc đã hết hàng',
       );
     }
     return lens.id;
@@ -383,7 +381,7 @@ export class BookingService {
     if (!camera) {
       throw new NotFoundException('Máy ảnh không tồn tại');
     }
-    const resolvedLensId = await this.resolveLensId(lensId, camera.brand);
+    const resolvedLensId = await this.resolveLensId(lensId, cameraId);
     const discountPercent = camera.discountPercent ?? 0;
     const dayCount = dayCountInclusive(startDate, endDate);
     const cameraRental = rentalAmountWithOptionsVnd(
@@ -488,7 +486,7 @@ export class BookingService {
     if (!changeCamera) {
       throw new NotFoundException('Máy ảnh không tồn tại');
     }
-    const resolvedLensId = await this.resolveLensId(dto.lensId, changeCamera.brand);
+    const resolvedLensId = await this.resolveLensId(dto.lensId, dto.cameraId);
 
     const pricing = await this.computeBookingPricing(
       dto.cameraId,
@@ -595,7 +593,7 @@ export class BookingService {
     if (!pendingCamera) {
       throw new NotFoundException('Máy ảnh không tồn tại');
     }
-    const resolvedLensId = await this.resolveLensId(dto.lensId, pendingCamera.brand);
+    const resolvedLensId = await this.resolveLensId(dto.lensId, dto.cameraId);
 
     const pricing = await this.computeBookingPricing(
       dto.cameraId,
@@ -670,7 +668,7 @@ export class BookingService {
 
     this.assertDeliveryAllowed(customer, dto.shippingAddress);
 
-    const resolvedLensId = await this.resolveLensId(dto.lensId, camera.brand);
+    const resolvedLensId = await this.resolveLensId(dto.lensId, dto.cameraId);
 
     const pricing = await this.computeBookingPricing(
       dto.cameraId,
@@ -747,7 +745,7 @@ export class BookingService {
       throw new NotFoundException('Máy ảnh không tồn tại');
     }
     const discountPercent = camera.discountPercent ?? 0;
-    const resolvedLensId = await this.resolveLensId(dto.lensId, camera.brand);
+    const resolvedLensId = await this.resolveLensId(dto.lensId, dto.cameraId);
 
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
@@ -837,13 +835,13 @@ export class BookingService {
     if (dto.lensId !== undefined || dto.cameraId !== undefined) {
       const camera = await this.prisma.camera.findUnique({
         where: { id: cameraIdForLens },
-        select: { brand: true },
+        select: { id: true },
       });
       if (!camera) {
         throw new NotFoundException('Máy ảnh không tồn tại');
       }
       const lensRaw = dto.lensId !== undefined ? dto.lensId : existing.lensId;
-      data.lensId = await this.resolveLensId(lensRaw, camera.brand);
+      data.lensId = await this.resolveLensId(lensRaw, cameraIdForLens);
     }
 
     try {

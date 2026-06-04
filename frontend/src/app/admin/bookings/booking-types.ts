@@ -14,7 +14,6 @@ export type BookingCamera = {
 export type BookingLens = {
   id: string;
   name: string;
-  brand: string;
 };
 
 export type Booking = {

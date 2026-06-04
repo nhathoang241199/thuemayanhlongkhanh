@@ -12,6 +12,7 @@ import NextLink from "next/link";
 
 import { CameraDiscountBadge } from "@/components/camera/camera-discount-badge";
 import { DiscountedPriceLine } from "@/components/camera/discounted-price-line";
+import { isFreeLens } from "@/lib/lens-step";
 import type { RentalPickerItem } from "@/lib/booking-api";
 import { titleColor, userBookingCardProps } from "@/lib/user-theme";
 
@@ -21,6 +22,8 @@ type CameraPickerCardProps = {
   onClick?: () => void;
   disabled?: boolean;
   unavailableLabel?: string;
+  /** Lens giá 0: hiện "Miễn phí" thay vì 0đ */
+  showFreePriceLabel?: boolean;
 };
 
 export function CameraPickerCard({
@@ -29,8 +32,11 @@ export function CameraPickerCard({
   onClick,
   disabled = false,
   unavailableLabel,
+  showFreePriceLabel = false,
 }: CameraPickerCardProps) {
   const discountPercent = camera.discountPercent ?? 0;
+  const freePrice =
+    showFreePriceLabel && isFreeLens(camera);
 
   const body = (
     <CardBody position="relative">
@@ -73,16 +79,24 @@ export function CameraPickerCard({
               ) : null}
             </Text>
           </HStack>
-          <DiscountedPriceLine
-            label="Cả ngày:"
-            price={camera.dayPrice}
-            discountPercent={discountPercent}
-          />
-          <DiscountedPriceLine
-            label="Theo buổi:"
-            price={camera.shiftPrice}
-            discountPercent={discountPercent}
-          />
+          {freePrice ? (
+            <Text fontSize="sm" fontWeight="medium" color="fg.muted">
+              Miễn phí
+            </Text>
+          ) : (
+            <>
+              <DiscountedPriceLine
+                label="Cả ngày:"
+                price={camera.dayPrice}
+                discountPercent={discountPercent}
+              />
+              <DiscountedPriceLine
+                label="Theo buổi:"
+                price={camera.shiftPrice}
+                discountPercent={discountPercent}
+              />
+            </>
+          )}
         </Stack>
       </Stack>
     </CardBody>

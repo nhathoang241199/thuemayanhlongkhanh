@@ -1,6 +1,6 @@
 import type { PublicLens } from "@/lib/booking-api";
 
-export const FREE_KIT_LABEL = "Kit miễn phí";
+export const FREE_KIT_LABEL = "Kit";
 
 export function isFreeLens(lens: {
   dayPrice: number;

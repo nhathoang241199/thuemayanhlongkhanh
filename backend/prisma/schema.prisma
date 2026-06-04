@@ -25,19 +25,30 @@ model Camera {
   tutorialVideoUrl String?
   createdAt        DateTime     @default(now())
   bookings         Booking[]
+  compatibleLenses CameraLens[]
 }
 
 model Lens {
-  id              String      @id @default(cuid())
-  brand           CameraBrand
-  name            String
-  quantity        Int
-  dayPrice        Int
-  shiftPrice      Int
-  discountPercent Int         @default(0)
-  imageUrl        String?
-  createdAt       DateTime    @default(now())
-  bookings        Booking[]
+  id                 String       @id @default(cuid())
+  name               String
+  quantity           Int
+  dayPrice           Int
+  shiftPrice         Int
+  discountPercent    Int          @default(0)
+  imageUrl           String?
+  createdAt          DateTime     @default(now())
+  bookings           Booking[]
+  compatibleCameras  CameraLens[]
+}
+
+model CameraLens {
+  cameraId String
+  camera   Camera @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+  lensId   String
+  lens     Lens   @relation(fields: [lensId], references: [id], onDelete: Cascade)
+
+  @@id([cameraId, lensId])
+  @@index([lensId])
 }
 
 enum CameraBrand {

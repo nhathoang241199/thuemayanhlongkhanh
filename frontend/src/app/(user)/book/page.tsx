@@ -558,7 +558,7 @@ function BookPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const list = await fetchPublicLenses(selected.brand);
+      const list = await fetchPublicLenses(selected.id);
       setLenses(list);
       if (shouldSkipLensStep(list)) {
         const autoId = lensIdAfterSkip(list);
@@ -1446,7 +1446,7 @@ function BookPageContent() {
         </>
       ) : null}
 
-      {isLensStep && brand ? (
+      {isLensStep && camera ? (
         <>
           <Button
             size="sm"
@@ -1462,7 +1462,7 @@ function BookPageContent() {
             ← Chọn máy khác
           </Button>
           <Text fontSize="sm" color="fg.muted">
-            Ống kính {BRAND_LABEL[brand]} — chọn để tiếp tục.
+            Ống kính cho {camera.name} — chọn để tiếp tục.
           </Text>
           {loading ? (
             <Text color="fg.muted" fontSize="sm">
@@ -1474,6 +1474,7 @@ function BookPageContent() {
               <CameraPickerCard
                 key={l.id}
                 camera={l}
+                showFreePriceLabel
                 onClick={() => {
                   if (!mode) return;
                   setLens(l);

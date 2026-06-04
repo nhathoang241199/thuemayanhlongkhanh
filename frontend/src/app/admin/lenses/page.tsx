@@ -3,6 +3,10 @@
 import {
   Box,
   Button,
+  CheckboxControl,
+  CheckboxHiddenInput,
+  CheckboxLabel,
+  CheckboxRoot,
   CardBody,
   CardRoot,
   CardTitle,
@@ -32,7 +36,7 @@ import {
   TableScrollArea,
   Text,
 } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   AdminDataCard,
@@ -45,9 +49,14 @@ import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { apiBase } from "@/lib/api-base";
 import { APP_COLOR_PALETTE, cardSurfaceProps } from "@/lib/app-theme";
 
+type AdminCamera = {
+  id: string;
+  name: string;
+  brand: string;
+};
+
 type Lens = {
   id: string;
-  brand: string;
   name: string;
   quantity: number;
   dayPrice: number;
@@ -55,6 +64,7 @@ type Lens = {
   discountPercent: number;
   imageUrl: string | null;
   createdAt: string;
+  cameras: AdminCamera[];
 };
 
 function formatDiscountLabel(percent: number): string {
@@ -70,8 +80,9 @@ const BRAND_LABEL_VI: Record<LensBrand, string> = {
   DJI: "DJI",
 };
 
-type EditForm = {
-  brand: LensBrand;
+type LensFormFields = {
+  filterBrand: LensBrand;
+  cameraIds: string[];
   name: string;
   imageUrl: string;
   quantity: number;
@@ -79,6 +90,8 @@ type EditForm = {
   shiftPrice: number;
   discountPercent: number;
 };
+
+type EditForm = LensFormFields;
 
 function parseLensBrand(raw: string): LensBrand {
   return LENS_BRANDS.includes(raw as LensBrand)
@@ -86,19 +99,12 @@ function parseLensBrand(raw: string): LensBrand {
     : "CANON";
 }
 
-type CreateForm = {
-  brand: LensBrand;
-  name: string;
-  imageUrl: string;
-  quantity: number;
-  dayPrice: number;
-  shiftPrice: number;
-  discountPercent: number;
-};
+type CreateForm = LensFormFields;
 
-function defaultCreateForm(): CreateForm {
+function defaultLensFormFields(): LensFormFields {
   return {
-    brand: "CANON",
+    filterBrand: "CANON",
+    cameraIds: [],
     name: "",
     imageUrl: "",
     quantity: 1,
@@ -106,6 +112,21 @@ function defaultCreateForm(): CreateForm {
     shiftPrice: 0,
     discountPercent: 0,
   };
+}
+
+function formatCamerasSummary(cameras: AdminCamera[]): string {
+  if (cameras.length === 0) return "—";
+  if (cameras.length <= 2) {
+    return cameras.map((c) => c.name).join(", ");
+  }
+  return `${cameras.length} máy`;
+}
+
+function cameraIdsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.every((id, i) => id === sb[i]);
 }
 
 const vnd = new Intl.NumberFormat("vi-VN", {
@@ -200,8 +221,8 @@ function LensMobileCard({
             <Text fontWeight="semibold" lineClamp={2}>
               {c.name}
             </Text>
-            <Text fontSize="sm" color="fg.muted">
-              {c.brand}
+            <Text fontSize="sm" color="fg.muted" lineClamp={2}>
+              {formatCamerasSummary(c.cameras)}
             </Text>
           </Stack>
         </HStack>
@@ -266,8 +287,9 @@ function parseDiscountPercent(raw: string): number | null {
 
 function formDirty(c: Lens, f: EditForm): boolean {
   const nextUrl = normalizeImageUrlInput(f.imageUrl);
+  const existingIds = c.cameras.map((cam) => cam.id);
   return (
-    f.brand !== parseLensBrand(c.brand) ||
+    !cameraIdsEqual(f.cameraIds, existingIds) ||
     f.name.trim() !== c.name ||
     nextUrl !== c.imageUrl ||
     f.quantity !== c.quantity ||
@@ -277,21 +299,95 @@ function formDirty(c: Lens, f: EditForm): boolean {
   );
 }
 
+function CameraCompatibilityPicker({
+  cameras,
+  filterBrand,
+  onFilterBrandChange,
+  selectedIds,
+  onSelectedIdsChange,
+}: {
+  cameras: AdminCamera[];
+  filterBrand: LensBrand;
+  onFilterBrandChange: (brand: LensBrand) => void;
+  selectedIds: string[];
+  onSelectedIdsChange: (ids: string[]) => void;
+}) {
+  const filtered = useMemo(
+    () => cameras.filter((c) => c.brand === filterBrand),
+    [cameras, filterBrand],
+  );
+
+  return (
+    <Box>
+      <Text fontSize="sm" fontWeight="medium" mb={1}>
+        Máy tương thích
+      </Text>
+      <NativeSelectRoot size="md" mb={2}>
+        <NativeSelectField
+          value={filterBrand}
+          onChange={(e) => {
+            const v = e.target.value as LensBrand;
+            if (LENS_BRANDS.includes(v)) {
+              onFilterBrandChange(v);
+              onSelectedIdsChange([]);
+            }
+          }}
+        >
+          {LENS_BRANDS.map((b) => (
+            <option key={b} value={b}>
+              {BRAND_LABEL_VI[b]} — lọc danh sách máy
+            </option>
+          ))}
+        </NativeSelectField>
+        <NativeSelectIndicator />
+      </NativeSelectRoot>
+      {filtered.length === 0 ? (
+        <Text fontSize="sm" color="fg.muted">
+          Chưa có máy {BRAND_LABEL_VI[filterBrand]}.
+        </Text>
+      ) : (
+        <Stack gap={2} maxH="12rem" overflowY="auto" pe={1}>
+          {filtered.map((cam) => {
+            const checked = selectedIds.includes(cam.id);
+            return (
+              <CheckboxRoot
+                key={cam.id}
+                checked={checked}
+                onCheckedChange={(e) => {
+                  const on = !!e.checked;
+                  if (on) {
+                    onSelectedIdsChange([...selectedIds, cam.id]);
+                  } else {
+                    onSelectedIdsChange(
+                      selectedIds.filter((id) => id !== cam.id),
+                    );
+                  }
+                }}
+              >
+                <CheckboxHiddenInput />
+                <CheckboxControl />
+                <CheckboxLabel fontSize="sm">{cam.name}</CheckboxLabel>
+              </CheckboxRoot>
+            );
+          })}
+        </Stack>
+      )}
+      <Text fontSize="xs" color="fg.muted" mt={1}>
+        Đã chọn {selectedIds.length} máy (có thể chọn máy khác hãng sau khi đổi
+        bộ lọc).
+      </Text>
+    </Box>
+  );
+}
+
 export default function AdminLensesPage() {
   const [lenses, setLenses] = useState<Lens[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<Lens | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({
-    brand: "CANON",
-    name: "",
-    imageUrl: "",
-    quantity: 0,
-    dayPrice: 0,
-    shiftPrice: 0,
-    discountPercent: 0,
-  });
+  const [cameras, setCameras] = useState<AdminCamera[]>([]);
+  const [editForm, setEditForm] = useState<EditForm>(defaultLensFormFields());
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -299,7 +395,7 @@ export default function AdminLensesPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateForm>(defaultCreateForm);
+  const [createForm, setCreateForm] = useState<CreateForm>(defaultLensFormFields());
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -310,13 +406,24 @@ export default function AdminLensesPage() {
       setError(null);
       setDeleteError(null);
       try {
-        const res = await fetch(`${apiBase()}/api/lenses`, {
-          credentials: "include",
-          signal: ac.signal,
-        });
-        await throwIfNotOk(res, "Lỗi tải dữ liệu");
-        const json = (await res.json()) as Lens[];
-        if (!ac.signal.aborted) setLenses(json);
+        const [lensRes, camRes] = await Promise.all([
+          fetch(`${apiBase()}/api/lenses`, {
+            credentials: "include",
+            signal: ac.signal,
+          }),
+          fetch(`${apiBase()}/api/cameras`, {
+            credentials: "include",
+            signal: ac.signal,
+          }),
+        ]);
+        await throwIfNotOk(lensRes, "Lỗi tải dữ liệu");
+        await throwIfNotOk(camRes, "Lỗi tải máy ảnh");
+        const json = (await lensRes.json()) as Lens[];
+        const cams = (await camRes.json()) as AdminCamera[];
+        if (!ac.signal.aborted) {
+          setLenses(json);
+          setCameras(cams);
+        }
       } catch (e) {
         if (ac.signal.aborted) return;
         setLenses(null);
@@ -342,7 +449,7 @@ export default function AdminLensesPage() {
   const openCreate = () => {
     setEditing(null);
     setModalError(null);
-    setCreateForm(defaultCreateForm());
+    setCreateForm(defaultLensFormFields());
     setCreateError(null);
     setCreateOpen(true);
   };
@@ -351,8 +458,13 @@ export default function AdminLensesPage() {
     setCreateOpen(false);
     setCreateError(null);
     setEditing(c);
+    const cameraIds = c.cameras.map((cam) => cam.id);
+    const filterBrand = c.cameras[0]
+      ? parseLensBrand(c.cameras[0].brand)
+      : "CANON";
     setEditForm({
-      brand: parseLensBrand(c.brand),
+      filterBrand,
+      cameraIds,
       name: c.name,
       imageUrl: c.imageUrl ?? "",
       quantity: c.quantity,
@@ -370,6 +482,10 @@ export default function AdminLensesPage() {
       setModalError("Tên ống kính không được để trống.");
       return;
     }
+    if (editForm.cameraIds.length === 0) {
+      setModalError("Chọn ít nhất một máy tương thích.");
+      return;
+    }
     void (async () => {
       setSaving(true);
       setModalError(null);
@@ -379,7 +495,7 @@ export default function AdminLensesPage() {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            brand: editForm.brand,
+            cameraIds: editForm.cameraIds,
             name,
             imageUrl: normalizeImageUrlInput(editForm.imageUrl),
             quantity: editForm.quantity,
@@ -409,12 +525,16 @@ export default function AdminLensesPage() {
       setCreateError("Tên ống kính không được để trống.");
       return;
     }
+    if (createForm.cameraIds.length === 0) {
+      setCreateError("Chọn ít nhất một máy tương thích.");
+      return;
+    }
     void (async () => {
       setCreateSaving(true);
       setCreateError(null);
       try {
         const body: Record<string, unknown> = {
-          brand: createForm.brand,
+          cameraIds: createForm.cameraIds,
           name,
           quantity: createForm.quantity,
           dayPrice: createForm.dayPrice,
@@ -486,7 +606,7 @@ export default function AdminLensesPage() {
     formDirty(editing, editForm);
 
   const canSubmitCreate =
-    createForm.name.trim().length > 0;
+    createForm.name.trim().length > 0 && createForm.cameraIds.length > 0;
 
   return (
     <Stack gap={6}>
@@ -560,7 +680,7 @@ export default function AdminLensesPage() {
                           Ảnh
                         </TableColumnHeader>
                         <TableColumnHeader {...tableCellPad}>
-                          Thương hiệu
+                          Máy tương thích
                         </TableColumnHeader>
                         <TableColumnHeader {...tableCellPad}>
                           Tên
@@ -607,7 +727,11 @@ export default function AdminLensesPage() {
                               />
                             )}
                           </TableCell>
-                          <TableCell {...tableCellPad}>{c.brand}</TableCell>
+                          <TableCell {...tableCellPad} maxW="14rem">
+                            <Text fontSize="sm" lineClamp={2}>
+                              {formatCamerasSummary(c.cameras)}
+                            </Text>
+                          </TableCell>
                           <TableCell fontWeight="medium" {...tableCellPad}>
                             {c.name}
                           </TableCell>
@@ -700,29 +824,17 @@ export default function AdminLensesPage() {
             <DialogBody>
               {editing ? (
                 <Stack gap={4}>
-                  <Box>
-                    <Text fontSize="sm" fontWeight="medium" mb={1}>
-                      Thương hiệu
-                    </Text>
-                    <NativeSelectRoot size="md">
-                      <NativeSelectField
-                        value={editForm.brand}
-                        onChange={(e) => {
-                          const v = e.target.value as LensBrand;
-                          if (LENS_BRANDS.includes(v)) {
-                            setEditForm((f) => ({ ...f, brand: v }));
-                          }
-                        }}
-                      >
-                        {LENS_BRANDS.map((b) => (
-                          <option key={b} value={b}>
-                            {BRAND_LABEL_VI[b]}
-                          </option>
-                        ))}
-                      </NativeSelectField>
-                      <NativeSelectIndicator />
-                    </NativeSelectRoot>
-                  </Box>
+                  <CameraCompatibilityPicker
+                    cameras={cameras}
+                    filterBrand={editForm.filterBrand}
+                    onFilterBrandChange={(filterBrand) =>
+                      setEditForm((f) => ({ ...f, filterBrand }))
+                    }
+                    selectedIds={editForm.cameraIds}
+                    onSelectedIdsChange={(cameraIds) =>
+                      setEditForm((f) => ({ ...f, cameraIds }))
+                    }
+                  />
                   {modalError ? (
                     <Text color="red.fg" fontSize="sm" fontWeight="medium">
                       {modalError}
@@ -891,29 +1003,17 @@ export default function AdminLensesPage() {
                     {createError}
                   </Text>
                 ) : null}
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={1}>
-                    Thương hiệu
-                  </Text>
-                  <NativeSelectRoot size="md">
-                    <NativeSelectField
-                      value={createForm.brand}
-                      onChange={(e) => {
-                        const v = e.target.value as LensBrand;
-                        if (LENS_BRANDS.includes(v)) {
-                          setCreateForm((f) => ({ ...f, brand: v }));
-                        }
-                      }}
-                    >
-                      {LENS_BRANDS.map((b) => (
-                        <option key={b} value={b}>
-                          {BRAND_LABEL_VI[b]}
-                        </option>
-                      ))}
-                    </NativeSelectField>
-                    <NativeSelectIndicator />
-                  </NativeSelectRoot>
-                </Box>
+                <CameraCompatibilityPicker
+                  cameras={cameras}
+                  filterBrand={createForm.filterBrand}
+                  onFilterBrandChange={(filterBrand) =>
+                    setCreateForm((f) => ({ ...f, filterBrand }))
+                  }
+                  selectedIds={createForm.cameraIds}
+                  onSelectedIdsChange={(cameraIds) =>
+                    setCreateForm((f) => ({ ...f, cameraIds }))
+                  }
+                />
                 <Box>
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Tên ống kính

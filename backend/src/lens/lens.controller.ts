@@ -19,7 +19,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/public.decorator';
-import { CameraBrand } from '../../generated/prisma/enums';
 import { LensService } from './lens.service';
 import { CreateLensDto } from './dto/create-lens.dto';
 import { UpdateLensDto } from './dto/update-lens.dto';
@@ -39,9 +38,9 @@ export class LensController {
   @Public()
   @Get('public')
   @ApiOperation({ summary: 'Danh sách lens (khách)' })
-  @ApiOkResponse({ description: 'Lens theo hãng' })
-  findPublic(@Query('brand') brand?: CameraBrand) {
-    return this.lensService.findPublic(brand);
+  @ApiOkResponse({ description: 'Lens tương thích máy đã chọn' })
+  findPublic(@Query('cameraId') cameraId: string) {
+    return this.lensService.findPublic(cameraId);
   }
 
   @Get(':id')

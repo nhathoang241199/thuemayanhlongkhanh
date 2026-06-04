@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CameraBrand } from '../../../generated/prisma/enums';
 import {
-  IsEnum,
+  ArrayMinSize,
+  IsArray,
   IsInt,
   IsOptional,
   IsString,
@@ -12,14 +12,19 @@ import {
 } from 'class-validator';
 
 export class CreateLensDto {
-  @ApiProperty({ enum: CameraBrand })
-  @IsEnum(CameraBrand)
-  brand: CameraBrand;
-
   @ApiProperty({ example: 'RF 50mm f/1.8' })
   @IsString()
   @MaxLength(255)
   name: string;
+
+  @ApiProperty({
+    example: ['clxxx', 'clyyy'],
+    description: 'Máy ảnh tương thích (cùng hãng)',
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  cameraIds: string[];
 
   @ApiProperty({ example: 2, minimum: 0 })
   @IsInt()

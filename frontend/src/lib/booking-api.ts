@@ -24,7 +24,6 @@ export type PublicCameraDetail = PublicCamera & {
 
 export type PublicLens = {
   id: string;
-  brand: CameraBrand;
   name: string;
   quantity: number;
   dayPrice: number;
@@ -80,9 +79,9 @@ export async function fetchBrandsWithCameras(): Promise<CameraBrand[]> {
 }
 
 export async function fetchPublicLenses(
-  brand: CameraBrand,
+  cameraId: string,
 ): Promise<PublicLens[]> {
-  const params = new URLSearchParams({ brand });
+  const params = new URLSearchParams({ cameraId });
   const res = await fetch(`${apiBase()}/api/lenses/public?${params}`);
   return parseJson(res);
 }

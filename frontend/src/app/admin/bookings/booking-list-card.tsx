@@ -28,6 +28,7 @@ import {
 } from "@/components/admin/admin-data-card";
 import { APP_COLOR_PALETTE, titleColor } from "@/lib/app-theme";
 import { balanceDueVnd } from "@/lib/booking-payment";
+import { FREE_KIT_LABEL } from "@/lib/lens-step";
 import { slotLabelVi } from "@/lib/booking-status";
 
 import { BookingCccdAction } from "./booking-cccd-action";
@@ -172,7 +173,7 @@ function BookingListCardInner({
           ) : null}
         </HStack>
         <Text fontSize="sm" color="fg.muted">
-          {b.lens?.name ?? "Kit miễn phí"}
+          {b.lens?.name ?? FREE_KIT_LABEL}
         </Text>
         <Stack gap={1} fontSize="sm" w="full">
           <HStack gap={1.5} align="baseline" minW={0}>

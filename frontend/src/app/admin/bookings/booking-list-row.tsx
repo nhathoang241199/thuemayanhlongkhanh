@@ -15,6 +15,7 @@ import NextLink from "next/link";
 
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
+import { FREE_KIT_LABEL } from "@/lib/lens-step";
 
 import {
   BookingPaymentMenuCell,
@@ -153,7 +154,7 @@ function BookingListRowInner({
         </Text>
         <Text fontWeight="medium">{b.camera.name}</Text>
         <Text fontSize="xs" color="fg.muted">
-          {b.lens?.name ?? "Kit miễn phí"}
+          {b.lens?.name ?? FREE_KIT_LABEL}
         </Text>
       </TableCell>
       <TableCell {...tableCellPad} textAlign="end">

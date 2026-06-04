@@ -60,7 +60,7 @@ export type MyBooking = {
   /** CONFIRMED: máy vật lý sẵn sàng nhận; null: không hiện badge */
   cameraReady?: boolean | null;
   camera: { id: string; name: string; brand: string };
-  lens?: { id: string; name: string; brand: string } | null;
+  lens?: { id: string; name: string } | null;
 };
 
 export type RequestChangeResult = {
