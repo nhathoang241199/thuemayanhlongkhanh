@@ -20,8 +20,12 @@ if [[ "${DEPLOY_SKIP_PULL:-0}" != "1" ]]; then
   git pull --ff-only
 fi
 
-log "Postgres (docker compose)..."
-docker compose up -d postgres
+if [[ "${DEPLOY_SKIP_POSTGRES:-0}" != "1" ]]; then
+  log "Postgres (docker compose)..."
+  docker compose up -d postgres
+else
+  log "Postgres skipped (DEPLOY_SKIP_POSTGRES=1 — dùng DB chung VPS)"
+fi
 
 [[ -f backend/.env ]] || die "Thiếu backend/.env — cp backend/.env.production.example backend/.env"
 [[ -f frontend/.env.production ]] || die "Thiếu frontend/.env.production — cp frontend/.env.production.example frontend/.env.production"

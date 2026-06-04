@@ -23,8 +23,11 @@ for dir in "${SITES[@]}"; do
   cd "$dir"
   if [[ "$dir" == *binhthanh* ]] && [[ -f deploy/ecosystem.binhthanh.config.cjs ]]; then
     export PM2_ECOSYSTEM="deploy/ecosystem.binhthanh.config.cjs"
+    # Site thứ 2 dùng Postgres container của Long Khánh (cùng tên trong docker-compose.yml)
+    export DEPLOY_SKIP_POSTGRES=1
   else
     unset PM2_ECOSYSTEM || true
+    unset DEPLOY_SKIP_POSTGRES || true
   fi
   chmod +x deploy/deploy.sh
   ./deploy/deploy.sh

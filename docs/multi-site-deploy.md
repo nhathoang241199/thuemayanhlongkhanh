@@ -42,7 +42,9 @@ Chi tiết Nginx/SSL một site: [deploy-vps.md](./deploy-vps.md).
 
 ## GitHub Actions (nhiều site)
 
-Push nhánh **`main`** → [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) SSH vào VPS, chạy [`deploy/deploy-all-sites.sh`](../deploy/deploy-all-sites.sh) (**tuần tự** Long Khánh → Bình Thạnh).
+Push nhánh **`main`** (hoặc **Actions → Deploy to VPS → Run workflow**) → [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) SSH vào VPS, chạy [`deploy/deploy-all-sites.sh`](../deploy/deploy-all-sites.sh) (**tuần tự** Long Khánh → Bình Thạnh).
+
+**Site không lên bản mới?** Vào repo → **Actions** → workflow **Deploy to VPS** → xem run gần nhất (đỏ = lỗi SSH/secrets hoặc `deploy.sh` fail). Deploy thủ công trên VPS: `cd /var/www/thuemayanhlongkhanh && git pull && ./deploy/deploy-all-sites.sh`.
 
 Secrets GitHub Actions:
 
