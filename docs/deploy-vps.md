@@ -136,10 +136,11 @@ Biến `SEPAY_*` trong `backend/.env` — xem [sepay-setup.md](./sepay-setup.md)
 | `VPS_USER` | `ubuntu` hoặc user SSH của bạn |
 | `VPS_SSH_KEY` | Nội dung private key (PEM) — user trên VPS phải có quyền `git pull` trong thư mục app |
 | `VPS_APP_DIR` | (tùy chọn) `/var/www/thuemayanhlongkhanh` |
+| `VPS_APP_DIRS` | (tùy chọn) Danh sách thư mục deploy, cách nhau bởi space — xem [multi-site-deploy.md](./multi-site-deploy.md) |
 
-2. Trên VPS, clone bằng **SSH deploy key** hoặc HTTPS + token để `git pull` không hỏi mật khẩu.
+2. Trên VPS, mỗi site một clone; dùng **SSH deploy key** hoặc HTTPS + token để `git pull` không hỏi mật khẩu.
 
-3. Push lên nhánh **`main`** → workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) SSH vào VPS chạy `./deploy/deploy.sh`.
+3. Push lên nhánh **`main`** → workflow deploy **tuần tự** Long Khánh + Bình Thạnh qua [`deploy/deploy-all-sites.sh`](../deploy/deploy-all-sites.sh).
 
 Nhánh deploy khác `main`: sửa `branches:` trong file workflow.
 

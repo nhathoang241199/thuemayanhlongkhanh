@@ -1,7 +1,8 @@
-# Tự deploy lên VPS khi push vào nhánh main.
+# Tự deploy lên VPS khi push vào nhánh main (Long Khánh + Bình Thạnh).
 # Secrets (Settings → Secrets and variables → Actions):
 #   VPS_HOST, VPS_USER, VPS_SSH_KEY
-#   VPS_APP_DIR (tùy chọn, mặc định /var/www/thuemayanhlongkhanh)
+#   VPS_APP_DIR (tùy chọn) — thư mục clone đầu tiên, mặc định /var/www/thuemayanhlongkhanh
+#   VPS_APP_DIRS (tùy chọn) — danh sách thư mục cách nhau bởi space
 
 name: Deploy to VPS
 
@@ -17,12 +18,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: SSH deploy
+      - name: SSH deploy all sites
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 60m
           script_stop: true
           script: |
             set -euo pipefail
@@ -30,6 +32,9 @@ jobs:
             if [ -z "$APP_DIR" ]; then
               APP_DIR="/var/www/thuemayanhlongkhanh"
             fi
+            APP_DIRS="${{ secrets.VPS_APP_DIRS }}"
+            export VPS_APP_DIRS="$APP_DIRS"
             cd "$APP_DIR"
-            chmod +x deploy/deploy.sh
-            ./deploy/deploy.sh
+            git pull --ff-only
+            chmod +x deploy/deploy.sh deploy/deploy-all-sites.sh
+            ./deploy/deploy-all-sites.sh

@@ -42,13 +42,22 @@ Chi tiết Nginx/SSL một site: [deploy-vps.md](./deploy-vps.md).
 
 ## GitHub Actions (nhiều site)
 
-Workflow hiện tại ([`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)) chỉ deploy một `VPS_APP_DIR`. Để push `main` cập nhật **tất cả** site, mở rộng script SSH (deploy **tuần tự** để tránh hết RAM khi build):
+Push nhánh **`main`** → [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) SSH vào VPS, chạy [`deploy/deploy-all-sites.sh`](../deploy/deploy-all-sites.sh) (**tuần tự** Long Khánh → Bình Thạnh).
+
+Secrets GitHub Actions:
+
+| Secret | Bắt buộc | Mô tả |
+|--------|----------|--------|
+| `VPS_HOST` | Có | IP VPS |
+| `VPS_USER` | Có | `root` |
+| `VPS_SSH_KEY` | Có | Private key SSH |
+| `VPS_APP_DIR` | Không | Thư mục để `git pull` script mới (mặc định `/var/www/thuemayanhlongkhanh`) |
+| `VPS_APP_DIRS` | Không | Ghi đè danh sách thư mục deploy, vd. `/var/www/thuemayanhlongkhanh /var/www/thuemayanhbinhthanh` |
+
+Trên VPS thủ công (không pull):
 
 ```bash
-# Tuần tự (khuyến nghị — tránh OOM khi build 2 frontend):
-bash /var/www/thuemayanhlongkhanh/deploy/rebuild-all-sites.sh
+DEPLOY_SKIP_PULL=1 ./deploy/rebuild-all-sites.sh
 ```
 
-Hoặc từng site: `cd /var/www/thuemayanhlongkhanh && DEPLOY_SKIP_PULL=1 ./deploy/deploy.sh`, rồi lặp với `thuemayanhbinhthanh`.
-
-Mỗi thư mục giữ `.env` riêng; cùng code từ `git pull`.
+Mỗi thư mục giữ `.env` riêng; cùng code từ `git pull` trên từng clone.

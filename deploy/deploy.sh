@@ -53,7 +53,8 @@ log "Frontend: install, build..."
 
 log "PM2 restart..."
 cd "$ROOT"
-pm2 startOrRestart deploy/ecosystem.config.cjs --update-env
+ECOSYSTEM="${PM2_ECOSYSTEM:-deploy/ecosystem.config.cjs}"
+pm2 startOrRestart "$ECOSYSTEM" --update-env
 pm2 save
 
 log "Xong. Kiểm tra: pm2 status"
