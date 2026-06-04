@@ -22,8 +22,8 @@ Xem [`frontend/.env.production.example`](../frontend/.env.production.example).
 
 | | Long Khánh | Bình Thạnh |
 |--|------------|------------|
-| Thư mục | `/var/www/thuemayanhlongkhanh` | `/var/www/thuemayanhanhbinhthanh` |
-| Domain | `thuemayanhlongkhanh.com` | domain riêng |
+| Thư mục | `/var/www/thuemayanhlongkhanh` | `/var/www/thuemayanhbinhthanh` |
+| Domain | `thuemayanhlongkhanh.com` | `thuemayanhbinhthanh.com` |
 | API / Web (PM2) | 3000 / 3001 | 3010 / 3011 |
 | Postgres DB | `app` | `binhthanh` (tạo DB mới, có thể dùng chung container) |
 | `frontend/.env.production` | `NEXT_PUBLIC_SITE_LOCATION_NAME=Long Khánh` + map LK | `Bình Thạnh` + map BT |
@@ -31,11 +31,11 @@ Xem [`frontend/.env.production.example`](../frontend/.env.production.example).
 ### Bước tóm tắt
 
 1. Clone repo vào thư mục mới trên VPS.
-2. `cp backend/.env.production.example backend/.env` — sửa `DATABASE_URL`, domain, SePay, admin.
+2. `cp backend/.env.production.example backend/.env` — **`DATABASE_URL` phải khác DB** (vd. `.../app` vs `.../binhthanh`). Nếu cùng DB → hai site dùng chung máy, đơn, khách.
 3. `cp frontend/.env.production.example frontend/.env.production` — sửa `NEXT_PUBLIC_*`.
 4. Tạo database PostgreSQL riêng; `npx prisma migrate deploy` trong `backend/`.
-5. Copy & chỉnh [`deploy/ecosystem.config.cjs`](../deploy/ecosystem.config.cjs) (tên PM2 + cổng 3010/3011).
-6. Nginx: `server_name` mới, `proxy_pass` tới cổng web/API tương ứng; `certbot`.
+5. PM2: [`deploy/ecosystem.binhthanh.config.cjs`](../deploy/ecosystem.binhthanh.config.cjs) (API :3010, web :3011).
+6. Nginx: [`deploy/nginx-thuemayanhbinhthanh.com.conf`](../deploy/nginx-thuemayanhbinhthanh.com.conf) — `server_name` **phải là domain thật**, không dùng placeholder; `certbot`.
 7. `./deploy/deploy.sh` và `pm2 start` (hoặc `pm2 restart`).
 
 Chi tiết Nginx/SSL một site: [deploy-vps.md](./deploy-vps.md).
@@ -45,9 +45,10 @@ Chi tiết Nginx/SSL một site: [deploy-vps.md](./deploy-vps.md).
 Workflow hiện tại ([`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)) chỉ deploy một `VPS_APP_DIR`. Để push `main` cập nhật **tất cả** site, mở rộng script SSH (deploy **tuần tự** để tránh hết RAM khi build):
 
 ```bash
-for dir in /var/www/thuemayanhlongkhanh /var/www/thuemayanhanhbinhthanh; do
-  (cd "$dir" && chmod +x deploy/deploy.sh && ./deploy/deploy.sh)
-done
+# Tuần tự (khuyến nghị — tránh OOM khi build 2 frontend):
+bash /var/www/thuemayanhlongkhanh/deploy/rebuild-all-sites.sh
 ```
+
+Hoặc từng site: `cd /var/www/thuemayanhlongkhanh && DEPLOY_SKIP_PULL=1 ./deploy/deploy.sh`, rồi lặp với `thuemayanhbinhthanh`.
 
 Mỗi thư mục giữ `.env` riêng; cùng code từ `git pull`.
