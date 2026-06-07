@@ -10,6 +10,7 @@ import { CustomerModule } from './customer/customer.module';
 import { ExpenseModule } from './expense/expense.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PaymentModule } from './payment/payment.module';
+import { ShopClosureModule } from './shop-closure/shop-closure.module';
 import { StatsModule } from './stats/stats.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { StatsModule } from './stats/stats.module';
     AvailabilityModule,
     PaymentModule,
     ExpenseModule,
+    ShopClosureModule,
     StatsModule,
   ],
   controllers: [AppController],

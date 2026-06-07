@@ -40,7 +40,8 @@ export type RentalPickerItem = Pick<
 export type CalendarDay = {
   date: string;
   available: boolean;
-  slots: Record<
+  closed?: boolean;
+  slots?: Record<
     BookingSlot,
     { available: boolean; remaining: number }
   >;
@@ -106,6 +107,23 @@ export async function fetchCalendarMonth(
   });
   if (excludeBookingId) params.set("excludeBookingId", excludeBookingId);
   const res = await fetch(`${apiBase()}/api/availability/calendar?${params}`);
+  return parseJson(res);
+}
+
+export type ClosedMonthDay = {
+  date: string;
+  closed: boolean;
+};
+
+export async function fetchClosedMonth(
+  year: number,
+  month: number,
+): Promise<{ year: number; month: number; days: ClosedMonthDay[] }> {
+  const params = new URLSearchParams({
+    year: String(year),
+    month: String(month),
+  });
+  const res = await fetch(`${apiBase()}/api/availability/closed-month?${params}`);
   return parseJson(res);
 }
 

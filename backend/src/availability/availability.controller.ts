@@ -7,13 +7,28 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BookingSlot, CameraBrand } from '../../generated/prisma/enums';
 import { Public } from '../auth/public.decorator';
+import { ShopClosureService } from '../shop-closure/shop-closure.service';
 import { AvailabilityService } from './availability.service';
 
 @Public()
 @ApiTags('availability')
 @Controller('availability')
 export class AvailabilityController {
-  constructor(private readonly availabilityService: AvailabilityService) {}
+  constructor(
+    private readonly availabilityService: AvailabilityService,
+    private readonly shopClosureService: ShopClosureService,
+  ) {}
+
+  @Get('closed-month')
+  @ApiOperation({ summary: 'Ngày shop nghỉ trong tháng' })
+  closedMonth(@Query('year') year: string, @Query('month') month: string) {
+    const y = Number(year);
+    const m = Number(month);
+    if (!Number.isFinite(y) || !Number.isFinite(m)) {
+      throw new BadRequestException('year and month are required');
+    }
+    return this.shopClosureService.closedMonth(y, m);
+  }
 
   @Get('calendar')
   @ApiOperation({ summary: 'Lịch tháng theo máy' })

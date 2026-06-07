@@ -1737,6 +1737,7 @@ export default function AdminBookingsPage() {
                           days={createCalendarDays}
                           startDate={editForm.rangeStart || null}
                           endDate={editForm.rangeEnd || null}
+                          allowClosedDays
                           onViewChange={(y, m) =>
                             setCreateCalendarYm({ year: y, month: m })
                           }

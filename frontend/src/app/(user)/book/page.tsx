@@ -34,6 +34,7 @@ import {
   dayCountInclusive,
   fetchBrandsWithCameras,
   fetchCalendarMonth,
+  fetchClosedMonth,
   fetchCamerasForRange,
   fetchPublicCamera,
   fetchPublicCameras,
@@ -44,6 +45,7 @@ import {
   fetchSlots,
   formatBookingRangeLabel,
   type BookingSlot,
+  type CalendarDay,
   type CameraBrand,
   type CameraWithAvailability,
   type PublicCamera,
@@ -162,9 +164,12 @@ function BookPageContent() {
   const [shippingAddress, setShippingAddress] = useState("");
   const [canRequestDelivery, setCanRequestDelivery] = useState(false);
   const [wantDelivery, setWantDelivery] = useState(false);
-  const [calendarDays, setCalendarDays] = useState<
-    Awaited<ReturnType<typeof fetchCalendarMonth>>["days"] | undefined
+  const [calendarDays, setCalendarDays] = useState<CalendarDay[] | undefined>();
+  const [closedCalendarDays, setClosedCalendarDays] = useState<
+    CalendarDay[] | undefined
   >();
+  const [rangeHasClosed, setRangeHasClosed] = useState(false);
+  const [rangeClosedChecking, setRangeClosedChecking] = useState(false);
   const [rangeOk, setRangeOk] = useState<boolean | null>(null);
   const [slotAvailability, setSlotAvailability] = useState<Partial<
     Record<BookingSlot, boolean>
@@ -174,7 +179,7 @@ function BookPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
 
-  const ym = nowYm();
+  const [calendarYm, setCalendarYm] = useState(nowYm);
 
   useEffect(() => {
     if (!getSession()) router.replace("/");
@@ -285,14 +290,79 @@ function BookPageContent() {
     async (cameraId: string) => {
       const data = await fetchCalendarMonth(
         cameraId,
-        ym.year,
-        ym.month,
+        calendarYm.year,
+        calendarYm.month,
         modifyBookingId,
       );
       setCalendarDays(data.days);
     },
-    [ym.year, ym.month, modifyBookingId],
+    [calendarYm.year, calendarYm.month, modifyBookingId],
   );
+
+  useEffect(() => {
+    if (mode !== "BY_DATE" || step !== WIZARD_STEP.BY_DATE.DATE) {
+      setClosedCalendarDays(undefined);
+      return;
+    }
+    void fetchClosedMonth(calendarYm.year, calendarYm.month)
+      .then((data) =>
+        setClosedCalendarDays(
+          data.days
+            .filter((d) => d.closed)
+            .map((d) => ({
+              date: d.date,
+              available: false,
+              closed: true,
+            })),
+        ),
+      )
+      .catch(() => setClosedCalendarDays(undefined));
+  }, [mode, step, calendarYm.year, calendarYm.month]);
+
+  useEffect(() => {
+    if (mode !== "BY_DATE" || !startDate || !endDate) {
+      setRangeHasClosed(false);
+      setRangeClosedChecking(false);
+      return;
+    }
+    let cancelled = false;
+    setRangeClosedChecking(true);
+    void (async () => {
+      try {
+        const months = new Set<string>();
+        let cur = startDate;
+        while (cur <= endDate) {
+          months.add(cur.slice(0, 7));
+          cur = addDaysYmd(cur, 1);
+        }
+        const closedDates = new Set<string>();
+        for (const ymKey of months) {
+          const [y, m] = ymKey.split("-").map(Number);
+          const data = await fetchClosedMonth(y, m);
+          for (const d of data.days) {
+            if (d.closed) closedDates.add(d.date);
+          }
+        }
+        cur = startDate;
+        let hasClosed = false;
+        while (cur <= endDate) {
+          if (closedDates.has(cur)) {
+            hasClosed = true;
+            break;
+          }
+          cur = addDaysYmd(cur, 1);
+        }
+        if (!cancelled) setRangeHasClosed(hasClosed);
+      } catch {
+        if (!cancelled) setRangeHasClosed(false);
+      } finally {
+        if (!cancelled) setRangeClosedChecking(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, startDate, endDate]);
 
   useEffect(() => {
     if (mode === "BY_CAMERA" && camera) {
@@ -1495,11 +1565,12 @@ function BookPageContent() {
             <Stack gap={4}>
               {renderDateStepHeader()}
               <MonthCalendar
-                year={ym.year}
-                month={ym.month}
+                year={calendarYm.year}
+                month={calendarYm.month}
                 days={calendarDays}
                 startDate={startDate}
                 endDate={endDate}
+                onViewChange={(y, m) => setCalendarYm({ year: y, month: m })}
                 onRangeChange={handleRangeChange}
               />
               {startDate && endDate && dayCount >= 2 ? (
@@ -1552,13 +1623,25 @@ function BookPageContent() {
             <Stack gap={4}>
               {renderDateStepHeader()}
               <MonthCalendar
-                year={ym.year}
-                month={ym.month}
+                year={calendarYm.year}
+                month={calendarYm.month}
+                days={closedCalendarDays}
                 startDate={startDate}
                 endDate={endDate}
+                onViewChange={(y, m) => setCalendarYm({ year: y, month: m })}
                 onRangeChange={handleRangeChange}
                 allowUnavailableDays
               />
+              {rangeClosedChecking ? (
+                <Text fontSize="sm" color="fg.muted" textAlign="center">
+                  Đang kiểm tra ngày nghỉ…
+                </Text>
+              ) : null}
+              {rangeHasClosed && !rangeClosedChecking ? (
+                <Text color="red.fg" fontSize="sm" textAlign="center">
+                  Shop nghỉ trong khoảng ngày đã chọn.
+                </Text>
+              ) : null}
               {startDate && endDate && dayCount >= 2 ? (
                 <Text fontSize="sm" textAlign="center">
                   {dayCount} ngày
@@ -1579,7 +1662,13 @@ function BookPageContent() {
               <Button
                 {...userSolidButtonProps}
                 {...STEP_CONTINUE_BUTTON_PROPS}
-                disabled={!startDate || !endDate || !fullDayCanContinue}
+                disabled={
+                  !startDate ||
+                  !endDate ||
+                  !fullDayCanContinue ||
+                  rangeHasClosed ||
+                  rangeClosedChecking
+                }
                 onClick={() => setStep(WIZARD_STEP.BY_DATE.SLOT)}
               >
                 Tiếp tục

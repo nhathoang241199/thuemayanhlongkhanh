@@ -32,6 +32,7 @@ type Props = {
   endDate: string | null;
   onRangeChange: (start: string, end: string) => void;
   allowUnavailableDays?: boolean;
+  allowClosedDays?: boolean;
   onViewChange?: (year: number, month: number) => void;
 };
 
@@ -43,6 +44,7 @@ export function MonthCalendar({
   endDate,
   onRangeChange,
   allowUnavailableDays = false,
+  allowClosedDays = false,
   onViewChange,
 }: Props) {
   const [viewYear, setViewYear] = useState(year);
@@ -82,7 +84,8 @@ export function MonthCalendar({
 
   function handleDayClick(date: string) {
     const info = dayMap.get(date);
-    if (!allowUnavailableDays && info && !info.available) return;
+    if (info?.closed && !allowClosedDays) return;
+    if (!allowUnavailableDays && info && !info.available && !info.closed) return;
     if (date < today) return;
 
     if (!pickStart) {
@@ -136,9 +139,14 @@ export function MonthCalendar({
         {cells.map((date, i) => {
           if (!date) return <Box key={`e-${i}`} />;
           const info = dayMap.get(date);
+          const isClosed = info?.closed === true;
           const disabled =
             date < today ||
-            (!allowUnavailableDays && info !== undefined && !info.available);
+            (isClosed && !allowClosedDays) ||
+            (!allowUnavailableDays &&
+              info !== undefined &&
+              !info.available &&
+              !isClosed);
           const selected = inRange(date);
           const isEdge =
             date === startDate || date === endDate;
@@ -147,8 +155,8 @@ export function MonthCalendar({
               key={date}
               size="sm"
               variant={selected ? "solid" : "ghost"}
-              colorPalette={selected ? "cerulean" : undefined}
-              opacity={disabled ? 0.35 : 1}
+              colorPalette={selected ? "cerulean" : isClosed ? "red" : undefined}
+              opacity={disabled ? 0.35 : isClosed && allowClosedDays ? 0.75 : 1}
               fontWeight={isEdge ? "bold" : "normal"}
               onClick={() => !disabled && handleDayClick(date)}
               disabled={disabled}

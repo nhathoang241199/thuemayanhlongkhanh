@@ -24,6 +24,7 @@ import {
 } from '../common/booking-schedule';
 import { publicListedCameraWhere } from '../common/camera-listing';
 import { PrismaService } from '../prisma/prisma.service';
+import { ShopClosureService } from '../shop-closure/shop-closure.service';
 
 type SlotCounts = { m: number; a: number; e: number; fd: number };
 
@@ -36,7 +37,10 @@ const ALL_SLOTS: BookingSlot[] = [
 
 @Injectable()
 export class AvailabilityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly shopClosure: ShopClosureService,
+  ) {}
 
   private async getCameraQuantity(cameraId: string): Promise<number> {
     const camera = await this.prisma.camera.findUnique({
@@ -128,6 +132,16 @@ export class AvailabilityService {
     returnNextMorning: boolean,
     excludeBookingId?: string,
   ): Promise<void> {
+    await this.shopClosure.assertRangeNotClosed(startDate, endDate);
+    if (returnNextMorning && isReturnNextMorningEligible(slot)) {
+      const morningDate = returnNextMorningDate(endDate);
+      if (await this.shopClosure.isDateClosed(morningDate)) {
+        throw new BadRequestException(
+          'Shop nghỉ trong một hoặc nhiều ngày đã chọn',
+        );
+      }
+    }
+
     const { available } = await this.isRangeAvailable(
       cameraId,
       startDate,
@@ -196,6 +210,9 @@ export class AvailabilityService {
     excludeBookingId?: string,
   ): Promise<{ available: boolean; remaining: number }> {
     assertDateStr(dateStr);
+    if (await this.shopClosure.isDateClosed(dateStr)) {
+      return { available: false, remaining: 0 };
+    }
     const quantity = await this.getCameraQuantity(cameraId);
     const bookings = await this.getOccupyingBookings(cameraId);
     const { m, a, e, fd } = this.countsForDay(
@@ -248,11 +265,24 @@ export class AvailabilityService {
     const days: {
       date: string;
       available: boolean;
+      closed?: boolean;
       slots: Record<BookingSlot, { available: boolean; remaining: number }>;
     }[] = [];
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const closed = await this.shopClosure.isDateClosed(dateStr);
+      if (closed) {
+        const slots = {} as Record<
+          BookingSlot,
+          { available: boolean; remaining: number }
+        >;
+        for (const slot of ALL_SLOTS) {
+          slots[slot] = { available: false, remaining: 0 };
+        }
+        days.push({ date: dateStr, available: false, closed: true, slots });
+        continue;
+      }
       const { m, a, e, fd } = this.countsForDay(
         bookings,
         dateStr,
@@ -280,6 +310,16 @@ export class AvailabilityService {
     excludeBookingId?: string,
   ) {
     assertDateStr(date);
+    if (await this.shopClosure.isDateClosed(date)) {
+      const slots = {} as Record<
+        BookingSlot,
+        { available: boolean; remaining: number }
+      >;
+      for (const slot of ALL_SLOTS) {
+        slots[slot] = { available: false, remaining: 0 };
+      }
+      return { date, slots };
+    }
     const quantity = await this.getCameraQuantity(cameraId);
     const bookings = await this.getOccupyingBookings(cameraId);
     const { m, a, e, fd } = this.countsForDay(
