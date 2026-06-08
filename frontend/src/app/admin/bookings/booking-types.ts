@@ -50,6 +50,7 @@ export type PaymentStatusValue =
   | "PENDING"
   | "DEPOSITED"
   | "PAID"
+  | "FAILED"
   | "REFUNDED";
 
 export const tableCellPad = { px: 4, py: 3 };

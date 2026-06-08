@@ -129,6 +129,8 @@ export function paymentBadgeProps(s: string): {
       return { label: "Đã cọc", colorPalette: "cerulean" };
     case "PAID":
       return { label: "Đã thanh toán", colorPalette: "green" };
+    case "FAILED":
+      return { label: "Thanh toán lỗi", colorPalette: "red" };
     case "REFUNDED":
       return { label: "Đã hoàn tiền", colorPalette: "gray" };
     default:
@@ -327,5 +329,10 @@ export const BOOKING_PAYMENT_EDIT_OPTIONS: {
   { value: "PENDING", label: "Chưa cọc" },
   { value: "DEPOSITED", label: "Đã cọc" },
   { value: "PAID", label: "Đã thanh toán" },
+  { value: "FAILED", label: "Thanh toán lỗi" },
   { value: "REFUNDED", label: "Đã hoàn tiền" },
 ];
+
+export function isPaymentStatusValue(s: string): s is PaymentStatusValue {
+  return BOOKING_PAYMENT_EDIT_OPTIONS.some((o) => o.value === s);
+}

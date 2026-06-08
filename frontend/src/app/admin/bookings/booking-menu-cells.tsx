@@ -21,6 +21,7 @@ import {
   BOOKING_PAYMENT_EDIT_OPTIONS,
   BOOKING_STATUS_EDIT_OPTIONS,
   isLateReturnBooking,
+  isPaymentStatusValue,
   paymentBadgeProps,
   statusBadgeProps,
 } from "./booking-list-utils";
@@ -48,6 +49,12 @@ export function BookingStatusMenuCell({
         gutter: 4,
       }}
       onOpenChange={({ open }) => onMenuOpenChange(open)}
+      onSelect={(details) => {
+        const value = details.value as BookingStatusValue;
+        if (value && value !== booking.status) {
+          onChangeStatus(booking.id, value);
+        }
+      }}
     >
       <MenuTrigger asChild>
         <Button
@@ -92,16 +99,7 @@ export function BookingStatusMenuCell({
         <MenuPositioner>
           <MenuContent minW="12rem">
             {BOOKING_STATUS_EDIT_OPTIONS.map((opt) => (
-              <MenuItem
-                key={opt.value}
-                value={opt.value}
-                disabled={saving}
-                onSelect={() => {
-                  if (opt.value !== booking.status) {
-                    onChangeStatus(booking.id, opt.value);
-                  }
-                }}
-              >
+              <MenuItem key={opt.value} value={opt.value} disabled={saving}>
                 <HStack justify="space-between" w="full" gap={2}>
                   <MenuItemText>{opt.label}</MenuItemText>
                   {booking.status === opt.value ? (
@@ -140,6 +138,13 @@ export function BookingPaymentMenuCell({
     <MenuRoot
       positioning={{ placement: "bottom-start", gutter: 4 }}
       onOpenChange={({ open }) => onMenuOpenChange(open)}
+      onSelect={(details) => {
+        const value = details.value;
+        if (!isPaymentStatusValue(value) || value === booking.paymentStatus) {
+          return;
+        }
+        onChangePaymentStatus(booking.id, value);
+      }}
     >
       <MenuTrigger asChild>
         <Button
@@ -168,16 +173,7 @@ export function BookingPaymentMenuCell({
         <MenuPositioner>
           <MenuContent minW="12rem">
             {BOOKING_PAYMENT_EDIT_OPTIONS.map((opt) => (
-              <MenuItem
-                key={opt.value}
-                value={opt.value}
-                disabled={saving}
-                onSelect={() => {
-                  if (opt.value !== booking.paymentStatus) {
-                    onChangePaymentStatus(booking.id, opt.value);
-                  }
-                }}
-              >
+              <MenuItem key={opt.value} value={opt.value} disabled={saving}>
                 <HStack justify="space-between" w="full" gap={2}>
                   <MenuItemText>{opt.label}</MenuItemText>
                   {booking.paymentStatus === opt.value ? (

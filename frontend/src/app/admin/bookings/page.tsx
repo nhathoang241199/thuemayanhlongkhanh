@@ -46,7 +46,9 @@ import type {
 } from "@/app/admin/bookings/booking-types";
 import {
   BOOKING_PAYMENT_EDIT_OPTIONS,
+  isPaymentStatusValue,
   BOOKING_STATUS_EDIT_OPTIONS,
+  paymentBadgeProps,
   bookingLocalDateKey,
   canAdminDeleteBooking,
   filterAndSortMobileTodayBookings,
@@ -252,7 +254,9 @@ function bookingToEditForm(b: Booking): BookingEditForm {
     amount: String(b.amount),
     note: b.note ?? "",
     shippingAddress: b.shippingAddress ?? "",
-    paymentStatus: b.paymentStatus as PaymentStatusValue,
+    paymentStatus: isPaymentStatusValue(b.paymentStatus)
+      ? b.paymentStatus
+      : "PENDING",
     status: b.status as BookingStatusValue,
   };
 }
@@ -332,6 +336,7 @@ const PAYMENT_FILTER_OPTIONS: { value: PaymentStatusFilter; label: string }[] =
     { value: "PENDING", label: "Chưa cọc" },
     { value: "DEPOSITED", label: "Đã cọc" },
     { value: "PAID", label: "Đã thanh toán" },
+    { value: "FAILED", label: "Thanh toán lỗi" },
     { value: "REFUNDED", label: "Đã hoàn tiền" },
   ];
 
@@ -393,6 +398,21 @@ const QUICK_FILTER_OPTIONS: { value: QuickFilterKey; label: string }[] = [
   { value: "pending_payment", label: "Đơn chờ cọc" },
   { value: "pending_refund_cancel", label: "Đơn chờ hoàn cọc" },
 ];
+
+function quickFilterOptionLabel(
+  opt: (typeof QUICK_FILTER_OPTIONS)[number],
+  pendingRefundCancelCount: number,
+): string {
+  if (
+    opt.value === "pending_refund_cancel" &&
+    pendingRefundCancelCount > 0
+  ) {
+    const badge =
+      pendingRefundCancelCount > 99 ? "99+" : String(pendingRefundCancelCount);
+    return `${opt.label} (${badge})`;
+  }
+  return opt.label;
+}
 
 function deriveQuickFilter(params: {
   showAllDates: boolean;
@@ -525,6 +545,7 @@ export default function AdminBookingsPage() {
       setBookings((prev) =>
         prev?.map((row) => (row.id === id ? updated : row)) ?? null,
       );
+      setEditingBooking((prev) => (prev?.id === id ? updated : prev));
       return updated;
     },
     [],
@@ -563,7 +584,10 @@ export default function AdminBookingsPage() {
       setPatchError(null);
       setPaymentSavingId(id);
       try {
-        await patchBooking(id, { paymentStatus });
+        const updated = await patchBooking(id, { paymentStatus });
+        toaster.success({
+          title: `Đã cập nhật thanh toán: ${paymentBadgeProps(updated.paymentStatus).label}`,
+        });
       } catch (e) {
         const msg = toastApiError(
           e,
@@ -1197,6 +1221,36 @@ export default function AdminBookingsPage() {
                   <RefreshIcon />
                 </IconButton>
               </HStack>
+              {bookings !== null ? (
+                <Stack gap={1.5} w="full">
+                  <Text fontSize="sm" fontWeight="medium" color="fg.muted">
+                    Lọc nhanh
+                  </Text>
+                  <NativeSelectRoot size="sm" w="full">
+                    <NativeSelectField
+                      value={activeQuickFilter ?? ""}
+                      bg="white"
+                      borderWidth="1px"
+                      borderColor="gray.200"
+                      onChange={(e) => {
+                        const key = e.target.value as QuickFilterKey | "";
+                        if (key) applyQuickFilter(key);
+                      }}
+                      aria-label="Chế độ lọc nhanh"
+                    >
+                      {activeQuickFilter === null ? (
+                        <option value="">Tùy chỉnh</option>
+                      ) : null}
+                      {QUICK_FILTER_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {quickFilterOptionLabel(opt, pendingRefundCancelCount)}
+                        </option>
+                      ))}
+                    </NativeSelectField>
+                    <NativeSelectIndicator />
+                  </NativeSelectRoot>
+                </Stack>
+              ) : null}
             </Stack>
 
             {/* Desktop toolbar */}
@@ -1258,11 +1312,10 @@ export default function AdminBookingsPage() {
                           }
                           colorPalette={APP_COLOR_PALETTE}
                           onClick={() => applyQuickFilter(opt.value)}
-                          aria-label={
-                            showRefundBadge
-                              ? `${opt.label} (${pendingRefundCancelCount})`
-                              : opt.label
-                          }
+                          aria-label={quickFilterOptionLabel(
+                            opt,
+                            pendingRefundCancelCount,
+                          )}
                         >
                           {opt.label}
                         </Button>

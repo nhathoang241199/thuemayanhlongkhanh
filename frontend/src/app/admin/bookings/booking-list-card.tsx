@@ -32,7 +32,10 @@ import { FREE_KIT_LABEL } from "@/lib/lens-step";
 import { slotLabelVi } from "@/lib/booking-status";
 
 import { BookingCccdAction } from "./booking-cccd-action";
-import { BookingStatusMenuCell } from "./booking-menu-cells";
+import {
+  BookingPaymentMenuCell,
+  BookingStatusMenuCell,
+} from "./booking-menu-cells";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -43,7 +46,6 @@ import {
   bookingVnDateKey,
   formatBookingDateRelative,
   formatPickupAtMobileCard,
-  paymentBadgeProps,
   vnd,
 } from "./booking-list-utils";
 
@@ -56,6 +58,7 @@ function BookingListCardInner({
   canQuickAdvance,
   canQuickRevert,
   onCopyPhone,
+  onPaymentChange,
   onStatusChange,
   onMenuOpenChange,
   onQuickAdvance,
@@ -74,7 +77,6 @@ function BookingListCardInner({
     "vi-VN",
   );
 
-  const pay = paymentBadgeProps(b.paymentStatus);
   const bookingSettled =
     b.status === "COMPLETED" || b.status === "CANCELLED";
   const showTotal = b.paymentStatus === "PENDING";
@@ -127,14 +129,14 @@ function BookingListCardInner({
                 onMenuOpenChange={onMenuOpenChange}
               />
             </Box>
-            <Badge
-              variant="subtle"
-              colorPalette={pay.colorPalette}
-              fontSize="sm"
-              alignSelf="flex-end"
-            >
-              {pay.label}
-            </Badge>
+            <Box alignSelf="flex-end">
+              <BookingPaymentMenuCell
+                booking={b}
+                saving={isRowSaving}
+                onChangePaymentStatus={onPaymentChange}
+                onMenuOpenChange={onMenuOpenChange}
+              />
+            </Box>
           </Stack>
         </HStack>
       </AdminDataCardHeader>
