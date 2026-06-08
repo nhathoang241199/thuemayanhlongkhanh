@@ -292,7 +292,7 @@ function PaymentContent() {
               
               <Box {...userWarningNoteProps} textAlign="left">
                 <Text {...userWarningNoteTextProps}>
-                  Lưu ý: Xin hãy mang theo CCCD bảng gốc hoặc VnID và đọc sđt đã đăng kí khi nhận máy. Vui lòng sạc pin sau khi nhận máy khoảng 20 phút để sử dụng.
+                  Lưu ý: Xin hãy mang theo CCCD bảng gốc hoặc VnID và đọc sđt đã đăng kí khi nhận máy.
                 </Text>
               </Box>
             </Stack>
