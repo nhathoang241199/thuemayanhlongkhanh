@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { monthRangeUtc } from '../common/month-range-utc';
 import { PrismaService } from '../prisma/prisma.service';
+import { EquipmentValueResponseDto } from './dto/equipment-value-response.dto';
 import { MonthlySummaryResponseDto } from './dto/monthly-summary-response.dto';
 import { RevenueByMonthResponseDto } from './dto/revenue-by-month-response.dto';
 
@@ -87,6 +88,39 @@ export class StatsService {
       profit,
       bookingCount: bookingAgg._count,
       expenseCount: expenseAgg._count,
+    };
+  }
+
+  async equipmentValue(): Promise<EquipmentValueResponseDto> {
+    const [cameras, lenses] = await Promise.all([
+      this.prisma.camera.findMany({
+        select: { quantity: true, purchasePrice: true },
+      }),
+      this.prisma.lens.findMany({
+        select: { quantity: true, purchasePrice: true },
+      }),
+    ]);
+
+    let totalCameraValue = 0;
+    let cameraUnitCount = 0;
+    for (const c of cameras) {
+      totalCameraValue += c.purchasePrice * c.quantity;
+      cameraUnitCount += c.quantity;
+    }
+
+    let totalLensValue = 0;
+    let lensUnitCount = 0;
+    for (const l of lenses) {
+      totalLensValue += l.purchasePrice * l.quantity;
+      lensUnitCount += l.quantity;
+    }
+
+    return {
+      totalCameraValue,
+      totalLensValue,
+      totalEquipmentValue: totalCameraValue + totalLensValue,
+      cameraUnitCount,
+      lensUnitCount,
     };
   }
 }

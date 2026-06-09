@@ -72,6 +72,14 @@ type MonthlySummary = {
   expenseCount: number;
 };
 
+type EquipmentValue = {
+  totalCameraValue: number;
+  totalLensValue: number;
+  totalEquipmentValue: number;
+  cameraUnitCount: number;
+  lensUnitCount: number;
+};
+
 type ExpenseForm = {
   title: string;
   amount: string;
@@ -108,6 +116,9 @@ export default function AdminPage() {
   const [year, setYear] = useState(defaultYear);
   const [month, setMonth] = useState(defaultMonth);
   const [data, setData] = useState<MonthlySummary | null>(null);
+  const [equipmentValue, setEquipmentValue] = useState<EquipmentValue | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
@@ -134,6 +145,15 @@ export default function AdminPage() {
     },
     [],
   );
+
+  const fetchEquipmentValue = useCallback(async (signal?: AbortSignal) => {
+    const res = await fetch(`${apiBase()}/api/stats/equipment-value`, {
+      credentials: "include",
+      signal,
+    });
+    await throwIfNotOk(res, "Lỗi tải giá trị thiết bị");
+    return (await res.json()) as EquipmentValue;
+  }, []);
 
   const refreshSummary = useCallback(async () => {
     setError(null);
@@ -163,6 +183,21 @@ export default function AdminPage() {
     })();
     return () => ac.abort();
   }, [year, month, fetchSummary]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    void (async () => {
+      try {
+        const json = await fetchEquipmentValue(ac.signal);
+        if (!ac.signal.aborted) setEquipmentValue(json);
+      } catch (e) {
+        if (ac.signal.aborted) return;
+        setEquipmentValue(null);
+        toastApiError(e, "Lỗi tải giá trị thiết bị");
+      }
+    })();
+    return () => ac.abort();
+  }, [fetchEquipmentValue]);
 
   const closeExpenseModal = () => {
     setExpenseModalOpen(false);
@@ -238,6 +273,47 @@ export default function AdminPage() {
 
   return (
     <Stack gap={6}>
+      {equipmentValue ? (
+        <SimpleGrid columns={{ base: 1, md: 3 }} gap={4}>
+          <CardRoot {...cardSurfaceProps}>
+            <CardBody>
+              <StatRoot size="lg">
+                <StatLabel>Tổng giá trị thiết bị</StatLabel>
+                <StatValueText color={accentColor}>
+                  {vnd.format(equipmentValue.totalEquipmentValue)}
+                </StatValueText>
+                <StatHelpText>
+                  {equipmentValue.cameraUnitCount} máy +{" "}
+                  {equipmentValue.lensUnitCount} ống kính
+                </StatHelpText>
+              </StatRoot>
+            </CardBody>
+          </CardRoot>
+          <CardRoot {...cardSurfaceProps}>
+            <CardBody>
+              <StatRoot size="lg">
+                <StatLabel>Giá trị máy ảnh</StatLabel>
+                <StatValueText>
+                  {vnd.format(equipmentValue.totalCameraValue)}
+                </StatValueText>
+                <StatHelpText>Giá mua × số lượng</StatHelpText>
+              </StatRoot>
+            </CardBody>
+          </CardRoot>
+          <CardRoot {...cardSurfaceProps}>
+            <CardBody>
+              <StatRoot size="lg">
+                <StatLabel>Giá trị ống kính</StatLabel>
+                <StatValueText>
+                  {vnd.format(equipmentValue.totalLensValue)}
+                </StatValueText>
+                <StatHelpText>Giá mua × số lượng</StatHelpText>
+              </StatRoot>
+            </CardBody>
+          </CardRoot>
+        </SimpleGrid>
+      ) : null}
+
       <CardRoot {...cardSurfaceProps}>
         <CardBody>
           <HStack

@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Camera" ADD COLUMN "purchasePrice" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "Lens" ADD COLUMN "purchasePrice" INTEGER NOT NULL DEFAULT 0;

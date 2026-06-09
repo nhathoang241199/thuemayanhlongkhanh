@@ -36,6 +36,16 @@ export class CreateCameraDto {
   @Min(0)
   shiftPrice: number;
 
+  @ApiPropertyOptional({
+    example: 25_000_000,
+    minimum: 0,
+    description: 'Giá mua 1 máy (VND)',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  purchasePrice?: number;
+
   @ApiPropertyOptional({ example: 20, minimum: 0, maximum: 100 })
   @IsOptional()
   @IsInt()

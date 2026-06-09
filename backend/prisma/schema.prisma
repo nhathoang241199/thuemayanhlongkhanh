@@ -20,6 +20,7 @@ model Camera {
   quantity         Int
   dayPrice         Int
   shiftPrice       Int
+  purchasePrice    Int          @default(0)
   discountPercent  Int          @default(0)
   imageUrl         String?
   tutorialVideoUrl String?
@@ -34,6 +35,7 @@ model Lens {
   quantity           Int
   dayPrice           Int
   shiftPrice         Int
+  purchasePrice      Int          @default(0)
   discountPercent    Int          @default(0)
   imageUrl           String?
   createdAt          DateTime     @default(now())

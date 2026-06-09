@@ -12,6 +12,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { EquipmentValueResponseDto } from './dto/equipment-value-response.dto';
 import { MonthlySummaryResponseDto } from './dto/monthly-summary-response.dto';
 import { RevenueByMonthResponseDto } from './dto/revenue-by-month-response.dto';
 import { StatsService } from './stats.service';
@@ -80,5 +81,16 @@ export class StatsController {
       throw new BadRequestException('month must be between 1 and 12');
     }
     return this.statsService.monthlySummary(year, month);
+  }
+
+  @Get('equipment-value')
+  @ApiOperation({
+    summary: 'Tổng giá trị thiết bị (giá mua × số lượng)',
+    description:
+      'Cộng purchasePrice × quantity của mọi máy ảnh và ống kính trong kho.',
+  })
+  @ApiOkResponse({ type: EquipmentValueResponseDto })
+  equipmentValue(): Promise<EquipmentValueResponseDto> {
+    return this.statsService.equipmentValue();
   }
 }

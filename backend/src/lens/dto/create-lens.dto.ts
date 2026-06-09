@@ -41,6 +41,16 @@ export class CreateLensDto {
   @Min(0)
   shiftPrice: number;
 
+  @ApiPropertyOptional({
+    example: 8_000_000,
+    minimum: 0,
+    description: 'Giá mua 1 ống kính (VND)',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  purchasePrice?: number;
+
   @ApiPropertyOptional({ example: 0, minimum: 0, maximum: 100 })
   @IsOptional()
   @IsInt()

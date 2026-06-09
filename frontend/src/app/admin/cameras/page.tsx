@@ -52,6 +52,7 @@ type Camera = {
   quantity: number;
   dayPrice: number;
   shiftPrice: number;
+  purchasePrice: number;
   discountPercent: number;
   imageUrl: string | null;
   tutorialVideoUrl: string | null;
@@ -79,6 +80,7 @@ type EditForm = {
   quantity: number;
   dayPrice: number;
   shiftPrice: number;
+  purchasePrice: number;
   discountPercent: number;
 };
 
@@ -96,6 +98,7 @@ type CreateForm = {
   quantity: number;
   dayPrice: number;
   shiftPrice: number;
+  purchasePrice: number;
   discountPercent: number;
 };
 
@@ -108,6 +111,7 @@ function defaultCreateForm(): CreateForm {
     quantity: 1,
     dayPrice: 350_000,
     shiftPrice: 200_000,
+    purchasePrice: 0,
     discountPercent: 0,
   };
 }
@@ -222,6 +226,9 @@ function CameraMobileCard({
       <AdminDataCardRow label="Giá / buổi">
         {vnd.format(c.shiftPrice)}
       </AdminDataCardRow>
+      <AdminDataCardRow label="Giá mua">
+        {vnd.format(c.purchasePrice)}
+      </AdminDataCardRow>
       <AdminDataCardRow label="Giảm giá">
         {formatDiscountLabel(c.discountPercent)}
       </AdminDataCardRow>
@@ -284,6 +291,7 @@ function formDirty(c: Camera, f: EditForm): boolean {
     f.quantity !== c.quantity ||
     f.dayPrice !== c.dayPrice ||
     f.shiftPrice !== c.shiftPrice ||
+    f.purchasePrice !== (c.purchasePrice ?? 0) ||
     f.discountPercent !== c.discountPercent
   );
 }
@@ -302,6 +310,7 @@ export default function AdminCamerasPage() {
     quantity: 0,
     dayPrice: 0,
     shiftPrice: 0,
+    purchasePrice: 0,
     discountPercent: 0,
   });
   const [saving, setSaving] = useState(false);
@@ -371,6 +380,7 @@ export default function AdminCamerasPage() {
       quantity: c.quantity,
       dayPrice: c.dayPrice,
       shiftPrice: c.shiftPrice,
+      purchasePrice: c.purchasePrice ?? 0,
       discountPercent: c.discountPercent ?? 0,
     });
     setModalError(null);
@@ -401,6 +411,7 @@ export default function AdminCamerasPage() {
             quantity: editForm.quantity,
             dayPrice: editForm.dayPrice,
             shiftPrice: editForm.shiftPrice,
+            purchasePrice: editForm.purchasePrice,
             discountPercent: editForm.discountPercent,
           }),
         });
@@ -435,6 +446,7 @@ export default function AdminCamerasPage() {
           quantity: createForm.quantity,
           dayPrice: createForm.dayPrice,
           shiftPrice: createForm.shiftPrice,
+          purchasePrice: createForm.purchasePrice,
           discountPercent: createForm.discountPercent,
         };
         const img = normalizeImageUrlInput(createForm.imageUrl);
@@ -593,6 +605,9 @@ export default function AdminCamerasPage() {
                           Giá / buổi
                         </TableColumnHeader>
                         <TableColumnHeader textAlign="end" {...tableCellPad}>
+                          Giá mua
+                        </TableColumnHeader>
+                        <TableColumnHeader textAlign="end" {...tableCellPad}>
                           Giảm giá
                         </TableColumnHeader>
                         <TableColumnHeader
@@ -645,6 +660,13 @@ export default function AdminCamerasPage() {
                             {...tableCellPad}
                           >
                             {vnd.format(c.shiftPrice)}
+                          </TableCell>
+                          <TableCell
+                            textAlign="end"
+                            whiteSpace="nowrap"
+                            {...tableCellPad}
+                          >
+                            {vnd.format(c.purchasePrice ?? 0)}
                           </TableCell>
                           <TableCell textAlign="end" {...tableCellPad}>
                             {formatDiscountLabel(c.discountPercent ?? 0)}
@@ -866,6 +888,25 @@ export default function AdminCamerasPage() {
                   </Box>
                   <Box>
                     <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Giá mua (VND / máy)
+                    </Text>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={String(editForm.purchasePrice)}
+                      onChange={(e) => {
+                        const v = parseNonNegInt(e.target.value);
+                        if (v === null) return;
+                        setEditForm((f) => ({ ...f, purchasePrice: v }));
+                      }}
+                    />
+                    <Text fontSize="xs" color="fg.muted" mt={1}>
+                      {vnd.format(editForm.purchasePrice)}
+                    </Text>
+                  </Box>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
                       Giảm giá (%)
                     </Text>
                     <Input
@@ -1064,6 +1105,25 @@ export default function AdminCamerasPage() {
                   />
                   <Text fontSize="xs" color="fg.muted" mt={1}>
                     {vnd.format(createForm.shiftPrice)}
+                  </Text>
+                </Box>
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Giá mua (VND / máy)
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={String(createForm.purchasePrice)}
+                    onChange={(e) => {
+                      const v = parseNonNegInt(e.target.value);
+                      if (v === null) return;
+                      setCreateForm((f) => ({ ...f, purchasePrice: v }));
+                    }}
+                  />
+                  <Text fontSize="xs" color="fg.muted" mt={1}>
+                    {vnd.format(createForm.purchasePrice)}
                   </Text>
                 </Box>
                 <Box>
