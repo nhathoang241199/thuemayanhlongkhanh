@@ -26,6 +26,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PencilIcon,
+  PrintIcon,
   TrashIcon,
 } from "./booking-list-icons";
 import {
@@ -54,6 +55,7 @@ export type BookingListRowProps = {
   onQuickAdvance: () => void;
   onQuickRevert: () => void;
   onEdit: () => void;
+  onPrint?: () => void;
   onDelete: () => void;
   onCccdUploaded?: () => void;
 };
@@ -73,6 +75,7 @@ function BookingListRowInner({
   onQuickAdvance,
   onQuickRevert,
   onEdit,
+  onPrint,
   onDelete,
   onCccdUploaded,
 }: BookingListRowProps) {
@@ -228,6 +231,19 @@ function BookingListRowInner({
             size="sm"
             onCccdUploaded={onCccdUploaded}
           />
+          {onPrint ? (
+            <IconButton
+              type="button"
+              size="sm"
+              variant="subtle"
+              colorPalette="gray"
+              aria-label="In phiếu thuê"
+              disabled={isRowSaving}
+              onClick={onPrint}
+            >
+              <PrintIcon />
+            </IconButton>
+          ) : null}
           <IconButton
             type="button"
             size="sm"

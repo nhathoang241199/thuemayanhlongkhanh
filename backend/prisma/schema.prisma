@@ -176,3 +176,9 @@ model ShopClosure {
 
   @@index([startDate, endDate])
 }
+
+model BookingTerms {
+  id        String   @id @default("singleton")
+  content   String   @default("")
+  updatedAt DateTime @updatedAt
+}

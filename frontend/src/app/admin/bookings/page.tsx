@@ -38,6 +38,7 @@ import {
   BookingsSearchFields,
   type BookingsSearchField,
 } from "@/app/admin/bookings/bookings-search-fields";
+import { BookingPrintDialog } from "@/app/admin/bookings/booking-print-dialog";
 import { BookingListRow } from "@/app/admin/bookings/booking-list-row";
 import type {
   Booking,
@@ -475,6 +476,7 @@ export default function AdminBookingsPage() {
   const [bookingFormMode, setBookingFormMode] = useState<"create" | "edit" | null>(
     null,
   );
+  const [printBooking, setPrintBooking] = useState<Booking | null>(null);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [editForm, setEditForm] = useState<BookingEditForm | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -1159,6 +1161,7 @@ export default function AdminBookingsPage() {
           key={b.id}
           rowNumber={(clampedPage - 1) * pageSize + index + 1}
           {...getBookingListProps(b)}
+          onPrint={() => setPrintBooking(b)}
         />
       )),
     [pagedBookings, getBookingListProps, clampedPage, pageSize],
@@ -2054,6 +2057,14 @@ export default function AdminBookingsPage() {
           </DialogContent>
         </DialogPositioner>
       </DialogRoot>
+
+      <BookingPrintDialog
+        booking={printBooking}
+        open={printBooking !== null}
+        onOpenChange={(open) => {
+          if (!open) setPrintBooking(null);
+        }}
+      />
     </Stack>
   );
 }

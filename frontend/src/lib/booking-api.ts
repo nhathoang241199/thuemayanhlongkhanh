@@ -279,6 +279,11 @@ export function formatDateVi(dateStr: string): string {
 }
 
 /** Nhãn ngày trên UI đặt lịch: 1 ngày chỉ hiện một ngày; từ 2 ngày hiện khoảng + (N ngày). */
+export async function fetchPublicBookingTerms(): Promise<{ content: string }> {
+  const res = await fetch(`${apiBase()}/api/booking-terms/public`);
+  return parseJson(res);
+}
+
 export function formatBookingRangeLabel(
   startDate: string,
   endDate: string,

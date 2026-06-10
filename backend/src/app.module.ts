@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingModule } from './booking/booking.module';
+import { BookingTermsModule } from './booking-terms/booking-terms.module';
 import { CameraModule } from './camera/camera.module';
 import { LensModule } from './lens/lens.module';
 import { CustomerModule } from './customer/customer.module';
@@ -21,6 +22,7 @@ import { StatsModule } from './stats/stats.module';
     LensModule,
     CustomerModule,
     BookingModule,
+    BookingTermsModule,
     AvailabilityModule,
     PaymentModule,
     ExpenseModule,

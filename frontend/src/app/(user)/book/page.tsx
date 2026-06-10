@@ -10,6 +10,15 @@ import {
   CheckboxHiddenInput,
   CheckboxLabel,
   CheckboxRoot,
+  DialogBackdrop,
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogPositioner,
+  DialogRoot,
+  DialogTitle,
   HStack,
   Skeleton,
   Stack,
@@ -36,6 +45,7 @@ import {
   fetchCalendarMonth,
   fetchClosedMonth,
   fetchCamerasForRange,
+  fetchPublicBookingTerms,
   fetchPublicCamera,
   fetchPublicCameras,
   fetchPublicLenses,
@@ -178,12 +188,38 @@ function BookPageContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
+  const [bookingTermsContent, setBookingTermsContent] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsDialogOpen, setTermsDialogOpen] = useState(false);
 
   const [calendarYm, setCalendarYm] = useState(nowYm);
+
+  const termsRequired = useMemo(
+    () => bookingTermsContent.trim().length > 0,
+    [bookingTermsContent],
+  );
 
   useEffect(() => {
     if (!getSession()) router.replace("/");
   }, [router]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    void fetchPublicBookingTerms()
+      .then((r) => {
+        if (!ac.signal.aborted) {
+          setBookingTermsContent(r.content);
+          setTermsAccepted(false);
+        }
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) {
+          setBookingTermsContent("");
+          setTermsAccepted(false);
+        }
+      });
+    return () => ac.abort();
+  }, []);
 
   useEffect(() => {
     if (changeBookingId || editBookingId || !preselectCameraId) return;
@@ -865,6 +901,10 @@ function BookPageContent() {
       );
       return;
     }
+    if (termsRequired && !termsAccepted) {
+      setError("Vui lòng đọc và đồng ý điều khoản.");
+      return;
+    }
     setPaying(true);
     setError(null);
     try {
@@ -1137,6 +1177,8 @@ function BookPageContent() {
   function renderSummary() {
     const isChange = !!changeSource;
     const isEditPending = !!editSource;
+    const showTermsCheckbox = termsRequired && !isChange && !isEditPending;
+    const termsBlocked = showTermsCheckbox && !termsAccepted;
     const pickupDisplay = pickupAtLocal.trim()
       ? formatPickupAtLocalVi(pickupAtLocal)
       : null;
@@ -1292,13 +1334,59 @@ function BookPageContent() {
             />
           </>
         ) : null}
+        {showTermsCheckbox ? (
+          <CheckboxRoot
+            size="sm"
+            colorPalette={APP_COLOR_PALETTE}
+            checked={termsAccepted}
+            onCheckedChange={({ checked }) =>
+              setTermsAccepted(checked === true)
+            }
+          >
+            <CheckboxHiddenInput />
+            <CheckboxControl
+              bg="white"
+              borderColor="cerulean.300"
+              _checked={{
+                bg: "colorPalette.solid",
+                borderColor: "colorPalette.solid",
+                color: "colorPalette.contrast",
+              }}
+            />
+            <CheckboxLabel fontSize="sm" color="fg.muted">
+              Tôi đã đọc và đồng ý với{" "}
+              <Button
+                variant="plain"
+                size="xs"
+                h="auto"
+                minH="auto"
+                p={0}
+                display="inline"
+                verticalAlign="baseline"
+                color={titleColor}
+                fontWeight="semibold"
+                textDecoration="underline"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTermsDialogOpen(true);
+                }}
+              >
+                điều khoản
+              </Button>
+            </CheckboxLabel>
+          </CheckboxRoot>
+        ) : null}
         <Button
           colorPalette={APP_COLOR_PALETTE}
           size="lg"
           w="full"
           loading={paying}
           disabled={
-            !effectiveSlot || !bookingAvailabilityOk || !pickupValidated
+            !effectiveSlot ||
+            !bookingAvailabilityOk ||
+            !pickupValidated ||
+            termsBlocked
           }
           onClick={() =>
             void (
@@ -1374,6 +1462,9 @@ function BookPageContent() {
   }
 
   const handleWizardBack = () => {
+    if (mode && step === wizardSummaryStep(mode)) {
+      setTermsAccepted(false);
+    }
     if (step > 0) {
       setStep((s) => Math.max(0, s - 1));
       return;
@@ -1696,6 +1787,38 @@ function BookPageContent() {
           </CardBody>
         </CardRoot>
       ) : null}
+
+      <DialogRoot
+        open={termsDialogOpen}
+        onOpenChange={(e) => {
+          if (!e.open) setTermsDialogOpen(false);
+        }}
+        lazyMount
+        unmountOnExit
+      >
+        <DialogBackdrop />
+        <DialogPositioner>
+          <DialogContent maxW="lg" w="full" mx={4}>
+            <DialogHeader>
+              <DialogTitle color={titleColor}>Điều khoản đặt lịch</DialogTitle>
+              <DialogCloseTrigger />
+            </DialogHeader>
+            <DialogBody>
+              <Text fontSize="sm" whiteSpace="pre-wrap" lineHeight="tall">
+                {bookingTermsContent}
+              </Text>
+            </DialogBody>
+            <DialogFooter gap={2}>
+              <Button
+                {...userOutlineButtonProps}
+                onClick={() => setTermsDialogOpen(false)}
+              >
+                Đóng
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </DialogPositioner>
+      </DialogRoot>
 
       <BookStepFooter onBack={handleWizardBack} />
     </Stack>

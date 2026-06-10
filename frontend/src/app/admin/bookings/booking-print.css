@@ -1,0 +1,21 @@
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #booking-print-slip,
+  #booking-print-slip * {
+    visibility: visible;
+  }
+
+  #booking-print-slip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .booking-print-no-print {
+    display: none !important;
+  }
+}
