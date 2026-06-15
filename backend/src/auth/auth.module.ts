@@ -9,7 +9,6 @@ import { AuthService } from './auth.service';
   imports: [
     JwtModule.register({
       secret: process.env.ADMIN_JWT_SECRET ?? 'dev-only-change-me-32chars!!',
-      signOptions: { expiresIn: '7d' },
     }),
   ],
   controllers: [AuthController],

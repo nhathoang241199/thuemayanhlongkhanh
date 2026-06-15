@@ -11,12 +11,11 @@ import {
 import type { Request } from 'express';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { ADMIN_COOKIE_MAX_AGE_MS } from '../common/admin-session';
 import { ADMIN_COOKIE_NAME, type AdminJwtPayload } from './admin-auth.guard';
 import { AuthService } from './auth.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { Public } from './public.decorator';
-
-const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function setAdminCookie(res: Response, token: string) {
   res.cookie(ADMIN_COOKIE_NAME, token, {
@@ -24,7 +23,7 @@ function setAdminCookie(res: Response, token: string) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: COOKIE_MAX_AGE_MS,
+    maxAge: ADMIN_COOKIE_MAX_AGE_MS,
   });
 }
 

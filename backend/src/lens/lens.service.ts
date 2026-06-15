@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { publicListedLensForCameraWhere } from '../common/lens-listing';
+import { sortLensesKitFirst } from '../common/lens-sort';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLensDto } from './dto/create-lens.dto';
 import { UpdateLensDto } from './dto/update-lens.dto';
@@ -40,8 +41,8 @@ export class LensService {
     return rows.map(mapLensWithCameras);
   }
 
-  findPublic(cameraId: string) {
-    return this.prisma.lens.findMany({
+  async findPublic(cameraId: string) {
+    const rows = await this.prisma.lens.findMany({
       where: publicListedLensForCameraWhere(cameraId),
       orderBy: [{ dayPrice: 'desc' }, { shiftPrice: 'desc' }, { name: 'asc' }],
       select: {
@@ -54,6 +55,7 @@ export class LensService {
         imageUrl: true,
       },
     });
+    return sortLensesKitFirst(rows);
   }
 
   async findOne(id: string) {

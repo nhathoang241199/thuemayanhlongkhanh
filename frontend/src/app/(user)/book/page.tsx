@@ -82,6 +82,7 @@ import {
   lensDisplayLabel,
   lensIdAfterSkip,
   shouldSkipLensStep,
+  sortLensesKitFirst,
 } from "@/lib/lens-step";
 import { balanceDueVnd } from "@/lib/booking-payment";
 import {
@@ -674,7 +675,7 @@ function BookPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const list = await fetchPublicLenses(selected.id);
+      const list = sortLensesKitFirst(await fetchPublicLenses(selected.id));
       setLenses(list);
       if (shouldSkipLensStep(list)) {
         const autoId = lensIdAfterSkip(list);
