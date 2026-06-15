@@ -5,6 +5,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { mkdir, unlink, writeFile } from 'fs/promises';
+import { dirname } from 'path';
 import {
   BookingSlot,
   BookingStatus,
@@ -30,6 +33,15 @@ import {
   balanceDueVnd,
   isCancelRefundEligible,
 } from '../common/booking-payment';
+import { assertStrictBookingPolicy, isStrictBookingPolicy } from '../common/booking-policy';
+import {
+  ALLOWED_VERIFICATION_MIMES,
+  collateralUploadDiskPath,
+  collateralUploadPublicUrl,
+  MAX_VERIFICATION_IMAGE_BYTES,
+  parseCollateralUploadPath,
+  verificationImageExtension,
+} from '../common/upload-config';
 import { normalizePhone } from '../common/normalize-phone';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -42,6 +54,7 @@ import { CreateCustomerBookingDto } from './dto/create-customer-booking.dto';
 import { RequestChangeCustomerBookingDto } from './dto/request-change-customer-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { UpdatePendingCustomerBookingDto } from './dto/update-pending-customer-booking.dto';
+import { SaveBookingContractDto } from './dto/save-booking-contract.dto';
 
 const bookingInclude = {
   customer: {
@@ -866,6 +879,90 @@ export class BookingService {
       }
       throw e;
     }
+  }
+
+  async addCollateralImage(id: string, file: Express.Multer.File) {
+    assertStrictBookingPolicy();
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Thiếu file ảnh.');
+    }
+    if (file.size > MAX_VERIFICATION_IMAGE_BYTES) {
+      throw new BadRequestException('Ảnh tối đa 5 MB.');
+    }
+    if (!ALLOWED_VERIFICATION_MIMES.has(file.mimetype)) {
+      throw new BadRequestException('Chỉ chấp nhận ảnh JPG, PNG hoặc WebP.');
+    }
+    const ext = verificationImageExtension(file.mimetype);
+    if (!ext) {
+      throw new BadRequestException('Định dạng ảnh không hỗ trợ.');
+    }
+
+    const booking = await this.prisma.booking.findUnique({ where: { id } });
+    if (!booking) {
+      throw new NotFoundException(`Booking ${id} not found`);
+    }
+
+    const previous = booking.collateralImageUrl;
+    const filename = `${randomUUID()}${ext}`;
+    const diskPath = collateralUploadDiskPath(id, filename);
+    await mkdir(dirname(diskPath), { recursive: true });
+    await writeFile(diskPath, file.buffer);
+
+    const publicUrl = collateralUploadPublicUrl(id, filename);
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: { collateralImageUrl: publicUrl },
+      include: bookingInclude,
+    });
+
+    if (previous) {
+      const parsed = parseCollateralUploadPath(previous);
+      if (parsed && parsed.bookingId === id) {
+        await unlink(collateralUploadDiskPath(parsed.bookingId, parsed.filename)).catch(
+          () => undefined,
+        );
+      }
+    }
+
+    return updated;
+  }
+
+  async saveContract(id: string, dto: SaveBookingContractDto) {
+    const existing = await this.prisma.booking.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Booking ${id} not found`);
+    }
+
+    const contractCccd = dto.contractCccd.trim();
+    if (!contractCccd) {
+      throw new BadRequestException('contractCccd is required');
+    }
+
+    if (isStrictBookingPolicy()) {
+      if (!dto.collateralMethod) {
+        throw new BadRequestException('collateralMethod is required');
+      }
+      if (!existing.collateralImageUrl) {
+        throw new BadRequestException(
+          'Cần chụp ảnh vật thế chân trước khi in hợp đồng',
+        );
+      }
+    } else if (dto.collateralMethod) {
+      throw new ForbiddenException(
+        'collateralMethod chỉ dùng khi BOOKING_POLICY_MODE=strict',
+      );
+    }
+
+    return this.prisma.booking.update({
+      where: { id },
+      data: {
+        contractCccd,
+        ...(dto.collateralMethod !== undefined
+          ? { collateralMethod: dto.collateralMethod }
+          : {}),
+      },
+      include: bookingInclude,
+    });
   }
 
   async remove(id: string) {

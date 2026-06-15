@@ -10,8 +10,14 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import {
+  ApiBody,
+  ApiConsumes,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -19,6 +25,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import {
+  FileTypeValidator,
+  MaxFileSizeValidator,
+  ParseFilePipe,
+} from '@nestjs/common/pipes';
 import { Public } from '../auth/public.decorator';
 import { BookingService } from './booking.service';
 import { CancelCustomerBookingDto } from './dto/cancel-customer-booking.dto';
@@ -27,6 +38,8 @@ import { UpdatePendingCustomerBookingDto } from './dto/update-pending-customer-b
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCustomerBookingDto } from './dto/create-customer-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
+import { SaveBookingContractDto } from './dto/save-booking-contract.dto';
+import { MAX_VERIFICATION_IMAGE_BYTES } from '../common/upload-config';
 
 @ApiTags('bookings')
 @Controller('bookings')
@@ -115,6 +128,48 @@ export class BookingController {
   @ApiConflictResponse({ description: 'Trùng mã hoặc FK không hợp lệ' })
   create(@Body() dto: CreateBookingDto) {
     return this.bookingService.create(dto);
+  }
+
+  @Patch(':id/contract')
+  @ApiOperation({ summary: 'Lưu thông tin hợp đồng in (CCCD, phương thức cọc)' })
+  @ApiOkResponse()
+  @ApiNotFoundResponse()
+  saveContract(@Param('id') id: string, @Body() dto: SaveBookingContractDto) {
+    return this.bookingService.saveContract(id, dto);
+  }
+
+  @Post(':id/collateral-image')
+  @ApiOperation({ summary: 'Upload ảnh vật thế chân (strict mode)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOkResponse()
+  @ApiNotFoundResponse()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_VERIFICATION_IMAGE_BYTES },
+    }),
+  )
+  uploadCollateralImage(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: MAX_VERIFICATION_IMAGE_BYTES }),
+          new FileTypeValidator({
+            fileType: /(image\/jpeg|image\/png|image\/webp)/,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    return this.bookingService.addCollateralImage(id, file);
   }
 
   @Patch(':id')

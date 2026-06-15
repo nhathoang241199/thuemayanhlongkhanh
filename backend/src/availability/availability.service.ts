@@ -23,8 +23,9 @@ import {
   todayCalendarDayVN,
 } from '../common/booking-schedule';
 import { publicListedCameraWhere } from '../common/camera-listing';
-import { PrismaService } from '../prisma/prisma.service';
+import { assertBookingSlotAllowed } from '../common/booking-slot-policy';
 import { ShopClosureService } from '../shop-closure/shop-closure.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 type SlotCounts = { m: number; a: number; e: number; fd: number };
 
@@ -195,6 +196,7 @@ export class AvailabilityService {
     endDate: string,
     slot: BookingSlot,
   ): void {
+    assertBookingSlotAllowed(slot);
     const days = dayCountInclusive(startDate, endDate);
     if (days >= 2 && slot !== BookingSlot.FULL_DAY) {
       throw new BadRequestException(

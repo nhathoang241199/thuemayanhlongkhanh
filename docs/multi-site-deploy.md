@@ -12,6 +12,29 @@ NEXT_PUBLIC_STORE_MAP_URL=https://maps.app.goo.gl/...
 NEXT_PUBLIC_API_URL=https://your-domain.com
 ```
 
+Tùy chọn — **bỏ bước chọn buổi** (vd. Bình Thạnh, mặc định Cả ngày):
+
+```env
+NEXT_PUBLIC_BOOKING_SKIP_SLOT_STEP=true
+NEXT_PUBLIC_BOOKING_DEFAULT_SLOT=FULL_DAY
+```
+
+Backend tương ứng trong `backend/.env`:
+
+```env
+BOOKING_ALLOWED_SLOTS=FULL_DAY
+```
+
+Tùy chọn — **chính sách strict** (cọc thế chân, in hợp đồng mở rộng):
+
+```env
+# frontend/.env.production
+NEXT_PUBLIC_BOOKING_POLICY_MODE=strict
+
+# backend/.env
+BOOKING_POLICY_MODE=strict
+```
+
 - Đổi env → **bắt buộc** `npm run build` lại frontend (`deploy/deploy.sh` đã làm).
 - Không set → mặc định **Long Khánh** và map URL cửa hàng Long Khánh.
 - Backend **không** có biến tên địa điểm; tách site bằng `DATABASE_URL`, `FRONTEND_ORIGIN`, `SEPAY_*`, v.v.
@@ -26,7 +49,8 @@ Xem [`frontend/.env.production.example`](../frontend/.env.production.example).
 | Domain | `thuemayanhlongkhanh.com` | `thuemayanhbinhthanh.com` |
 | API / Web (PM2) | 3000 / 3001 | 3010 / 3011 |
 | Postgres DB | `app` | `binhthanh` (tạo DB mới, có thể dùng chung container) |
-| `frontend/.env.production` | `NEXT_PUBLIC_SITE_LOCATION_NAME=Long Khánh` + map LK | `Bình Thạnh` + map BT |
+| `frontend/.env.production` | `NEXT_PUBLIC_SITE_LOCATION_NAME=Long Khánh` + map LK | `Bình Thạnh` + skip buổi + `NEXT_PUBLIC_BOOKING_POLICY_MODE=strict` |
+| `backend/.env` | (mặc định) | `BOOKING_ALLOWED_SLOTS=FULL_DAY` + `BOOKING_POLICY_MODE=strict` |
 
 ### Bước tóm tắt
 

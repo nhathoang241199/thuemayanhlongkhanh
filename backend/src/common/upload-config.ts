@@ -85,3 +85,46 @@ export function parseVerificationUploadPath(
   if (!customerId || !filename || filename.includes('..')) return null;
   return { customerId, filename };
 }
+
+const COLLATERAL_UPLOAD_PATH =
+  /^\/api\/uploads\/collateral\/([^/]+)\/([^/]+)$/;
+
+export function collateralUploadPublicUrl(
+  bookingId: string,
+  filename: string,
+): string {
+  return `${getPublicApiUrl()}/api/uploads/collateral/${bookingId}/${encodeURIComponent(filename)}`;
+}
+
+export function collateralUploadDiskPath(
+  bookingId: string,
+  filename: string,
+): string {
+  return join(getUploadDir(), 'collateral', bookingId, filename);
+}
+
+export function parseCollateralUploadPath(
+  url: string,
+): { bookingId: string; filename: string } | null {
+  const trimmed = url?.trim();
+  if (!trimmed) return null;
+
+  let pathname: string;
+  try {
+    pathname = trimmed.includes('://')
+      ? new URL(trimmed).pathname
+      : trimmed.startsWith('/')
+        ? trimmed
+        : '';
+  } catch {
+    return null;
+  }
+
+  const match = COLLATERAL_UPLOAD_PATH.exec(pathname);
+  if (!match) return null;
+
+  const bookingId = match[1];
+  const filename = decodeURIComponent(match[2]);
+  if (!bookingId || !filename || filename.includes('..')) return null;
+  return { bookingId, filename };
+}

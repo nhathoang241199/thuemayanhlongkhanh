@@ -31,6 +31,9 @@ export type Booking = {
   shippingAddress: string | null;
   paymentStatus: string;
   status: string;
+  contractCccd?: string | null;
+  collateralMethod?: string | null;
+  collateralImageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   customer: BookingCustomer;

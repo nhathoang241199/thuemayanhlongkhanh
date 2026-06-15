@@ -56,6 +56,9 @@ set_env() {
 }
 set_env "NEXT_PUBLIC_API_URL" "https://${DOMAIN}"
 set_env "NEXT_PUBLIC_SITE_LOCATION_NAME" "Bình Thạnh"
+set_env "NEXT_PUBLIC_BOOKING_SKIP_SLOT_STEP" "true"
+set_env "NEXT_PUBLIC_BOOKING_DEFAULT_SLOT" "FULL_DAY"
+set_env "NEXT_PUBLIC_BOOKING_POLICY_MODE" "strict"
 # Cập nhật map cửa hàng BT khi có link Google Maps:
 # set_env "NEXT_PUBLIC_STORE_MAP_URL" "https://maps.app.goo.gl/..."
 
@@ -68,6 +71,16 @@ for key in FRONTEND_ORIGIN FRONTEND_URL PUBLIC_API_URL; do
     echo "${key}=https://${DOMAIN}" >> "$BE_ENV"
   fi
 done
+if grep -q "^BOOKING_ALLOWED_SLOTS=" "$BE_ENV" 2>/dev/null; then
+  sed -i 's|^BOOKING_ALLOWED_SLOTS=.*|BOOKING_ALLOWED_SLOTS=FULL_DAY|' "$BE_ENV"
+else
+  echo "BOOKING_ALLOWED_SLOTS=FULL_DAY" >> "$BE_ENV"
+fi
+if grep -q "^BOOKING_POLICY_MODE=" "$BE_ENV" 2>/dev/null; then
+  sed -i 's|^BOOKING_POLICY_MODE=.*|BOOKING_POLICY_MODE=strict|' "$BE_ENV"
+else
+  echo "BOOKING_POLICY_MODE=strict" >> "$BE_ENV"
+fi
 
 echo "[4/6] Frontend build (branding embed at build time)..."
 cd "$APP_DIR/frontend"

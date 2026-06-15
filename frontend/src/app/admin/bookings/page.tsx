@@ -1170,7 +1170,11 @@ export default function AdminBookingsPage() {
   const pagedBookingCards = useMemo(() => {
     if (!isMobileViewport) return null;
     return pagedBookings.map((b) => (
-      <BookingListCard key={b.id} {...getBookingListProps(b)} />
+      <BookingListCard
+        key={b.id}
+        {...getBookingListProps(b)}
+        onPrint={() => setPrintBooking(b)}
+      />
     ));
   }, [isMobileViewport, pagedBookings, getBookingListProps]);
 
@@ -2064,6 +2068,7 @@ export default function AdminBookingsPage() {
         onOpenChange={(open) => {
           if (!open) setPrintBooking(null);
         }}
+        onSaved={() => void loadBookings()}
       />
     </Stack>
   );

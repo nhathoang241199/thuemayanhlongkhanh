@@ -40,6 +40,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   NoteIcon,
+  PrintIcon,
 } from "./booking-list-icons";
 import type { BookingListRowProps } from "./booking-list-row";
 import {
@@ -64,6 +65,7 @@ function BookingListCardInner({
   onQuickAdvance,
   onQuickRevert,
   onCccdUploaded,
+  onPrint,
 }: BookingListCardProps) {
   const [noteOpen, setNoteOpen] = useState(false);
   const noteText = b.note?.trim() ?? "";
@@ -228,6 +230,19 @@ function BookingListCardInner({
               onClick={() => setNoteOpen(true)}
             >
               <NoteIcon boxSize="1.25rem" />
+            </IconButton>
+          ) : null}
+          {onPrint ? (
+            <IconButton
+              type="button"
+              size="lg"
+              variant="subtle"
+              colorPalette={APP_COLOR_PALETTE}
+              aria-label="In hợp đồng"
+              disabled={isRowSaving}
+              onClick={onPrint}
+            >
+              <PrintIcon boxSize="1.25rem" />
             </IconButton>
           ) : null}
         </HStack>

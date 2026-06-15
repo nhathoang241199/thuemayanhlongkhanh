@@ -100,6 +100,9 @@ model Booking {
   note          String?
   shippingAddress String?
   pendingChange Json?
+  contractCccd       String?
+  collateralMethod   CollateralMethod?
+  collateralImageUrl String?
   paymentStatus PaymentStatus @default(PENDING)
   status        BookingStatus @default(PENDING_PAYMENT)
   payment       Payment?
@@ -135,6 +138,12 @@ enum BookingSlot {
   MORNING
   AFTERNOON
   EVENING
+}
+
+enum CollateralMethod {
+  STUDENT_CARD_AND_CCCD
+  CCCD_AND_2M
+  HALF_VALUE
 }
 
 enum PaymentStatus {

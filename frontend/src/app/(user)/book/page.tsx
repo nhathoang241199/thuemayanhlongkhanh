@@ -39,6 +39,10 @@ import { SlotHoursLabel } from "@/components/booking/slot-hours-label";
 import { BRAND_LABEL, CAMERA_BRAND_OPTIONS } from "@/lib/camera-brands";
 import { getDeliveryAreaLabel } from "@/lib/site-config";
 import {
+  getDefaultBookingSlot,
+  isBookingSlotStepSkipped,
+} from "@/lib/booking-site-config";
+import {
   createCustomerBooking,
   dayCountInclusive,
   fetchBrandsWithCameras,
@@ -66,9 +70,11 @@ import {
   wizardBrandStep,
   wizardCameraStep,
   wizardLensStep,
+  wizardNextStep,
   wizardPickupStep,
+  wizardPrevStep,
   wizardStepAfterLens,
-  wizardSlotStep,
+  wizardStepLabel,
   wizardSummaryStep,
   type BookWizardMode,
 } from "@/lib/book-wizard-steps";
@@ -140,6 +146,7 @@ function nowYm(): { year: number; month: number } {
 function BookPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const skipSlotStep = isBookingSlotStepSkipped();
   const changeBookingId = searchParams.get("changeBookingId");
   const editBookingId = searchParams.get("editBookingId");
   const preselectCameraId = searchParams.get("cameraId");
@@ -162,7 +169,7 @@ function BookPageContent() {
   );
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
-  const [slot, setSlot] = useState<BookingSlot | null>("FULL_DAY");
+  const [slot, setSlot] = useState<BookingSlot | null>(getDefaultBookingSlot());
   const [returnNextMorning, setReturnNextMorning] = useState(false);
   const [morningNextDayAvailable, setMorningNextDayAvailable] = useState<
     boolean | null
@@ -260,7 +267,7 @@ function BookPageContent() {
     return dayCountInclusive(startDate, endDate);
   }, [startDate, endDate]);
 
-  const forceFullDay = dayCount >= 2;
+  const forceFullDay = dayCount >= 2 || skipSlotStep;
 
   const effectiveSlot = forceFullDay ? "FULL_DAY" : slot;
 
@@ -463,7 +470,7 @@ function BookPageContent() {
   }, [editBookingId, router]);
 
   useEffect(() => {
-    if (forceFullDay) setSlot("FULL_DAY");
+    if (forceFullDay) setSlot(getDefaultBookingSlot());
   }, [forceFullDay]);
 
   useEffect(() => {
@@ -522,8 +529,11 @@ function BookPageContent() {
   }, [camera, startDate, endDate, effectiveSlot, modifyBookingId]);
 
   const onSlotStep =
-    (mode === "BY_CAMERA" && step === WIZARD_STEP.BY_CAMERA.SLOT && !!camera) ||
-    (mode === "BY_DATE" && step === WIZARD_STEP.BY_DATE.SLOT);
+    !skipSlotStep &&
+    ((mode === "BY_CAMERA" &&
+      step === WIZARD_STEP.BY_CAMERA.SLOT &&
+      !!camera) ||
+      (mode === "BY_DATE" && step === WIZARD_STEP.BY_DATE.SLOT));
   const onDateStepForceFullDay =
     forceFullDay &&
     !!startDate &&
@@ -692,7 +702,7 @@ function BookPageContent() {
     setCamerasAvail([]);
     setStartDate(null);
     setEndDate(null);
-    setSlot("FULL_DAY");
+    setSlot(getDefaultBookingSlot());
     setRangeOk(null);
     setSlotAvailability(null);
     setSlotsLoading(false);
@@ -708,7 +718,7 @@ function BookPageContent() {
   function handleRangeChange(s: string, e: string) {
     setStartDate(s);
     setEndDate(e);
-    if (dayCountInclusive(s, e) >= 2) setSlot("FULL_DAY");
+    if (dayCountInclusive(s, e) >= 2) setSlot(getDefaultBookingSlot());
   }
 
   const changeBalanceDue = useMemo(
@@ -930,25 +940,8 @@ function BookPageContent() {
     }
   }
 
-  const stepsByCamera = [
-    "Hãng",
-    "Máy",
-    "Ống kính",
-    "Ngày",
-    "Buổi",
-    "Nhận máy",
-    "Xác nhận",
-  ];
-  const stepsByDate = [
-    "Ngày",
-    "Buổi",
-    "Hãng",
-    "Máy",
-    "Ống kính",
-    "Nhận máy",
-    "Xác nhận",
-  ];
-  const steps = mode === "BY_CAMERA" ? stepsByCamera : stepsByDate;
+  const steps =
+    mode != null ? wizardStepLabel(mode, step, skipSlotStep) : "";
   const summaryStep = mode ? wizardSummaryStep(mode) : 6;
   const pickupStep = mode ? wizardPickupStep(mode) : 5;
   const brandStep = mode ? wizardBrandStep(mode) : 0;
@@ -1465,6 +1458,13 @@ function BookPageContent() {
     if (mode && step === wizardSummaryStep(mode)) {
       setTermsAccepted(false);
     }
+    if (mode && step > 0) {
+      const prev = wizardPrevStep(mode, step, skipSlotStep);
+      if (prev !== null) {
+        setStep(prev);
+        return;
+      }
+    }
     if (step > 0) {
       setStep((s) => Math.max(0, s - 1));
       return;
@@ -1488,7 +1488,7 @@ function BookPageContent() {
                 ? "Theo máy"
                 : "Theo ngày"}
         </Text>
-        <Badge variant="subtle">{steps[step]}</Badge>
+        <Badge variant="subtle">{steps}</Badge>
       </HStack>
 
       {error ? (
@@ -1685,14 +1685,23 @@ function BookPageContent() {
                 {...userSolidButtonProps}
                 {...STEP_CONTINUE_BUTTON_PROPS}
                 disabled={!startDate || !endDate || !fullDayCanContinue}
-                onClick={() => setStep(WIZARD_STEP.BY_CAMERA.SLOT)}
+                onClick={() => {
+                  const next = wizardNextStep(
+                    "BY_CAMERA",
+                    WIZARD_STEP.BY_CAMERA.DATE,
+                    skipSlotStep,
+                  );
+                  if (next !== null) setStep(next);
+                }}
               >
                 Tiếp tục
               </Button>
             </Stack>
           )}
 
-          {mode === "BY_CAMERA" && step === WIZARD_STEP.BY_CAMERA.SLOT && (
+          {mode === "BY_CAMERA" &&
+            !skipSlotStep &&
+            step === WIZARD_STEP.BY_CAMERA.SLOT && (
             <Stack gap={4}>
               {renderSlotPicker()}
               <Button
@@ -1760,14 +1769,23 @@ function BookPageContent() {
                   rangeHasClosed ||
                   rangeClosedChecking
                 }
-                onClick={() => setStep(WIZARD_STEP.BY_DATE.SLOT)}
+                onClick={() => {
+                  const next = wizardNextStep(
+                    "BY_DATE",
+                    WIZARD_STEP.BY_DATE.DATE,
+                    skipSlotStep,
+                  );
+                  if (next !== null) setStep(next);
+                }}
               >
                 Tiếp tục
               </Button>
             </Stack>
           )}
 
-          {mode === "BY_DATE" && step === WIZARD_STEP.BY_DATE.SLOT && (
+          {mode === "BY_DATE" &&
+            !skipSlotStep &&
+            step === WIZARD_STEP.BY_DATE.SLOT && (
             <Stack gap={4}>
               {renderSlotPicker()}
               <Button
