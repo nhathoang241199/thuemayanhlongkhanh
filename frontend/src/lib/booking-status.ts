@@ -1,18 +1,49 @@
-import { dayCountInclusive } from "@/lib/booking-api";
+import { dayCountInclusive, type BookingSlot } from "@/lib/booking-api";
 import {
   addDaysYmd,
+  datetimeLocalToIso,
   formatWeekdayDateAbbrViFromIso,
   isoToCalendarDateKey,
+  toDatetimeLocalValue,
 } from "@/lib/datetime-vn";
+import { isReturnNextMorningEligible } from "@/lib/rental-pricing";
 
-/** RENTING và đã quá endBookingDate — chỉ hiển thị badge, không đổi status DB. */
+/** Hạn trả máy thực tế — trả sáng hôm sau: trước 12h ngày kế sau ngày kết thúc thuê. */
+export function effectiveReturnDeadlineIso(
+  endBookingDate: string,
+  slot: string,
+  returnNextMorning = false,
+): string {
+  if (!returnNextMorning || !isReturnNextMorningEligible(slot as BookingSlot)) {
+    return endBookingDate;
+  }
+  const endKey = isoToCalendarDateKey(endBookingDate);
+  if (!endKey) return endBookingDate;
+  const morningDay = addDaysYmd(endKey, 1);
+  return datetimeLocalToIso(toDatetimeLocalValue(morningDay, 12, 0));
+}
+
+/** RENTING và đã quá hạn trả — chỉ hiển thị badge, không đổi status DB. */
 export function isLateReturnBooking(
-  booking: { status: string; endBookingDate: string },
+  booking: {
+    status: string;
+    endBookingDate: string;
+    returnNextMorning?: boolean;
+    slot?: string;
+  },
   now: Date = new Date(),
 ): boolean {
   if (booking.status !== "RENTING") return false;
-  const end = new Date(booking.endBookingDate);
-  return !Number.isNaN(end.getTime()) && end.getTime() < now.getTime();
+  const deadline = new Date(
+    effectiveReturnDeadlineIso(
+      booking.endBookingDate,
+      booking.slot ?? "",
+      booking.returnNextMorning,
+    ),
+  );
+  return (
+    !Number.isNaN(deadline.getTime()) && deadline.getTime() < now.getTime()
+  );
 }
 
 export function bookingStatusLabel(status: string): string {

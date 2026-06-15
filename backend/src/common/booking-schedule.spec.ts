@@ -1,5 +1,6 @@
 import {
   assertPickupAtValid,
+  effectiveReturnDeadline,
   isReturnNextMorningEligible,
   rentalAmountWithOptionsVnd,
   returnNextMorningDate,
@@ -88,5 +89,15 @@ describe('return next morning', () => {
     expect(isReturnNextMorningEligible('FULL_DAY')).toBe(true);
     expect(isReturnNextMorningEligible('EVENING')).toBe(true);
     expect(isReturnNextMorningEligible('MORNING')).toBe(false);
+  });
+
+  it('extends return deadline to 12h next morning', () => {
+    const endBookingDate = vnDateTimeToUtc('2026-05-31', 23, 0);
+    expect(
+      effectiveReturnDeadline(endBookingDate, 'FULL_DAY', true).getTime(),
+    ).toBe(vnDateTimeToUtc('2026-06-01', 12, 0).getTime());
+    expect(
+      effectiveReturnDeadline(endBookingDate, 'FULL_DAY', false).getTime(),
+    ).toBe(endBookingDate.getTime());
   });
 });

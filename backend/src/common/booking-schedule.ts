@@ -297,6 +297,19 @@ export function returnNextMorningOccupancyDate(endBookingDate: Date): string {
   return returnNextMorningDate(toCalendarDayVN(endBookingDate));
 }
 
+/** Hạn trả máy thực tế — trả sáng hôm sau: trước 12h ngày kế sau ngày kết thúc thuê. */
+export function effectiveReturnDeadline(
+  endBookingDate: Date,
+  slot: BookingSlotValue | BookingSlot,
+  returnNextMorning = false,
+): Date {
+  if (!returnNextMorning || !isReturnNextMorningEligible(slot)) {
+    return endBookingDate;
+  }
+  const endDay = toCalendarDayVN(endBookingDate);
+  return vnDateTimeToUtc(returnNextMorningDate(endDay), 12, 0);
+}
+
 export function dayCountInclusive(startDate: string, endDate: string): number {
   return eachCalendarDayVN(startDate, endDate).length;
 }
