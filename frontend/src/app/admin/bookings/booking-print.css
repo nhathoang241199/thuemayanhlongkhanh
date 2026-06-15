@@ -1,4 +1,15 @@
+.booking-print-slip {
+  padding: 1rem 0;
+  background: white;
+  color: black;
+}
+
 @media print {
+  @page {
+    margin: 12mm;
+    size: auto;
+  }
+
   body * {
     visibility: hidden;
   }
@@ -13,6 +24,13 @@
     left: 0;
     top: 0;
     width: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
   }
 
   .booking-print-no-print {

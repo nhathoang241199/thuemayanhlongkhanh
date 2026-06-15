@@ -20,6 +20,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 
 import {
   APP_COLOR_PALETTE,
@@ -28,7 +29,6 @@ import {
 import { apiBase } from "@/lib/api-base";
 import { throwIfNotOk } from "@/lib/admin-api";
 import { saveBookingContract } from "@/lib/booking-collateral-upload";
-import { BOOKING_DEPOSIT_VND } from "@/lib/booking-payment";
 import { isStrictBookingPolicy } from "@/lib/booking-site-config";
 import {
   COLLATERAL_METHODS,
@@ -68,6 +68,17 @@ function SlipRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatPrintTimestampVi(d: Date): string {
+  return d.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 export function BookingPrintDialog({
   booking,
   open,
@@ -85,12 +96,14 @@ export function BookingPrintDialog({
   const [termsContent, setTermsContent] = useState("");
   const [termsLoading, setTermsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [printedAt, setPrintedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!open || !booking) {
       setCccd("");
       setCollateralMethod("");
       setCollateralImageUrl(null);
+      setPrintedAt(null);
       return;
     }
     setCccd(booking.contractCccd ?? "");
@@ -143,7 +156,16 @@ export function BookingPrintDialog({
             : {}),
         });
         onSaved?.();
-        window.print();
+        const at = new Date();
+        flushSync(() => setPrintedAt(at));
+        const prevTitle = document.title;
+        document.title = "\u00a0";
+        const restoreTitle = () => {
+          document.title = prevTitle;
+          window.removeEventListener("afterprint", restoreTitle);
+        };
+        window.addEventListener("afterprint", restoreTitle);
+        requestAnimationFrame(() => window.print());
       } catch (e) {
         toaster.error({
           title: "Không lưu được hợp đồng",
@@ -163,14 +185,13 @@ export function BookingPrintDialog({
   const rentalDates = sameDay
     ? formatBookingDate(booking.startBookingDate)
     : `${formatBookingDate(booking.startBookingDate)} – ${formatBookingDate(booking.endBookingDate)}`;
-  const balanceDue =
-    booking.paymentStatus === "DEPOSITED"
-      ? Math.max(0, booking.amount - BOOKING_DEPOSIT_VND)
-      : null;
   const collateralLabel =
     collateralMethod && isCollateralMethod(collateralMethod)
       ? collateralMethodLabel(collateralMethod)
       : "—";
+  const printTimeLabel = printedAt
+    ? formatPrintTimestampVi(printedAt)
+    : formatPrintTimestampVi(new Date());
 
   return (
     <DialogRoot
@@ -246,16 +267,16 @@ export function BookingPrintDialog({
                 </Stack>
               </Box>
 
-              <Box
-                id="booking-print-slip"
-                borderWidth="1px"
-                borderColor="gray.200"
-                borderRadius="md"
-                p={6}
-                bg="white"
-                color="black"
-              >
+              <Box id="booking-print-slip" className="booking-print-slip">
                 <Stack gap={4}>
+                  <Text
+                    fontSize="xs"
+                    color="gray.600"
+                    className="booking-print-slip-meta"
+                  >
+                    Thời gian: {printTimeLabel}
+                  </Text>
+
                   <Stack gap={1} textAlign="center">
                     <Text fontSize="lg" fontWeight="bold">
                       {getSiteTitle()}
@@ -295,12 +316,6 @@ export function BookingPrintDialog({
                       }
                     />
                     <SlipRow label="Tổng tiền:" value={vnd.format(booking.amount)} />
-                    {balanceDue !== null ? (
-                      <SlipRow
-                        label="Còn lại:"
-                        value={vnd.format(balanceDue)}
-                      />
-                    ) : null}
                     {booking.note?.trim() ? (
                       <SlipRow label="Ghi chú:" value={booking.note.trim()} />
                     ) : null}
