@@ -7,6 +7,7 @@ Monorepo: NestJS API (`backend/`), Next.js (`frontend/`), Postgres qua Docker Co
 - [Triển khai VPS (thuemayanhlongkhanh.com)](docs/deploy-vps.md) — Nginx, PM2, SSL, SePay; script [`deploy/deploy.sh`](deploy/deploy.sh) + GitHub Actions.
 - [SePay — chuyển khoản + webhook](docs/sepay-setup.md) — QR trong app, webhook xác nhận, ngrok khi dev.
 - [Facebook Messenger bot](docs/messenger-setup.md) — webhook `/api/messenger/webhook`, Claude tư vấn inbox.
+- [Trợ lý AI admin](docs/admin-assistant.md) — panel chat trong `/admin`, 10 tools thống kê shop.
 - Mẫu biến môi trường API: [backend/.env.example](backend/.env.example).
 
 ## Chạy nhanh

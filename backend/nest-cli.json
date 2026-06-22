@@ -8,6 +8,10 @@
       {
         "include": "messenger/data/**/*",
         "watchAssets": true
+      },
+      {
+        "include": "admin-assistant/data/**/*",
+        "watchAssets": true
       }
     ]
   }

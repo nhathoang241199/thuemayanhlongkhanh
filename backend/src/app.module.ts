@@ -14,6 +14,7 @@ import { PaymentModule } from './payment/payment.module';
 import { ShopClosureModule } from './shop-closure/shop-closure.module';
 import { StatsModule } from './stats/stats.module';
 import { MessengerModule } from './messenger/messenger.module';
+import { AdminAssistantModule } from './admin-assistant/admin-assistant.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { MessengerModule } from './messenger/messenger.module';
     ShopClosureModule,
     StatsModule,
     MessengerModule,
+    AdminAssistantModule,
   ],
   controllers: [AppController],
   providers: [AppService],
