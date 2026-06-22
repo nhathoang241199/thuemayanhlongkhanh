@@ -123,4 +123,50 @@ export class StatsService {
       lensUnitCount,
     };
   }
+
+  async topCustomersByRevenue(
+    year: number,
+    month: number,
+    limit = 5,
+  ): Promise<
+    Array<{
+      name: string;
+      customerTag: string;
+      totalRevenue: number;
+      bookingCount: number;
+    }>
+  > {
+    const { start, end } = monthRangeUtc(year, month);
+    const take = Math.min(20, Math.max(1, limit));
+
+    const groups = await this.prisma.booking.groupBy({
+      by: ['customerId'],
+      where: {
+        paymentStatus: 'PAID',
+        startBookingDate: { gte: start, lt: end },
+      },
+      _sum: { amount: true },
+      _count: true,
+      orderBy: { _sum: { amount: 'desc' } },
+      take,
+    });
+
+    if (groups.length === 0) return [];
+
+    const customers = await this.prisma.customer.findMany({
+      where: { id: { in: groups.map((g) => g.customerId) } },
+      select: { id: true, name: true, customerTag: true },
+    });
+    const byId = new Map(customers.map((c) => [c.id, c]));
+
+    return groups.map((g) => {
+      const c = byId.get(g.customerId);
+      return {
+        name: c?.name ?? 'Không rõ',
+        customerTag: c?.customerTag ?? 'NORMAL',
+        totalRevenue: g._sum.amount ?? 0,
+        bookingCount: g._count,
+      };
+    });
+  }
 }

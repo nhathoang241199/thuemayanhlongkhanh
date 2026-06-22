@@ -114,6 +114,23 @@ export class AdminAssistantToolsService {
         },
       },
       {
+        name: 'get_top_customers_by_revenue',
+        description:
+          'Xếp hạng khách hàng theo tổng tiền thuê đã thanh toán (PAID) trong tháng — ai thuê nhiều tiền nhất.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            year: { type: 'number' },
+            month: { type: 'number', description: '1-12' },
+            limit: {
+              type: 'number',
+              description: 'Số khách trả về (mặc định 5, tối đa 20)',
+            },
+          },
+          required: ['year', 'month'],
+        },
+      },
+      {
         name: 'list_cameras',
         description: 'Danh sách máy ảnh trong kho: tên, số lượng, giá thuê.',
         input_schema: {
@@ -188,6 +205,8 @@ export class AdminAssistantToolsService {
           return this.getExpenseSummary(input);
         case 'get_customer_stats':
           return this.getCustomerStats(input);
+        case 'get_top_customers_by_revenue':
+          return this.getTopCustomersByRevenue(input);
         case 'list_cameras':
           return this.listCameras(input);
         case 'list_lenses':
@@ -359,6 +378,34 @@ export class AdminAssistantToolsService {
     }
 
     return `Tổng khách: ${total}. Theo tag: ${tagLines}. Đã xác minh CCCD: ${verified}.`;
+  }
+
+  private async getTopCustomersByRevenue(
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const ym = parseYearMonth(input.year, input.month);
+    if (!ym) return 'year và month không hợp lệ.';
+    const limit = Math.min(20, Math.max(1, Number(input.limit) || 5));
+
+    const rows = await this.stats.topCustomersByRevenue(
+      ym.year,
+      ym.month,
+      limit,
+    );
+
+    if (rows.length === 0) {
+      return `Tháng ${ym.month}/${ym.year}: chưa có đơn PAID nào.`;
+    }
+
+    const lines = [
+      `Top khách theo doanh thu PAID tháng ${ym.month}/${ym.year} (theo ngày thuê):`,
+    ];
+    rows.forEach((r, i) => {
+      lines.push(
+        `${i + 1}. ${r.name} (${r.customerTag}) — ${formatVnd(r.totalRevenue)} (${r.bookingCount} đơn)`,
+      );
+    });
+    return lines.join('\n');
   }
 
   private async listCameras(input: Record<string, unknown>): Promise<string> {
