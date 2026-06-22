@@ -7,5 +7,6 @@ import { CameraService } from './camera.service';
   imports: [PrismaModule],
   controllers: [CameraController],
   providers: [CameraService],
+  exports: [CameraService],
 })
 export class CameraModule {}

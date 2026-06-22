@@ -13,6 +13,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PaymentModule } from './payment/payment.module';
 import { ShopClosureModule } from './shop-closure/shop-closure.module';
 import { StatsModule } from './stats/stats.module';
+import { MessengerModule } from './messenger/messenger.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { StatsModule } from './stats/stats.module';
     ExpenseModule,
     ShopClosureModule,
     StatsModule,
+    MessengerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

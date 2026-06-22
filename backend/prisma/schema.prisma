@@ -191,3 +191,23 @@ model BookingTerms {
   content   String   @default("")
   updatedAt DateTime @updatedAt
 }
+
+model MessengerConversation {
+  id             String             @id @default(cuid())
+  psid           String             @unique
+  handoffToAdmin Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  messages       MessengerMessage[]
+}
+
+model MessengerMessage {
+  id             String                @id @default(cuid())
+  conversationId String
+  conversation   MessengerConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  createdAt      DateTime              @default(now())
+
+  @@index([conversationId, createdAt])
+}
