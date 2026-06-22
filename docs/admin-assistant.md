@@ -10,7 +10,7 @@ Trong `backend/.env`:
 |------|--------|
 | `ADMIN_ASSISTANT_ENABLED` | `true` / `false` |
 | `ANTHROPIC_API_KEY` | API key Claude (dùng chung với Messenger bot) |
-| `ANTHROPIC_MODEL` | Mặc định `claude-sonnet-4-20250514` |
+| `ANTHROPIC_MODEL` | Mặc định `claude-sonnet-4-6` |
 
 API: `POST /api/admin-assistant/chat` — **yêu cầu cookie admin** (đăng nhập `/admin/login`).
 

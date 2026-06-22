@@ -17,7 +17,7 @@ Thêm vào `backend/.env` (xem `backend/.env.example`):
 | `FACEBOOK_VERIFY_TOKEN` | Chuỗi tự đặt khi verify webhook |
 | `FACEBOOK_APP_SECRET` | App Secret — xác minh chữ ký webhook |
 | `ANTHROPIC_API_KEY` | API key Claude |
-| `ANTHROPIC_MODEL` | Mặc định `claude-sonnet-4-20250514` |
+| `ANTHROPIC_MODEL` | Mặc định `claude-sonnet-4-6` |
 | `ADMIN_MESSENGER_PSID` | PSID admin nhận tin chuyển tiếp |
 
 ## Meta Developer — tạo app

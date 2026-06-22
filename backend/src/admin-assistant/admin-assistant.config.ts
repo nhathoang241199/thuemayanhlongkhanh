@@ -9,7 +9,7 @@ export function getAdminAssistantConfig(): AdminAssistantConfig {
     enabled: process.env.ADMIN_ASSISTANT_ENABLED !== 'false',
     anthropicApiKey: process.env.ANTHROPIC_API_KEY?.trim() ?? '',
     anthropicModel:
-      process.env.ANTHROPIC_MODEL?.trim() ?? 'claude-sonnet-4-20250514',
+      process.env.ANTHROPIC_MODEL?.trim() ?? 'claude-sonnet-4-6',
   };
 }
 

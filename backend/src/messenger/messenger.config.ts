@@ -17,7 +17,7 @@ export function getMessengerConfig(): MessengerConfig {
     appSecret: process.env.FACEBOOK_APP_SECRET?.trim() ?? '',
     anthropicApiKey: process.env.ANTHROPIC_API_KEY?.trim() ?? '',
     anthropicModel:
-      process.env.ANTHROPIC_MODEL?.trim() ?? 'claude-sonnet-4-20250514',
+      process.env.ANTHROPIC_MODEL?.trim() ?? 'claude-sonnet-4-6',
     adminPsid: process.env.ADMIN_MESSENGER_PSID?.trim() ?? '',
     frontendUrl:
       process.env.FRONTEND_URL?.trim() ??
