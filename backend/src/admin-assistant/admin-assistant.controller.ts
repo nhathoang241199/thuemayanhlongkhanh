@@ -30,7 +30,16 @@ export class AdminAssistantController {
       );
     }
 
-    const reply = await this.assistant.chat(dto.messages);
-    return { reply };
+    try {
+      const reply = await this.assistant.chat(dto.messages);
+      return { reply };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ServiceUnavailableException(
+        msg.includes('ENOENT') && msg.includes('system.md')
+          ? 'Trợ lý AI thiếu file cấu hình trên server — liên hệ kỹ thuật rebuild backend.'
+          : `Trợ lý AI lỗi: ${msg}`,
+      );
+    }
   }
 }

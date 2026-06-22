@@ -41,7 +41,20 @@ export async function parseResponseError(
   fallback = "Yêu cầu thất bại",
 ): Promise<string> {
   const text = await res.text().catch(() => "");
-  return text.trim() || res.statusText || fallback;
+  const trimmed = text.trim();
+  if (!trimmed) return res.statusText || fallback;
+  try {
+    const json = JSON.parse(trimmed) as { message?: string | string[] };
+    if (typeof json.message === "string" && json.message.trim()) {
+      return json.message.trim();
+    }
+    if (Array.isArray(json.message) && json.message.length > 0) {
+      return json.message.map(String).join(", ");
+    }
+  } catch {
+    // not JSON
+  }
+  return trimmed;
 }
 
 export async function throwIfNotOk(
