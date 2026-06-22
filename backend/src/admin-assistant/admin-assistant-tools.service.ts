@@ -7,6 +7,7 @@ import {
 import { monthRangeUtc } from '../common/month-range-utc';
 import { AvailabilityService } from '../availability/availability.service';
 import { CameraService } from '../camera/camera.service';
+import { CustomerService } from '../customer/customer.service';
 import { LensService } from '../lens/lens.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ShopClosureService } from '../shop-closure/shop-closure.service';
@@ -28,6 +29,7 @@ export class AdminAssistantToolsService {
   constructor(
     private readonly stats: StatsService,
     private readonly prisma: PrismaService,
+    private readonly customers: CustomerService,
     private readonly cameras: CameraService,
     private readonly lenses: LensService,
     private readonly availability: AvailabilityService,
@@ -131,6 +133,29 @@ export class AdminAssistantToolsService {
         },
       },
       {
+        name: 'lookup_customer',
+        description:
+          'Tra cứu khách hàng theo tên hoặc số điện thoại (tìm gần đúng). Trả về tên, SĐT, tag, trạng thái xác minh.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Tên khách hoặc SĐT (một phần cũng được)',
+            },
+            searchField: {
+              type: 'string',
+              description: 'name hoặc phone. Bỏ trống = tự nhận diện.',
+            },
+            limit: {
+              type: 'number',
+              description: 'Số kết quả tối đa (mặc định 5, tối đa 10)',
+            },
+          },
+          required: ['query'],
+        },
+      },
+      {
         name: 'list_cameras',
         description: 'Danh sách máy ảnh trong kho: tên, số lượng, giá thuê.',
         input_schema: {
@@ -207,6 +232,8 @@ export class AdminAssistantToolsService {
           return this.getCustomerStats(input);
         case 'get_top_customers_by_revenue':
           return this.getTopCustomersByRevenue(input);
+        case 'lookup_customer':
+          return this.lookupCustomer(input);
         case 'list_cameras':
           return this.listCameras(input);
         case 'list_lenses':
@@ -405,6 +432,51 @@ export class AdminAssistantToolsService {
         `${i + 1}. ${r.name} (${r.customerTag}) — ${formatVnd(r.totalRevenue)} (${r.bookingCount} đơn)`,
       );
     });
+    return lines.join('\n');
+  }
+
+  private async lookupCustomer(input: Record<string, unknown>): Promise<string> {
+    const query = String(input.query ?? '').trim();
+    if (!query) return 'Cần query (tên hoặc SĐT khách).';
+
+    const fieldRaw = String(input.searchField ?? '').trim();
+    const limit = Math.min(10, Math.max(1, Number(input.limit) || 5));
+    const digitsOnly = query.replace(/\D/g, '');
+    const searchField: 'name' | 'phone' =
+      fieldRaw === 'phone' || fieldRaw === 'name'
+        ? fieldRaw
+        : digitsOnly.length >= 9
+          ? 'phone'
+          : 'name';
+
+    const { items, total } = await this.customers.findPage(1, limit, {
+      searchField,
+      search: searchField === 'phone' ? digitsOnly || query : query,
+    });
+
+    if (items.length === 0) {
+      return `Không tìm thấy khách với ${searchField === 'phone' ? 'SĐT' : 'tên'} "${query}".`;
+    }
+
+    const lines = [
+      `Tìm thấy ${total} khách (hiển thị ${items.length}):`,
+    ];
+    for (const c of items) {
+      const parts = [
+        `- ${c.name}`,
+        `SĐT: ${c.phone}`,
+        `tag: ${c.customerTag}`,
+        c.isVerified ? 'đã xác minh' : 'chưa xác minh',
+      ];
+      if (c.facebookUrl?.trim()) parts.push(`FB: ${c.facebookUrl.trim()}`);
+      if (c.note?.trim()) parts.push(`ghi chú: ${c.note.trim()}`);
+      lines.push(parts.join(' | '));
+    }
+    if (total > items.length) {
+      lines.push(
+        `(Còn ${total - items.length} khách khác — gõ thêm ký tự để thu hẹp.)`,
+      );
+    }
     return lines.join('\n');
   }
 

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AvailabilityModule } from '../availability/availability.module';
 import { CameraModule } from '../camera/camera.module';
+import { CustomerModule } from '../customer/customer.module';
 import { LensModule } from '../lens/lens.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ShopClosureModule } from '../shop-closure/shop-closure.module';
@@ -13,6 +14,7 @@ import { AdminAssistantToolsService } from './admin-assistant-tools.service';
   imports: [
     PrismaModule,
     StatsModule,
+    CustomerModule,
     CameraModule,
     LensModule,
     AvailabilityModule,

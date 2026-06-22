@@ -1,6 +1,6 @@
 # Trợ lý AI admin
 
-Panel chat floating trên mọi trang `/admin` (trừ login). Admin hỏi tiếng Việt về doanh thu, đơn thuê, chi phí, khách, kho máy/lens — Claude gọi **11 tools** đọc DB, không text-to-SQL.
+Panel chat floating trên mọi trang `/admin` (trừ login). Admin hỏi tiếng Việt về doanh thu, đơn thuê, chi phí, khách, kho máy/lens — Claude gọi **12 tools** đọc DB, không text-to-SQL.
 
 ## Yêu cầu
 
@@ -25,10 +25,11 @@ Ví dụ:
 - *"Doanh thu tháng này?"*
 - *"Tháng này bao nhiêu đơn hủy?"*
 - *"Ai thuê nhiều tiền nhất tháng này?"*
+- *"Số điện thoại của Bảo Trâm?"*
 - *"Tổng bao nhiêu thiết bị?"*
 - *"Máy còn trống từ 28/6 đến 30/6?"*
 
-## 11 tools
+## 12 tools
 
 | Tool | Dữ liệu |
 |------|---------|
@@ -39,6 +40,7 @@ Ví dụ:
 | `get_expense_summary` | Tổng chi, top khoản chi |
 | `get_customer_stats` | Tổng khách, theo tag, đã xác minh |
 | `get_top_customers_by_revenue` | Top khách theo tổng tiền thuê PAID trong tháng |
+| `lookup_customer` | Tra cứu khách theo tên hoặc SĐT |
 | `list_cameras` | Danh sách máy trong kho |
 | `list_lenses` | Danh sách lens (optional theo máy) |
 | `get_closed_days` | Ngày shop nghỉ trong tháng |
