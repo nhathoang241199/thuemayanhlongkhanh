@@ -38,6 +38,7 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
 
+import { AdminBulkDiscountPanel } from "@/components/admin/admin-bulk-discount-panel";
 import {
   AdminDataCard,
   AdminDataCardActions,
@@ -635,6 +636,14 @@ export default function AdminLensesPage() {
           </HStack>
         </CardBody>
       </CardRoot>
+
+      <AdminBulkDiscountPanel
+        onApplied={(discountPercent) =>
+          setLenses((prev) =>
+            prev ? prev.map((c) => ({ ...c, discountPercent })) : prev,
+          )
+        }
+      />
 
       {error ? (
         <CardRoot borderWidth="1px" borderColor="red.300" bg="red.50">

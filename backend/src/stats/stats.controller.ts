@@ -1,9 +1,13 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   DefaultValuePipe,
   Get,
+  HttpCode,
+  HttpStatus,
   ParseIntPipe,
+  Patch,
   Query,
 } from '@nestjs/common';
 import {
@@ -13,6 +17,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { EquipmentValueResponseDto } from './dto/equipment-value-response.dto';
+import { ApplyEquipmentDiscountDto } from './dto/apply-equipment-discount.dto';
+import { ApplyEquipmentDiscountResponseDto } from './dto/apply-equipment-discount-response.dto';
 import { MonthlySummaryResponseDto } from './dto/monthly-summary-response.dto';
 import { RevenueByMonthResponseDto } from './dto/revenue-by-month-response.dto';
 import { StatsService } from './stats.service';
@@ -92,5 +98,17 @@ export class StatsController {
   @ApiOkResponse({ type: EquipmentValueResponseDto })
   equipmentValue(): Promise<EquipmentValueResponseDto> {
     return this.statsService.equipmentValue();
+  }
+
+  @Patch('equipment-discount')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Áp dụng % giảm giá cho toàn bộ máy ảnh và ống kính',
+  })
+  @ApiOkResponse({ type: ApplyEquipmentDiscountResponseDto })
+  applyEquipmentDiscount(
+    @Body() dto: ApplyEquipmentDiscountDto,
+  ): Promise<ApplyEquipmentDiscountResponseDto> {
+    return this.statsService.applyEquipmentDiscount(dto.discountPercent);
   }
 }

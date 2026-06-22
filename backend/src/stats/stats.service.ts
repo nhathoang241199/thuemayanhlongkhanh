@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
+import { clampDiscountPercent } from '../common/booking-schedule';
 import { monthRangeUtc } from '../common/month-range-utc';
 import { PrismaService } from '../prisma/prisma.service';
 import { EquipmentValueResponseDto } from './dto/equipment-value-response.dto';
@@ -168,5 +169,22 @@ export class StatsService {
         bookingCount: g._count,
       };
     });
+  }
+
+  async applyEquipmentDiscount(discountPercent: number): Promise<{
+    discountPercent: number;
+    cameraCount: number;
+    lensCount: number;
+  }> {
+    const pct = clampDiscountPercent(discountPercent);
+    const [cameraResult, lensResult] = await this.prisma.$transaction([
+      this.prisma.camera.updateMany({ data: { discountPercent: pct } }),
+      this.prisma.lens.updateMany({ data: { discountPercent: pct } }),
+    ]);
+    return {
+      discountPercent: pct,
+      cameraCount: cameraResult.count,
+      lensCount: lensResult.count,
+    };
   }
 }
