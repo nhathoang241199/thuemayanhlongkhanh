@@ -129,7 +129,7 @@ export function AdminAssistantChat() {
   };
 
   return (
-    <>
+    <Box display={{ base: "none", lg: "block" }}>
       {!open ? (
         <IconButton
           type="button"
@@ -292,6 +292,6 @@ export function AdminAssistantChat() {
           </Stack>
         </Box>
       ) : null}
-    </>
+    </Box>
   );
 }
