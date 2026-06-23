@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClaudeService } from './claude.service';
+import {
+  howToRentReply,
+  isHowToRentQuestion,
+} from './messenger-canned-replies';
 import { FacebookGraphService } from './facebook-graph.service';
 import {
   getMessengerConfig,
@@ -73,6 +77,18 @@ export class ConversationService {
 
       if (this.shouldEscalate(text, event)) {
         await this.escalate(psid, text);
+        return;
+      }
+
+      if (isHowToRentQuestion(text)) {
+        const reply = howToRentReply(config.frontendUrl);
+        await this.saveMessage(conversation.id, 'user', text);
+        await this.saveMessage(conversation.id, 'assistant', reply);
+        await this.graph.sendTextWithQuickReplies(
+          psid,
+          reply,
+          this.graph.getDefaultQuickReplies(),
+        );
         return;
       }
 
