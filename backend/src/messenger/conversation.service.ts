@@ -126,11 +126,11 @@ export class ConversationService {
 
     switch (payload) {
       case MENU_PAYLOADS.PRICES:
-        return 'Khách bấm xem giá máy — hãy liệt kê máy đang cho thuê và hỏi mục đích thuê.';
+        return 'Khách xem giá — liệt kê tối đa 3 máy phù hợp, trả lời 2 câu, hỏi hãng hoặc mục đích thuê.';
       case MENU_PAYLOADS.AVAILABILITY:
-        return 'Khách muốn check lịch trống — hỏi ngày nhận/trả và máy mong muốn, rồi dùng tool availability.';
+        return 'Khách check lịch — hỏi ngày nhận/trả và máy, dùng tool availability, trả lời 2 câu.';
       case MENU_PAYLOADS.TERMS:
-        return 'Khách hỏi quy định cọc — dùng get_booking_terms và tóm tắt ngắn.';
+        return 'Khách hỏi cọc — get_booking_terms, tóm tắt 2–3 ý chính trong 2 câu.';
       default:
         return null;
     }

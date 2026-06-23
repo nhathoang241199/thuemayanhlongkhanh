@@ -54,7 +54,7 @@ export class ClaudeService {
       rounds += 1;
       const response = await this.getClient().messages.create({
         model: config.anthropicModel,
-        max_tokens: 1024,
+        max_tokens: 400,
         system: this.buildSystemPrompt(bookUrl),
         tools: toolDefs,
         messages,
