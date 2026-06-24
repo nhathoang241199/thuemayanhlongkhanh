@@ -43,4 +43,22 @@ export const ESCALATE_KEYWORDS = [
   'tu van',
   'nhân viên',
   'nhan vien',
-];
+] as const;
+
+/** Khách gõ để bật lại AI sau khi đã chuyển admin (nhầm hoặc xong việc với admin). */
+export const RESET_BOT_KEYWORDS = ['bot', 'bot lại', 'bot lai'] as const;
+
+export function matchesEscalateKeyword(text: string, keyword: string): boolean {
+  const lower = text.toLowerCase().trim();
+  if (lower === keyword) return true;
+  // "ad" chỉ khớp từ đứng riêng — tránh false positive trong câu dài
+  if (keyword === 'ad') {
+    return /(?:^|[\s,.!?;:])ad(?:$|[\s,.!?;:])/i.test(lower);
+  }
+  return lower.includes(keyword);
+}
+
+export function shouldResetBot(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  return RESET_BOT_KEYWORDS.some((kw) => lower === kw);
+}

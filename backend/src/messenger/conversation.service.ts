@@ -13,6 +13,8 @@ import {
 import {
   ESCALATE_KEYWORDS,
   MENU_PAYLOADS,
+  matchesEscalateKeyword,
+  shouldResetBot,
   type MessengerMessagingEvent,
   type MessengerWebhookBody,
 } from './messenger.types';
@@ -66,12 +68,21 @@ export class ConversationService {
         update: {},
       });
 
+      if (shouldResetBot(text)) {
+        await this.prisma.messengerConversation.update({
+          where: { psid },
+          data: { handoffToAdmin: false },
+        });
+        await this.graph.sendTextWithQuickReplies(
+          psid,
+          'Em đây ạ — anh/chị cần em tư vấn gì không?',
+          this.graph.getDefaultQuickReplies(),
+        );
+        return;
+      }
+
       if (conversation.handoffToAdmin) {
         await this.notifyAdmin(psid, `[Đang handoff] Khách: ${text}`);
-        await this.graph.sendText(
-          psid,
-          'Mình đã chuyển tin cho admin — bạn chờ trong giây lát nhé.',
-        );
         return;
       }
 
@@ -128,7 +139,7 @@ export class ConversationService {
     const payload = event.postback?.payload ?? event.message?.quick_reply?.payload;
     if (payload === MENU_PAYLOADS.ADMIN) return true;
     const lower = text.toLowerCase().trim();
-    return ESCALATE_KEYWORDS.some((kw) => lower === kw || lower.includes(kw));
+    return ESCALATE_KEYWORDS.some((kw) => matchesEscalateKeyword(lower, kw));
   }
 
   private menuPromptForPayload(
@@ -165,7 +176,7 @@ export class ConversationService {
 
     await this.graph.sendText(
       psid,
-      'Mình đã chuyển cho admin — bạn chờ trong vài phút nhé. Cảm ơn bạn!',
+      'Em đã chuyển cho admin rồi ạ — anh/chị chờ trong vài phút nhé. Gõ BOT nếu muốn em trả lời tiếp.',
     );
   }
 
@@ -219,7 +230,7 @@ export class ConversationService {
   async sendWelcome(psid: string): Promise<void> {
     await this.graph.sendTextWithQuickReplies(
       psid,
-      'Chào bạn! Mình là trợ lý Thuê máy ảnh Long Khánh. Bạn cần tư vấn gì ạ?',
+      'Chào anh/chị! Em là trợ lý Thuê máy ảnh Long Khánh. Anh/chị cần tư vấn gì ạ?',
       this.graph.getDefaultQuickReplies(),
     );
   }
