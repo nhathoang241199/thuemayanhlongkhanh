@@ -31,5 +31,5 @@ export function howToRentReply(siteUrl: string): string {
   } catch {
     // keep default
   }
-  return `Bạn vui lòng truy cập vào trang ${host} để đặt lịch nhé ạ`;
+  return `Anh/chị lên trang ${host} để kiểm tra và đặt lịch nhé ạ`;
 }

@@ -144,7 +144,7 @@ export class ConversationService {
       case MENU_PAYLOADS.PRICES:
         return 'Khách xem giá — liệt kê tối đa 3 máy phù hợp, trả lời 2 câu, hỏi hãng hoặc mục đích thuê.';
       case MENU_PAYLOADS.AVAILABILITY:
-        return 'Khách check lịch — hỏi ngày nhận/trả và máy, dùng tool availability, trả lời 2 câu.';
+        return 'Khách check lịch — trả lời ngắn tone anh/em: còn máy + hướng lên trang đặt lịch. Không gọi tool, không liệt kê máy.';
       case MENU_PAYLOADS.TERMS:
         return 'Khách hỏi cọc — get_booking_terms, tóm tắt 2–3 ý chính trong 2 câu.';
       default:
