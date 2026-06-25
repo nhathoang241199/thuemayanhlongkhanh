@@ -54,7 +54,7 @@ export class ClaudeService {
       rounds += 1;
       const response = await this.getClient().messages.create({
         model: config.anthropicModel,
-        max_tokens: 400,
+        max_tokens: 120,
         system: this.buildSystemPrompt(bookUrl),
         tools: toolDefs,
         messages,
@@ -70,7 +70,7 @@ export class ClaudeService {
         .trim();
 
       if (response.stop_reason !== 'tool_use' || toolUses.length === 0) {
-        return textBlocks || 'Mình chưa rõ câu hỏi — bạn mô tả thêm giúp mình nhé?';
+        return textBlocks || 'Em chưa rõ câu hỏi — anh/chị mô tả thêm giúp em nhé?';
       }
 
       messages.push({ role: 'assistant', content: response.content });
@@ -91,6 +91,6 @@ export class ClaudeService {
     }
 
     this.logger.warn('Max tool rounds reached');
-    return 'Mình cần nhờ admin xác nhận thêm — bạn gõ AD để gặp tư vấn viên nhé.';
+    return 'Em cần nhờ admin xác nhận thêm — anh/chị gõ AD để gặp tư vấn viên nhé.';
   }
 }

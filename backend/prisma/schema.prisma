@@ -193,12 +193,12 @@ model BookingTerms {
 }
 
 model MessengerConversation {
-  id             String             @id @default(cuid())
-  psid           String             @unique
-  handoffToAdmin Boolean            @default(false)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  messages       MessengerMessage[]
+  id            String             @id @default(cuid())
+  psid          String             @unique
+  handoffUntil  DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  messages      MessengerMessage[]
 }
 
 model MessengerMessage {

@@ -4,6 +4,15 @@ export function formatVnd(amount: number): string {
   return `${amount.toLocaleString('vi-VN')}đ`;
 }
 
+/** 840000 → "840k", 1200000 → "1.2tr" */
+export function formatVndShort(amount: number): string {
+  if (amount >= 1_000_000) {
+    const tr = amount / 1_000_000;
+    return Number.isInteger(tr) ? `${tr}tr` : `${tr.toFixed(1).replace(/\.0$/, '')}tr`;
+  }
+  return `${Math.round(amount / 1000)}k`;
+}
+
 export function formatCameraList(
   cameras: {
     id: string;

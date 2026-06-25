@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { Tool } from '@anthropic-ai/sdk/resources/messages/messages.mjs';
+import {
+  dayCountInclusive,
+  discountedRentalVnd,
+  multiDayRentalMultiplier,
+  rentalAmountWithOptionsVnd,
+} from '../common/booking-schedule';
 import { AvailabilityService } from '../availability/availability.service';
 import { BookingTermsService } from '../booking-terms/booking-terms.service';
 import { CameraService } from '../camera/camera.service';
@@ -8,6 +14,7 @@ import { ShopClosureService } from '../shop-closure/shop-closure.service';
 import {
   formatCameraList,
   formatLensList,
+  formatVndShort,
   parseBrand,
   parseSlot,
 } from './messenger-formatters';
@@ -107,6 +114,28 @@ export class MessengerToolsService {
           required: ['year', 'month'],
         },
       },
+      {
+        name: 'quote_rental',
+        description:
+          'Báo giá thuê theo số ngày (hệ số shop: 2 ngày=1.75x, 3=2.4x, 4=3x, 5=3.5x). Bắt buộc dùng khi khách hỏi tổng tiền nhiều ngày.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            cameraId: { type: 'string' },
+            startDate: { type: 'string', description: 'YYYY-MM-DD' },
+            endDate: { type: 'string', description: 'YYYY-MM-DD' },
+            slot: {
+              type: 'string',
+              description: 'FULL_DAY, MORNING, AFTERNOON, hoặc EVENING. Mặc định FULL_DAY.',
+            },
+            lensId: {
+              type: 'string',
+              description: 'Lens kèm theo (tùy chọn).',
+            },
+          },
+          required: ['cameraId', 'startDate', 'endDate'],
+        },
+      },
     ];
   }
 
@@ -161,6 +190,9 @@ export class MessengerToolsService {
           if (!closedDates.length) return 'Shop không nghỉ ngày nào trong tháng này.';
           return closedDates.join(', ');
         }
+        case 'quote_rental': {
+          return this.quoteRental(input);
+        }
         default:
           return `Tool không hỗ trợ: ${name}`;
       }
@@ -168,5 +200,60 @@ export class MessengerToolsService {
       const msg = err instanceof Error ? err.message : String(err);
       return `Lỗi khi gọi ${name}: ${msg}. Nhờ admin xác nhận.`;
     }
+  }
+
+  private async quoteRental(input: Record<string, unknown>): Promise<string> {
+    const cameraId = String(input.cameraId);
+    const startDate = String(input.startDate);
+    const endDate = String(input.endDate);
+    const slot = parseSlot(input.slot as string | undefined);
+
+    const camera = await this.cameras.findPublicOne(cameraId);
+    const dayCount = dayCountInclusive(startDate, endDate);
+    const multiplier = multiDayRentalMultiplier(dayCount);
+    const cameraRental = rentalAmountWithOptionsVnd(
+      dayCount,
+      camera.dayPrice,
+      camera.shiftPrice,
+      slot,
+    );
+    const cameraTotal = discountedRentalVnd(
+      cameraRental,
+      camera.discountPercent ?? 0,
+    );
+
+    let lensLine = '';
+    let grandTotal = cameraTotal;
+
+    if (input.lensId) {
+      const lenses = await this.lenses.findPublic(cameraId);
+      const lens = lenses.find((l) => l.id === String(input.lensId));
+      if (lens) {
+        const lensRental = rentalAmountWithOptionsVnd(
+          dayCount,
+          lens.dayPrice,
+          lens.shiftPrice,
+          slot,
+        );
+        const lensTotal = discountedRentalVnd(
+          lensRental,
+          lens.discountPercent ?? 0,
+        );
+        grandTotal += lensTotal;
+        lensLine = `, lens ${lens.name} ${formatVndShort(lensTotal)}`;
+      }
+    }
+
+    const range =
+      dayCount <= 1 ? startDate : `${startDate}–${endDate} (${dayCount} ngày)`;
+    const discountNote = camera.discountPercent
+      ? `, giảm ${camera.discountPercent}%`
+      : '';
+
+    return (
+      `${camera.brand} ${camera.name}: ${formatVndShort(cameraTotal)}` +
+      `${lensLine}. Tổng: ${formatVndShort(grandTotal)}. ` +
+      `(giá ngày ${formatVndShort(camera.dayPrice)}, hệ số ${multiplier}${discountNote}, ${range})`
+    );
   }
 }
