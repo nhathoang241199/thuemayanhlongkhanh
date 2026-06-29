@@ -267,6 +267,11 @@ export function isReturnNextMorningEligible(
   return slot === 'FULL_DAY' || slot === 'EVENING';
 }
 
+/** Mặc định tắt; bật bằng `BOOKING_RETURN_NEXT_MORNING_ENABLED=true`. */
+export function isReturnNextMorningEnabled(): boolean {
+  return process.env.BOOKING_RETURN_NEXT_MORNING_ENABLED === 'true';
+}
+
 export function returnNextMorningSurchargeVnd(dayPrice: number): number {
   return Math.round(dayPrice * RETURN_NEXT_MORNING_SURCHARGE_RATIO);
 }

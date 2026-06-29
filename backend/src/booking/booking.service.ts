@@ -23,6 +23,7 @@ import {
   deliveryFeeVnd,
   discountedRentalVnd,
   isReturnNextMorningEligible,
+  isReturnNextMorningEnabled,
   rentalAmountWithOptionsVnd,
   slotWindow,
 } from '../common/booking-schedule';
@@ -355,6 +356,11 @@ export class BookingService {
     returnNextMorning?: boolean,
   ): boolean {
     if (!returnNextMorning) return false;
+    if (!isReturnNextMorningEnabled()) {
+      throw new BadRequestException(
+        'Tùy chọn trả sáng hôm sau hiện không khả dụng',
+      );
+    }
     if (!isReturnNextMorningEligible(slot)) {
       throw new BadRequestException(
         'Chỉ ca Cả ngày hoặc Tối mới được chọn trả sáng hôm sau',

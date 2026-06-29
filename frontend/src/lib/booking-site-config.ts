@@ -12,6 +12,11 @@ export function isStrictBookingPolicy(): boolean {
   return process.env.NEXT_PUBLIC_BOOKING_POLICY_MODE === "strict";
 }
 
+/** Trả sáng hôm sau — mặc định tắt; bật bằng `NEXT_PUBLIC_BOOKING_RETURN_NEXT_MORNING_ENABLED=true`. */
+export function isReturnNextMorningEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_BOOKING_RETURN_NEXT_MORNING_ENABLED === "true";
+}
+
 export function getDefaultBookingSlot(): BookingSlot {
   const raw = process.env.NEXT_PUBLIC_BOOKING_DEFAULT_SLOT?.trim();
   if (

@@ -41,6 +41,7 @@ import { getDeliveryAreaLabel } from "@/lib/site-config";
 import {
   getDefaultBookingSlot,
   isBookingSlotStepSkipped,
+  isReturnNextMorningEnabled,
 } from "@/lib/booking-site-config";
 import {
   createCustomerBooking,
@@ -67,11 +68,7 @@ import {
   type PublicLens,
   type PublicShopPromotion,
 } from "@/lib/booking-api";
-import {
-  formatPromoDateRangeVi,
-  isShopPromotionVisible,
-  resolveEffectiveDiscountPercent,
-} from "@/lib/discount-promotion";
+import { resolveEffectiveDiscountPercent } from "@/lib/discount-promotion";
 import {
   WIZARD_STEP,
   wizardBrandStep,
@@ -298,7 +295,9 @@ function BookPageContent() {
     canRequestDelivery && wantDelivery;
 
   const showReturnNextMorningOption =
-    !!effectiveSlot && isReturnNextMorningEligible(effectiveSlot);
+    isReturnNextMorningEnabled() &&
+    !!effectiveSlot &&
+    isReturnNextMorningEligible(effectiveSlot);
 
   const returnNextMorningSurcharge = useMemo(() => {
     if (!returnNextMorning || !camera) return 0;
@@ -346,18 +345,6 @@ function BookPageContent() {
       endDate,
     );
   }, [lens, startDate, endDate, shopPromotion]);
-
-  const promoBannerLabel = useMemo(() => {
-    if (!shopPromotion || !isShopPromotionVisible(shopPromotion)) return null;
-    const range = formatPromoDateRangeVi(
-      shopPromotion.startDate,
-      shopPromotion.endDate,
-    );
-    if (range) {
-      return `Giảm ${shopPromotion.discountPercent}% cho đơn thuê trùng khoảng ${range}`;
-    }
-    return `Giảm ${shopPromotion.discountPercent}% toàn bộ thiết bị`;
-  }, [shopPromotion]);
 
   const estimatedAmount = useMemo(() => {
     if (!camera || !effectiveSlot || dayCount < 1) return 0;
@@ -1007,11 +994,6 @@ function BookPageContent() {
         <Text fontSize="md" fontWeight="semibold" color={titleColor}>
           Ngày sử dụng máy
         </Text>
-        {promoBannerLabel ? (
-          <Text fontSize="sm" color="red.fg" fontWeight="medium">
-            {promoBannerLabel}
-          </Text>
-        ) : null}
       </Stack>
     );
   }
@@ -1058,34 +1040,36 @@ function BookPageContent() {
           >
             <SlotHoursLabel slot="FULL_DAY" />
           </Badge>
-          <Stack gap={1} align="stretch">
-            <CheckboxRoot
-              checked={returnNextMorning}
-              disabled={
-                !morningDate ||
-                (camera !== null && morningNextDayAvailable === false)
-              }
-              onCheckedChange={(e) =>
-                setReturnNextMorning(!!e.checked)
-              }
-            >
-              <CheckboxHiddenInput />
-              <CheckboxControl />
-              <CheckboxLabel fontSize="sm">
-                Trả trễ vào buổi sáng (trước 12h)
-              </CheckboxLabel>
-            </CheckboxRoot>
-            {returnNextMorning && returnNextMorningSurcharge > 0 ? (
-              <Text fontSize="xs" color="fg.muted" ps={6}>
-                Phụ phí: +{vnd.format(returnNextMorningSurcharge)}
-              </Text>
-            ) : null}
-            {camera && morningNextDayAvailable === false ? (
-              <Text fontSize="xs" color="red.fg" ps={6}>
-                Ca sáng ngày hôm sau đã hết chỗ cho máy này.
-              </Text>
-            ) : null}
-          </Stack>
+          {showReturnNextMorningOption ? (
+            <Stack gap={1} align="stretch">
+              <CheckboxRoot
+                checked={returnNextMorning}
+                disabled={
+                  !morningDate ||
+                  (camera !== null && morningNextDayAvailable === false)
+                }
+                onCheckedChange={(e) =>
+                  setReturnNextMorning(!!e.checked)
+                }
+              >
+                <CheckboxHiddenInput />
+                <CheckboxControl />
+                <CheckboxLabel fontSize="sm">
+                  Trả trễ vào buổi sáng (trước 12h)
+                </CheckboxLabel>
+              </CheckboxRoot>
+              {returnNextMorning && returnNextMorningSurcharge > 0 ? (
+                <Text fontSize="xs" color="fg.muted" ps={6}>
+                  Phụ phí: +{vnd.format(returnNextMorningSurcharge)}
+                </Text>
+              ) : null}
+              {camera && morningNextDayAvailable === false ? (
+                <Text fontSize="xs" color="red.fg" ps={6}>
+                  Ca sáng ngày hôm sau đã hết chỗ cho máy này.
+                </Text>
+              ) : null}
+            </Stack>
+          ) : null}
         </Stack>
       );
     }
