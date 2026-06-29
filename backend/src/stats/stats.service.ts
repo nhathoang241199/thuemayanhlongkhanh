@@ -1,11 +1,37 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
-import { clampDiscountPercent } from '../common/booking-schedule';
+import {
+  assertDateStr,
+  clampDiscountPercent,
+  toCalendarDayVN,
+} from '../common/booking-schedule';
+import { ShopPromotionView } from '../common/discount-promotion';
 import { monthRangeUtc } from '../common/month-range-utc';
 import { PrismaService } from '../prisma/prisma.service';
+import { ApplyEquipmentDiscountDto } from './dto/apply-equipment-discount.dto';
 import { EquipmentValueResponseDto } from './dto/equipment-value-response.dto';
 import { MonthlySummaryResponseDto } from './dto/monthly-summary-response.dto';
 import { RevenueByMonthResponseDto } from './dto/revenue-by-month-response.dto';
+
+const SHOP_PROMOTION_ID = 'singleton';
+
+function calendarDateToDbDate(dateStr: string): Date {
+  assertDateStr(dateStr);
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+}
+
+function toPromotionView(row: {
+  discountPercent: number;
+  startDate: Date | null;
+  endDate: Date | null;
+}): ShopPromotionView {
+  return {
+    discountPercent: row.discountPercent,
+    startDate: row.startDate ? toCalendarDayVN(row.startDate) : null,
+    endDate: row.endDate ? toCalendarDayVN(row.endDate) : null,
+  };
+}
 
 type RawRow = {
   month: string;
@@ -171,18 +197,97 @@ export class StatsService {
     });
   }
 
-  async applyEquipmentDiscount(discountPercent: number): Promise<{
+  async getShopPromotionView(): Promise<ShopPromotionView> {
+    const row = await this.findOrDefaultShopPromotion();
+    return toPromotionView(row);
+  }
+
+  async getEquipmentDiscount(): Promise<{
     discountPercent: number;
+    startDate: string | null;
+    endDate: string | null;
+    updatedAt: string;
+  }> {
+    const row = await this.findOrDefaultShopPromotion();
+    const view = toPromotionView(row);
+    return {
+      ...view,
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  async getPublicPromotion(): Promise<ShopPromotionView> {
+    return this.getShopPromotionView();
+  }
+
+  private async findOrDefaultShopPromotion() {
+    const row = await this.prisma.shopPromotion.findUnique({
+      where: { id: SHOP_PROMOTION_ID },
+    });
+    if (row) return row;
+    return this.prisma.shopPromotion.create({
+      data: { id: SHOP_PROMOTION_ID, discountPercent: 0 },
+    });
+  }
+
+  async applyEquipmentDiscount(
+    dto: ApplyEquipmentDiscountDto,
+  ): Promise<{
+    discountPercent: number;
+    startDate: string | null;
+    endDate: string | null;
     cameraCount: number;
     lensCount: number;
   }> {
-    const pct = clampDiscountPercent(discountPercent);
-    const [cameraResult, lensResult] = await this.prisma.$transaction([
-      this.prisma.camera.updateMany({ data: { discountPercent: pct } }),
-      this.prisma.lens.updateMany({ data: { discountPercent: pct } }),
-    ]);
+    const pct = clampDiscountPercent(dto.discountPercent);
+    const startRaw = dto.startDate?.trim() ?? '';
+    const endRaw = dto.endDate?.trim() ?? '';
+    const hasStart = startRaw.length > 0;
+    const hasEnd = endRaw.length > 0;
+
+    if (hasStart !== hasEnd) {
+      throw new BadRequestException(
+        'Cần nhập cả Từ ngày và Đến ngày, hoặc để trống cả hai',
+      );
+    }
+
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+    if (hasStart && hasEnd) {
+      assertDateStr(startRaw);
+      assertDateStr(endRaw);
+      if (startRaw > endRaw) {
+        throw new BadRequestException(
+          'Từ ngày phải trước hoặc bằng Đến ngày',
+        );
+      }
+      startDate = calendarDateToDbDate(startRaw);
+      endDate = calendarDateToDbDate(endRaw);
+    }
+
+    const [promoRow, cameraResult, lensResult] =
+      await this.prisma.$transaction([
+        this.prisma.shopPromotion.upsert({
+          where: { id: SHOP_PROMOTION_ID },
+          create: {
+            id: SHOP_PROMOTION_ID,
+            discountPercent: pct,
+            startDate,
+            endDate,
+          },
+          update: {
+            discountPercent: pct,
+            startDate,
+            endDate,
+          },
+        }),
+        this.prisma.camera.updateMany({ data: { discountPercent: pct } }),
+        this.prisma.lens.updateMany({ data: { discountPercent: pct } }),
+      ]);
+
+    const view = toPromotionView(promoRow);
     return {
-      discountPercent: pct,
+      ...view,
       cameraCount: cameraResult.count,
       lensCount: lensResult.count,
     };

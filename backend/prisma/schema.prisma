@@ -192,6 +192,14 @@ model BookingTerms {
   updatedAt DateTime @updatedAt
 }
 
+model ShopPromotion {
+  id              String    @id @default("singleton")
+  discountPercent Int       @default(0)
+  startDate       DateTime? @db.Date
+  endDate         DateTime? @db.Date
+  updatedAt       DateTime  @updatedAt
+}
+
 model MessengerConversation {
   id            String             @id @default(cuid())
   psid          String             @unique

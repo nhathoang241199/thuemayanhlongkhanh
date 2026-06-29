@@ -284,6 +284,17 @@ export async function fetchPublicBookingTerms(): Promise<{ content: string }> {
   return parseJson(res);
 }
 
+export type PublicShopPromotion = {
+  discountPercent: number;
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export async function fetchPublicPromotion(): Promise<PublicShopPromotion> {
+  const res = await fetch(`${apiBase()}/api/public/promotion`);
+  return parseJson(res);
+}
+
 export function formatBookingRangeLabel(
   startDate: string,
   endDate: string,

@@ -50,6 +50,7 @@ import {
   fetchClosedMonth,
   fetchCamerasForRange,
   fetchPublicBookingTerms,
+  fetchPublicPromotion,
   fetchPublicCamera,
   fetchPublicCameras,
   fetchPublicLenses,
@@ -64,7 +65,13 @@ import {
   type CameraWithAvailability,
   type PublicCamera,
   type PublicLens,
+  type PublicShopPromotion,
 } from "@/lib/booking-api";
+import {
+  formatPromoDateRangeVi,
+  isShopPromotionVisible,
+  resolveEffectiveDiscountPercent,
+} from "@/lib/discount-promotion";
 import {
   WIZARD_STEP,
   wizardBrandStep,
@@ -199,6 +206,9 @@ function BookPageContent() {
   const [bookingTermsContent, setBookingTermsContent] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsDialogOpen, setTermsDialogOpen] = useState(false);
+  const [shopPromotion, setShopPromotion] = useState<PublicShopPromotion | null>(
+    null,
+  );
 
   const [calendarYm, setCalendarYm] = useState(nowYm);
 
@@ -225,6 +235,18 @@ function BookPageContent() {
           setBookingTermsContent("");
           setTermsAccepted(false);
         }
+      });
+    return () => ac.abort();
+  }, []);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    void fetchPublicPromotion()
+      .then((r) => {
+        if (!ac.signal.aborted) setShopPromotion(r);
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setShopPromotion(null);
       });
     return () => ac.abort();
   }, []);
@@ -294,7 +316,15 @@ function BookPageContent() {
     );
   }, [camera, effectiveSlot, dayCount, returnNextMorning]);
 
-  const discountPercent = camera?.discountPercent ?? 0;
+  const discountPercent = useMemo(() => {
+    if (!camera || !startDate || !endDate) return camera?.discountPercent ?? 0;
+    return resolveEffectiveDiscountPercent(
+      camera.discountPercent ?? 0,
+      shopPromotion,
+      startDate,
+      endDate,
+    );
+  }, [camera, startDate, endDate, shopPromotion]);
 
   const estimatedLensRental = useMemo(() => {
     if (!lens || !effectiveSlot || dayCount < 1) return 0;
@@ -307,7 +337,27 @@ function BookPageContent() {
     );
   }, [lens, effectiveSlot, dayCount, returnNextMorning]);
 
-  const lensDiscountPercent = lens?.discountPercent ?? 0;
+  const lensDiscountPercent = useMemo(() => {
+    if (!lens || !startDate || !endDate) return lens?.discountPercent ?? 0;
+    return resolveEffectiveDiscountPercent(
+      lens.discountPercent ?? 0,
+      shopPromotion,
+      startDate,
+      endDate,
+    );
+  }, [lens, startDate, endDate, shopPromotion]);
+
+  const promoBannerLabel = useMemo(() => {
+    if (!shopPromotion || !isShopPromotionVisible(shopPromotion)) return null;
+    const range = formatPromoDateRangeVi(
+      shopPromotion.startDate,
+      shopPromotion.endDate,
+    );
+    if (range) {
+      return `Giảm ${shopPromotion.discountPercent}% cho đơn thuê trùng khoảng ${range}`;
+    }
+    return `Giảm ${shopPromotion.discountPercent}% toàn bộ thiết bị`;
+  }, [shopPromotion]);
 
   const estimatedAmount = useMemo(() => {
     if (!camera || !effectiveSlot || dayCount < 1) return 0;
@@ -957,6 +1007,11 @@ function BookPageContent() {
         <Text fontSize="md" fontWeight="semibold" color={titleColor}>
           Ngày sử dụng máy
         </Text>
+        {promoBannerLabel ? (
+          <Text fontSize="sm" color="red.fg" fontWeight="medium">
+            {promoBannerLabel}
+          </Text>
+        ) : null}
       </Stack>
     );
   }

@@ -18,7 +18,10 @@ import {
 } from '@nestjs/swagger';
 import { EquipmentValueResponseDto } from './dto/equipment-value-response.dto';
 import { ApplyEquipmentDiscountDto } from './dto/apply-equipment-discount.dto';
-import { ApplyEquipmentDiscountResponseDto } from './dto/apply-equipment-discount-response.dto';
+import {
+  ApplyEquipmentDiscountResponseDto,
+  EquipmentDiscountResponseDto,
+} from './dto/equipment-discount-response.dto';
 import { MonthlySummaryResponseDto } from './dto/monthly-summary-response.dto';
 import { RevenueByMonthResponseDto } from './dto/revenue-by-month-response.dto';
 import { StatsService } from './stats.service';
@@ -100,6 +103,15 @@ export class StatsController {
     return this.statsService.equipmentValue();
   }
 
+  @Get('equipment-discount')
+  @ApiOperation({
+    summary: 'Khuyến mãi giảm giá thiết bị hiện tại (admin)',
+  })
+  @ApiOkResponse({ type: EquipmentDiscountResponseDto })
+  getEquipmentDiscount(): Promise<EquipmentDiscountResponseDto> {
+    return this.statsService.getEquipmentDiscount();
+  }
+
   @Patch('equipment-discount')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -109,6 +121,6 @@ export class StatsController {
   applyEquipmentDiscount(
     @Body() dto: ApplyEquipmentDiscountDto,
   ): Promise<ApplyEquipmentDiscountResponseDto> {
-    return this.statsService.applyEquipmentDiscount(dto.discountPercent);
+    return this.statsService.applyEquipmentDiscount(dto);
   }
 }

@@ -26,6 +26,7 @@ import {
   rentalAmountWithOptionsVnd,
   slotWindow,
 } from '../common/booking-schedule';
+import { resolveEffectiveDiscountPercent } from '../common/discount-promotion';
 import { publicListedLensForCameraWhere } from '../common/lens-listing';
 import {
   BOOKING_CANCEL_REFUND_VND,
@@ -44,6 +45,7 @@ import {
 } from '../common/upload-config';
 import { normalizePhone } from '../common/normalize-phone';
 import { PrismaService } from '../prisma/prisma.service';
+import { StatsService } from '../stats/stats.service';
 import {
   parsePendingChange,
   type PendingChangePayload,
@@ -82,6 +84,7 @@ export class BookingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly availability: AvailabilityService,
+    private readonly statsService: StatsService,
   ) {}
 
   private async generateBookingCode(): Promise<string> {
@@ -395,7 +398,13 @@ export class BookingService {
       throw new NotFoundException('Máy ảnh không tồn tại');
     }
     const resolvedLensId = await this.resolveLensId(lensId, cameraId);
-    const discountPercent = camera.discountPercent ?? 0;
+    const promo = await this.statsService.getShopPromotionView();
+    const discountPercent = resolveEffectiveDiscountPercent(
+      camera.discountPercent ?? 0,
+      promo,
+      startDate,
+      endDate,
+    );
     const dayCount = dayCountInclusive(startDate, endDate);
     const cameraRental = rentalAmountWithOptionsVnd(
       dayCount,
@@ -412,6 +421,12 @@ export class BookingService {
       if (!lens) {
         throw new NotFoundException('Ống kính không tồn tại');
       }
+      const lensDiscountPercent = resolveEffectiveDiscountPercent(
+        lens.discountPercent ?? 0,
+        promo,
+        startDate,
+        endDate,
+      );
       const lensRental = rentalAmountWithOptionsVnd(
         dayCount,
         lens.dayPrice,
@@ -419,7 +434,7 @@ export class BookingService {
         slot,
         returnNextMorning,
       );
-      total += discountedRentalVnd(lensRental, lens.discountPercent ?? 0);
+      total += discountedRentalVnd(lensRental, lensDiscountPercent);
     }
     return {
       amount: total + deliveryFeeVnd(shippingAddress),
