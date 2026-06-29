@@ -151,7 +151,7 @@ function nowYm(): { year: number; month: number } {
 function BookPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const skipSlotStep = isBookingSlotStepSkipped();
+  const skipSlotStepEnv = isBookingSlotStepSkipped();
   const changeBookingId = searchParams.get("changeBookingId");
   const editBookingId = searchParams.get("editBookingId");
   const preselectCameraId = searchParams.get("cameraId");
@@ -287,7 +287,12 @@ function BookPageContent() {
     return dayCountInclusive(startDate, endDate);
   }, [startDate, endDate]);
 
-  const forceFullDay = dayCount >= 2 || skipSlotStep;
+  /** Bỏ bước Buổi khi env bật hoặc thuê ≥2 ngày (bắt buộc Cả ngày). */
+  const skipSlotStep =
+    skipSlotStepEnv ||
+    (dayCount >= 2 && startDate !== null && endDate !== null);
+
+  const forceFullDay = dayCount >= 2 || skipSlotStepEnv;
 
   const effectiveSlot = forceFullDay ? "FULL_DAY" : slot;
 
