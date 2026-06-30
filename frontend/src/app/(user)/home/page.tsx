@@ -67,7 +67,12 @@ import {
   userWarningNoteProps,
   userWarningNoteTextProps,
 } from "@/lib/user-theme";
-import { getStoreMapUrl } from "@/lib/site-config";
+import {
+  fetchPublicShopInfo,
+  resolveShopMapUrl,
+  shopPhoneTelHref,
+  type PublicShopInfo,
+} from "@/lib/shop-info";
 
 const inlineTextLinkProps = {
   fontSize: "sm",
@@ -150,6 +155,12 @@ export default function UserHomePage() {
   const [depositSlotAvailable, setDepositSlotAvailable] = useState<
     Record<string, boolean | null>
   >({});
+  const [shopInfo, setShopInfo] = useState<PublicShopInfo | null>(null);
+
+  const storeMapUrl = useMemo(
+    () => resolveShopMapUrl(shopInfo),
+    [shopInfo],
+  );
 
   const cancelRefundEligible = useMemo(() => {
     if (!cancelTarget) return false;
@@ -224,6 +235,18 @@ export default function UserHomePage() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [session?.phone, loadBookings]);
 
+  useEffect(() => {
+    const ac = new AbortController();
+    void fetchPublicShopInfo()
+      .then((info) => {
+        if (!ac.signal.aborted) setShopInfo(info);
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setShopInfo(null);
+      });
+    return () => ac.abort();
+  }, []);
+
   const closeCancelModal = () => {
     setCancelTarget(null);
     setBankAccountInfo("");
@@ -290,19 +313,43 @@ export default function UserHomePage() {
         </Text>
       </Box>
 
+      <CardRoot {...userBookingCardProps}>
+        <CardBody py={3}>
+          <Stack gap={1} align="stretch" fontSize="sm">
+            <Text fontWeight="semibold" color={titleColor}>
+              Liên hệ shop
+            </Text>
+            {shopInfo?.phone?.trim() ? (
+              <Text color="fg.muted">
+                Điện thoại:{" "}
+                <Link
+                  href={shopPhoneTelHref(shopInfo.phone)}
+                  {...inlineTextLinkProps}
+                >
+                  {shopInfo.phone.trim()}
+                </Link>
+              </Text>
+            ) : null}
+            {shopInfo?.address?.trim() ? (
+              <Text color="fg.muted">{shopInfo.address.trim()}</Text>
+            ) : null}
+            <Link
+              href={storeMapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              w="fit-content"
+              {...inlineTextLinkProps}
+            >
+              Xem địa chỉ trên bản đồ
+            </Link>
+          </Stack>
+        </CardBody>
+      </CardRoot>
+
       <HStack justify="space-between" align="center" gap={2} w="full">
         <Text fontWeight="semibold" color={titleColor}>
           Đơn đặt lịch của bạn
         </Text>
-        <Link
-          href={getStoreMapUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          flexShrink={0}
-          {...inlineTextLinkProps}
-        >
-          Xem địa chỉ
-        </Link>
       </HStack>
 
       {error ? (
@@ -452,7 +499,7 @@ export default function UserHomePage() {
                       </Text>
                     </Text>
                     <Link
-                      href={getStoreMapUrl()}
+                      href={storeMapUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       flexShrink={0}

@@ -200,6 +200,14 @@ model ShopPromotion {
   updatedAt       DateTime  @updatedAt
 }
 
+model ShopInfo {
+  id        String   @id @default("singleton")
+  phone     String   @default("")
+  address   String   @default("")
+  mapUrl    String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
 model MessengerConversation {
   id            String             @id @default(cuid())
   psid          String             @unique

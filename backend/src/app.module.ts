@@ -12,6 +12,7 @@ import { ExpenseModule } from './expense/expense.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PaymentModule } from './payment/payment.module';
 import { ShopClosureModule } from './shop-closure/shop-closure.module';
+import { ShopInfoModule } from './shop-info/shop-info.module';
 import { StatsModule } from './stats/stats.module';
 import { MessengerModule } from './messenger/messenger.module';
 import { AdminAssistantModule } from './admin-assistant/admin-assistant.module';
@@ -29,6 +30,7 @@ import { AdminAssistantModule } from './admin-assistant/admin-assistant.module';
     PaymentModule,
     ExpenseModule,
     ShopClosureModule,
+    ShopInfoModule,
     StatsModule,
     MessengerModule,
     AdminAssistantModule,
