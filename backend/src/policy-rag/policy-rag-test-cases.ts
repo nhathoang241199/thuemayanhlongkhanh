@@ -1,0 +1,22 @@
+/** Câu hỏi mẫu để test retrieve — admin batch / docs. */
+export const POLICY_RAG_BATCH_TEST_QUESTIONS = [
+  'Sinh viên cọc bao nhiêu?',
+  'Cọc 2 triệu có được không?',
+  'Khách quen cọc thế nào?',
+  'Hỏng máy thì đền bù sao?',
+  'Trễ trả máy phạt bao nhiêu?',
+  'Mất phụ kiện thì sao?',
+  'Có cho thuê theo giờ không?',
+  'Đặt cọc online được không?',
+  'Huỷ lịch có mất cọc không?',
+  'Thẻ căn cước có giữ lại không?',
+  'Thuê nhiều ngày giảm giá không?',
+  'Máy bẩn trả lại có phạt không?',
+  'Cho mượn máy cho bạn được không?',
+  'Quên mang CMND thì sao?',
+  'Shop đóng cửa ngày lễ có thuê không?',
+  'Thuê thứ 7 tối thứ 6 lấy máy được không?',
+  'Lấy máy sớm tối hôm trước ngày thuê',
+  'Trả trễ có tính thêm tiền không',
+  'Trả trễ có phụ thu không',
+] as const;
