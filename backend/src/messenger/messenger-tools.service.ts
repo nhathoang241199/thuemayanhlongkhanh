@@ -10,9 +10,6 @@ import { AvailabilityService } from '../availability/availability.service';
 import { BookingTermsService } from '../booking-terms/booking-terms.service';
 import { CameraService } from '../camera/camera.service';
 import { LensService } from '../lens/lens.service';
-import { isPolicyRagConfigured } from '../policy-rag/policy-rag.config';
-import { PolicyRagRetrieveService } from '../policy-rag/policy-rag-retrieve.service';
-import { BOOKING_TERMS_SOURCE_ID } from '../policy-rag/policy-rag.types';
 import { ShopClosureService } from '../shop-closure/shop-closure.service';
 import {
   formatCameraList,
@@ -21,11 +18,6 @@ import {
   parseBrand,
   parseSlot,
 } from './messenger-formatters';
-import {
-  buildPriceQuoteFromCamera,
-  computeCameraRentalTotal,
-  formatPriceQuoteCustomerReply,
-} from './messenger-price-quote';
 
 @Injectable()
 export class MessengerToolsService {
@@ -35,15 +27,13 @@ export class MessengerToolsService {
     private readonly availability: AvailabilityService,
     private readonly bookingTerms: BookingTermsService,
     private readonly shopClosure: ShopClosureService,
-    private readonly policyRagRetrieve: PolicyRagRetrieveService,
   ) {}
 
   getToolDefinitions(): Tool[] {
     return [
       {
         name: 'list_cameras',
-        description:
-          'Danh sách máy + id. Khi khách hỏi **giá** → ưu tiên `quote_rental`; nếu dùng list này thì copy dòng **Mẫu trả lời**, không viết "giá X/ngày".',
+        description: 'Danh sách máy ảnh đang cho thuê, kèm giá ngày/buổi. Có thể lọc theo hãng.',
         input_schema: {
           type: 'object',
           properties: {
@@ -78,24 +68,8 @@ export class MessengerToolsService {
       },
       {
         name: 'get_booking_terms',
-        description: 'Toàn bộ điều khoản đặt lịch (dùng khi cần full text, không chỉ một ý).',
+        description: 'Điều khoản đặt lịch, quy định cọc của shop.',
         input_schema: { type: 'object', properties: {} },
-      },
-      {
-        name: 'search_booking_policy',
-        description:
-          'Tìm đoạn chính sách đặt lịch (cọc, đền bù, nhận/trả máy, lấy sớm tối hôm trước, thanh toán…) — bắt buộc khi khách hỏi quy trình/chính sách, không chuyển admin trước khi gọi.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            query: {
-              type: 'string',
-              description:
-                'Câu hỏi hoặc từ khóa của khách (vd. cọc sinh viên, lấy máy tối hôm trước, thuê thứ 7 lấy thứ 6).',
-            },
-          },
-          required: ['query'],
-        },
       },
       {
         name: 'check_availability',
@@ -116,8 +90,7 @@ export class MessengerToolsService {
       },
       {
         name: 'list_available_cameras',
-        description:
-          'Máy còn trống theo khoảng ngày + buổi (dùng khi khách hỏi "hôm nay/ngày X còn máy Y"). Trả về tên + id — khớp model khách nói (vd. r50) với tên trong list.',
+        description: 'Máy còn trống theo khoảng ngày + buổi, có thể lọc hãng.',
         input_schema: {
           type: 'object',
           properties: {
@@ -144,7 +117,7 @@ export class MessengerToolsService {
       {
         name: 'quote_rental',
         description:
-          'Báo giá thuê 1 hoặc nhiều ngày (hệ số: 2 ngày=1.75x…). Dùng cho mọi câu hỏi giá/bao nhiêu tiền. Copy dòng **Mẫu trả lời** — cấm "giá X/ngày".',
+          'Báo giá thuê theo số ngày (hệ số shop: 2 ngày=1.75x, 3=2.4x, 4=3x, 5=3.5x). Bắt buộc dùng khi khách hỏi tổng tiền nhiều ngày.',
         input_schema: {
           type: 'object',
           properties: {
@@ -172,11 +145,11 @@ export class MessengerToolsService {
         case 'list_cameras': {
           const brand = parseBrand(input.brand as string | undefined);
           const rows = await this.cameras.findPublic(brand);
-          return formatCameraList(rows, { oneDayPriceTemplate: true });
+          return formatCameraList(rows);
         }
         case 'get_camera': {
           const camera = await this.cameras.findPublicOne(String(input.cameraId));
-          return formatCameraList([camera], { oneDayPriceTemplate: true });
+          return formatCameraList([camera]);
         }
         case 'list_lenses': {
           const rows = await this.lenses.findPublic(String(input.cameraId));
@@ -185,9 +158,6 @@ export class MessengerToolsService {
         case 'get_booking_terms': {
           const terms = await this.bookingTerms.getPublic();
           return terms.content?.trim() || 'Chưa có điều khoản — nhờ admin xác nhận.';
-        }
-        case 'search_booking_policy': {
-          return this.searchBookingPolicy(String(input.query ?? ''));
         }
         case 'check_availability': {
           const result = await this.availability.isRangeAvailable(
@@ -232,29 +202,6 @@ export class MessengerToolsService {
     }
   }
 
-  private async searchBookingPolicy(query: string): Promise<string> {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      return 'Thiếu query — truyền câu hỏi khách.';
-    }
-
-    if (isPolicyRagConfigured()) {
-      const hits = await this.policyRagRetrieve.search(
-        BOOKING_TERMS_SOURCE_ID,
-        trimmed,
-      );
-      if (hits.length) {
-        return this.policyRagRetrieve.formatHitsForTool(hits);
-      }
-    }
-
-    const terms = await this.bookingTerms.getPublic();
-    return (
-      terms.content?.trim() ||
-      'Chưa có điều khoản — nhờ admin xác nhận.'
-    );
-  }
-
   private async quoteRental(input: Record<string, unknown>): Promise<string> {
     const cameraId = String(input.cameraId);
     const startDate = String(input.startDate);
@@ -264,7 +211,16 @@ export class MessengerToolsService {
     const camera = await this.cameras.findPublicOne(cameraId);
     const dayCount = dayCountInclusive(startDate, endDate);
     const multiplier = multiDayRentalMultiplier(dayCount);
-    const cameraTotal = computeCameraRentalTotal(camera, dayCount, slot);
+    const cameraRental = rentalAmountWithOptionsVnd(
+      dayCount,
+      camera.dayPrice,
+      camera.shiftPrice,
+      slot,
+    );
+    const cameraTotal = discountedRentalVnd(
+      cameraRental,
+      camera.discountPercent ?? 0,
+    );
 
     let lensLine = '';
     let grandTotal = cameraTotal;
@@ -293,13 +249,10 @@ export class MessengerToolsService {
     const discountNote = camera.discountPercent
       ? `, giảm ${camera.discountPercent}%`
       : '';
-    const customerLine = formatPriceQuoteCustomerReply(camera, dayCount, grandTotal);
 
     return (
-      `Mẫu trả lời: ${customerLine}\n` +
-      `Chi tiết: ${camera.brand} ${camera.name} ${formatVndShort(cameraTotal)}` +
-      `${lensLine ? `, lens ${formatVndShort(grandTotal - cameraTotal)}` : ''}. ` +
-      `Tổng ${formatVndShort(grandTotal)}. ` +
+      `${camera.brand} ${camera.name}: ${formatVndShort(cameraTotal)}` +
+      `${lensLine}. Tổng: ${formatVndShort(grandTotal)}. ` +
       `(giá ngày ${formatVndShort(camera.dayPrice)}, hệ số ${multiplier}${discountNote}, ${range})`
     );
   }

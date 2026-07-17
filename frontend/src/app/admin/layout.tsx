@@ -20,6 +20,7 @@ import {
   AdminMobileNavBar,
   AdminMobileNavDrawer,
 } from "@/components/admin/admin-mobile-nav";
+import { AdminAssistantChat } from "@/components/admin/admin-assistant-chat";
 import { adminLogout } from "@/lib/admin-auth";
 import { ADMIN_COLOR_PALETTE, adminShellBg } from "@/lib/app-theme";
 
@@ -146,6 +147,7 @@ export default function AdminLayout({
           </BreadcrumbRoot>
           <AdminDesktopNav pathname={pathname} onLogout={handleLogout} />
           {children}
+          <AdminAssistantChat />
         </Stack>
       </Container>
     </Box>

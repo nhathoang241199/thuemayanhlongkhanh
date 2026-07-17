@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AiServiceClient } from './ai-service.client';
+import { ClaudeService } from './claude.service';
+import {
+  howToRentReply,
+  isHowToRentQuestion,
+} from './messenger-canned-replies';
 import { FacebookGraphService } from './facebook-graph.service';
 import {
   getHandoffDurationMs,
@@ -35,7 +39,7 @@ export class ConversationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly graph: FacebookGraphService,
-    private readonly aiService: AiServiceClient,
+    private readonly claude: ClaudeService,
   ) {}
 
   handleWebhookAsync(body: MessengerWebhookBody): void {
@@ -192,20 +196,27 @@ export class ConversationService {
         return;
       }
 
+      if (isHowToRentQuestion(text)) {
+        const reply = howToRentReply(config.frontendUrl);
+        await this.saveMessage(conversationId, 'user', text);
+        await this.saveMessage(conversationId, 'assistant', reply);
+        await this.graph.sendTextWithQuickReplies(
+          psid,
+          reply,
+          this.graph.getDefaultQuickReplies(),
+        );
+        return;
+      }
+
       const menuReply = event ? this.menuPromptForPayload(text, event) : null;
       const userContent = menuReply ?? text;
 
       await this.graph.sendTypingOn(psid);
-      const history = await this.getRecentHistory(conversationId);
       await this.saveMessage(conversationId, 'user', userContent);
 
-      const aiResult = await this.aiService.chat(
-        userContent,
-        history,
-        config.frontendUrl,
-        psid,
-      );
-      const reply = truncateMessengerReply(aiResult.reply);
+      const history = await this.getRecentHistory(conversationId);
+      const rawReply = await this.claude.reply(history, config.frontendUrl);
+      const reply = truncateMessengerReply(rawReply);
 
       await this.saveMessage(conversationId, 'assistant', reply);
       await this.graph.sendTextWithQuickReplies(

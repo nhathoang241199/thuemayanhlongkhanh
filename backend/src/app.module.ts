@@ -15,7 +15,7 @@ import { ShopClosureModule } from './shop-closure/shop-closure.module';
 import { ShopInfoModule } from './shop-info/shop-info.module';
 import { StatsModule } from './stats/stats.module';
 import { MessengerModule } from './messenger/messenger.module';
-import { PolicyRagModule } from './policy-rag/policy-rag.module';
+import { AdminAssistantModule } from './admin-assistant/admin-assistant.module';
 
 @Module({
   imports: [
@@ -33,7 +33,7 @@ import { PolicyRagModule } from './policy-rag/policy-rag.module';
     ShopInfoModule,
     StatsModule,
     MessengerModule,
-    PolicyRagModule,
+    AdminAssistantModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -458,21 +458,6 @@ async function main() {
     },
   });
 
-  await prisma.shopInfo.upsert({
-    where: { id: "singleton" },
-    create: {
-      id: "singleton",
-      phone: "0901234567",
-      address: "123 Nguyễn Trãi, Long Khánh, Đồng Nai",
-      mapUrl: "https://maps.app.goo.gl/p7E56GSttpufsQVx5",
-    },
-    update: {
-      phone: "0901234567",
-      address: "123 Nguyễn Trãi, Long Khánh, Đồng Nai",
-      mapUrl: "https://maps.app.goo.gl/p7E56GSttpufsQVx5",
-    },
-  });
-
   console.log("Seed xong:", {
     cameras: [camFuji.id, camCanon.id, camCanonR50.id, camDji.id],
     customers: [customer1.id, customer2.id],

@@ -1,78 +1,35 @@
 # FAQ bổ sung
 
-Nội dung shop và vài ví dụ. **Luồng tool + mẫu câu** nằm ở `system.md` (phần Mẫu câu).
-
-## Chào hỏi
-
-Khách **chỉ chào**, chưa hỏi máy/giá/lịch — một câu:
-
-_Hi! bạn cần gì ạ_
-
 ## Giờ mở cửa
 
 Shop mở cửa lúc 7h, đóng cửa lúc 23h
 
 ## Giao máy
 
-Có hỗ trợ giao & trả tận nơi khu vực Long Khánh. Phí ship 20k
+Có hỗ trợ giao & trả tận nơi khu vực Long Khánh. Phí ship là 20k
 
 ## Cọc & giấy tờ
 
-Chỉ chụp lại CCCD (chi tiết cọc → tool `search_booking_policy`)
+Chỉ chụp lại CCCD
 
-## Nhận máy sớm (lấy tối hôm trước)
+## Còn máy / lịch trống (hỏi chung theo ngày)
 
-Đơn thuê **cả ngày**, tối thiểu **1 ngày** → lấy máy sớm **17h–23h tối hôm trước** ngày thuê.
+Khi khách hỏi **còn máy không**, **lịch trống**, **thứ mấy/tuần này/cuối tuần** mà **không** nêu tên máy cụ thể — không liệt kê máy, không gọi tool. Trả lời ngắn theo mẫu:
 
-Format chunk admin (RAG):
+_Ví dụ:_
+Khách: Thứ 7 tuần này còn máy nào không anh?
+Shop: Thứ 7 này anh còn, em lên trang thuemayanhlongkhanh.com để kiểm tra và đặt lịch em nhé.
 
-```
-NHẬN MÁY SỚM
+- Giữ tone anh/em, 1–2 câu
+- Thay "Thứ 7" bằng ngày khách hỏi (cuối tuần, ngày mai, v.v.)
 
-- Đơn thuê cả ngày tối thiểu 1 ngày: lấy máy từ 17h–23h tối hôm trước ngày thuê
-- Ví dụ: thuê thứ Bảy có thể lấy tối thứ Sáu
-```
+## Đặt lịch online
 
-Câu hỏi kiểu _thuê thứ 7 tối thứ 6 lấy được không_ → canned hoặc `search_booking_policy`:
+Khi khách hỏi **cách thuê**, **làm sao thuê**, **đặt lịch** — trả lời đúng một câu:
 
-_Được, Với đơn thuê tối thiểu 1 ngày thì em có thể lấy sớm vào tối ngày hôm trước_
+_Anh/chị lên trang thuemayanhlongkhanh.com để kiểm tra và đặt lịch nhé ạ_
 
-## Trả máy trễ — phụ thu (ghi trong chính sách / RAG)
-
-Khách hỏi **trả trễ có tính thêm tiền / phụ thu / phạt** (không hỏi sáng cụ thể) → gọi `search_booking_policy` hoặc canned:
-
-_Không nhen_
-
-Format chunk admin:
-
-```
-TRẢ MÁY TRỄ
-
-- Trả trễ không tính thêm tiền, không phụ thu
-- Không phạt trả muộn trong khung giờ shop cho phép
-```
-
-Phân biệt:
-
-| Khách hỏi | Trả lời |
-|-----------|---------|
-| _trả trễ có tính thêm tiền không_ | _Không nhen_ (theo chunk phụ thu) |
-| _trả trễ vào sáng thứ 5 có thêm tiền không_ | _Không nhen_ (hỏi phụ thu — ưu tiên trước) |
-| _trả trễ vào sáng thứ 5 được không_ | _Được nha_ (hỏi được phép trả — canned riêng) |
-
-## Phụ kiện kèm thuê (pin, thẻ nhớ)
-
-Khách **xin thêm / cho thêm** pin hoặc thẻ (thẻ nhớ) — trả lời đúng một câu:
-
-_Được nhen_
-
-(Không chuyển admin, không gọi tool.)
-
-## Chỉnh màu / hậu kỳ
-
-Khách hỏi **chỉnh màu**, nhờ chỉnh màu giúp — một câu:
-
-_Anh có hỗ trợ chỉnh màu giúp em nhé_
+(Không giải thích thêm trừ khi khách hỏi tiếp chi tiết khác.)
 
 ## Gặp nhân viên
 
@@ -80,19 +37,11 @@ Khách gõ "AD" hoặc bấm "Gặp admin" để được chuyển tư vấn vi�
 
 ## Giá thuê nhiều ngày
 
-Gọi `quote_rental`. Hệ số: 2 ngày = 1.75×, 3 = 2.4×, 4 = 3×, 5 = 3.5× giá ngày.
+Khi khách hỏi **tổng tiền**, **thuê mấy ngày**, **từ ngày X đến ngày Y** — gọi tool `quote_rental`, không tự tính.
 
-_Ví dụ:_ Khách (xưng em): _em xin giá pocket3 1 ngày ạ_ → _Pocket 3 1 ngày 280k nhé ạ._
+Hệ số: 2 ngày = 1.75×, 3 ngày = 2.4×, 4 ngày = 3×, 5 ngày = 3.5× giá ngày.
 
-_Ví dụ:_ _em đặt r50 2 ngày thứ 4 thứ 5 bao nhiêu ạ_ → _R50 2 ngày 438k nhé ạ._
+_Ví dụ trả lời (1–2 câu):_
+Khách: Thuê Fuji từ 25/6 đến 27/6 bao nhiêu?
+Shop: Fuji X100VI 3 ngày khoảng 840k anh nhé, anh/chị vào web đặt lịch giúp em.
 
-## Ví dụ nhanh (áp mẫu system.md)
-
-| Khách | Sau tool |
-|-------|----------|
-| em xin giá pocket3 1 ngày ạ | _Pocket 3 1 ngày 280k nhé ạ._ |
-| em đặt r50 2 ngày bao nhiêu ạ | _R50 2 ngày 438k nhé ạ._ |
-| hôm nay còn r50 không ạ | _R50 hôm nay còn nhé ạ, em lên link đặt lịch giúp anh nhé._ (khách xưng em) |
-| thứ 7 còn máy không (không nêu máy) | _Thứ 7 mình còn máy ạ, Bạn lên link xem và đặt lịch giúp mình nhé._ |
-
-Khách gõ `r50` / `m50` vẫn đủ rõ — tên trong shop có thể dài (vd. EOS R50 kit…).
