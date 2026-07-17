@@ -15,7 +15,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: thuemayanhlongkhanh-postgres
     restart: unless-stopped
     ports:

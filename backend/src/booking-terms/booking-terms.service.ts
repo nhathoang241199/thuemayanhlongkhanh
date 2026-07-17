@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { PolicyRagIndexService } from '../policy-rag/policy-rag-index.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateBookingTermsDto } from './dto/update-booking-terms.dto';
 
@@ -6,7 +7,12 @@ const SINGLETON_ID = 'singleton';
 
 @Injectable()
 export class BookingTermsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(BookingTermsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly policyRagIndex: PolicyRagIndexService,
+  ) {}
 
   private async findOrDefault() {
     const row = await this.prisma.bookingTerms.findUnique({
@@ -37,6 +43,14 @@ export class BookingTermsService {
       create: { id: SINGLETON_ID, content: dto.content },
       update: { content: dto.content },
     });
+
+    void this.policyRagIndex.reindexBookingTerms(row.content).catch((err) => {
+      this.logger.error(
+        'Policy RAG re-index thất bại sau khi lưu điều khoản',
+        err instanceof Error ? err.stack : err,
+      );
+    });
+
     return {
       content: row.content,
       updatedAt: row.updatedAt.toISOString(),

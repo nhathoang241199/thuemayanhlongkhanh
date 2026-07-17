@@ -3,11 +3,11 @@ export type MessengerConfig = {
   pageAccessToken: string;
   verifyToken: string;
   appSecret: string;
-  anthropicApiKey: string;
-  anthropicModel: string;
   adminPsid: string;
   frontendUrl: string;
   inactivityMs: number;
+  aiServiceUrl: string;
+  aiServiceToken: string;
 };
 
 const HANDOFF_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -29,15 +29,15 @@ export function getMessengerConfig(): MessengerConfig {
     pageAccessToken: process.env.FACEBOOK_PAGE_ACCESS_TOKEN?.trim() ?? '',
     verifyToken: process.env.FACEBOOK_VERIFY_TOKEN?.trim() ?? '',
     appSecret: process.env.FACEBOOK_APP_SECRET?.trim() ?? '',
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY?.trim() ?? '',
-    anthropicModel:
-      process.env.ANTHROPIC_MODEL?.trim() ?? 'claude-sonnet-4-6',
     adminPsid: process.env.ADMIN_MESSENGER_PSID?.trim() ?? '',
     frontendUrl:
       process.env.FRONTEND_URL?.trim() ??
       process.env.FRONTEND_ORIGIN?.trim() ??
       'https://thuemayanhlongkhanh.com',
     inactivityMs,
+    aiServiceUrl:
+      process.env.AI_SERVICE_URL?.trim() ?? 'http://localhost:8000',
+    aiServiceToken: process.env.AI_SERVICE_TOKEN?.trim() ?? 'dev-secret',
   };
 }
 
@@ -46,6 +46,6 @@ export function isMessengerConfigured(config = getMessengerConfig()): boolean {
     config.enabled &&
       config.pageAccessToken &&
       config.verifyToken &&
-      config.anthropicApiKey,
+      config.aiServiceUrl,
   );
 }
