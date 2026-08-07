@@ -330,9 +330,6 @@ export default function UserHomePage() {
                 </Link>
               </Text>
             ) : null}
-            {shopInfo?.address?.trim() ? (
-              <Text color="fg.muted">{shopInfo.address.trim()}</Text>
-            ) : null}
             <Link
               href={storeMapUrl}
               target="_blank"

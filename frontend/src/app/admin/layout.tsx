@@ -55,6 +55,9 @@ function adminBreadcrumbs(pathname: string): Crumb[] {
   if (pathname === "/admin/info") {
     return [home, admin, { href: null, label: "Thông tin" }];
   }
+  if (pathname === "/admin/features") {
+    return [home, admin, { href: null, label: "Chức năng" }];
+  }
   if (
     pathname.startsWith("/admin/customers/") &&
     pathname !== "/admin/customers"

@@ -201,7 +201,7 @@ function BookingListRowInner({
               size="sm"
               variant="subtle"
               colorPalette="orange"
-              aria-label="Chuyển về đang thuê"
+              aria-label="Quay lại trạng thái trước"
               disabled={isRowSaving}
               loading={quickAdvanceSaving}
               onClick={onQuickRevert}

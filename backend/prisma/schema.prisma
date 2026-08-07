@@ -208,6 +208,12 @@ model ShopInfo {
   updatedAt DateTime @updatedAt
 }
 
+model ShopFeatures {
+  id           String   @id @default("singleton")
+  printEnabled Boolean  @default(true)
+  updatedAt    DateTime @updatedAt
+}
+
 model MessengerConversation {
   id            String             @id @default(cuid())
   psid          String             @unique

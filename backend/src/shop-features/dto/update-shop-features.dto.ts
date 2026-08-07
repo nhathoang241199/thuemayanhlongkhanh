@@ -1,0 +1,11 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsBoolean } from 'class-validator';
+
+export class UpdateShopFeaturesDto {
+  @ApiProperty({
+    example: true,
+    description: 'Bật nút in hợp đồng trên trang đơn thuê admin',
+  })
+  @IsBoolean()
+  printEnabled: boolean;
+}

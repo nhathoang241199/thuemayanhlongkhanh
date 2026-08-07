@@ -13,6 +13,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PaymentModule } from './payment/payment.module';
 import { ShopClosureModule } from './shop-closure/shop-closure.module';
 import { ShopInfoModule } from './shop-info/shop-info.module';
+import { ShopFeaturesModule } from './shop-features/shop-features.module';
 import { StatsModule } from './stats/stats.module';
 import { MessengerModule } from './messenger/messenger.module';
 import { PolicyRagModule } from './policy-rag/policy-rag.module';
@@ -31,6 +32,7 @@ import { PolicyRagModule } from './policy-rag/policy-rag.module';
     ExpenseModule,
     ShopClosureModule,
     ShopInfoModule,
+    ShopFeaturesModule,
     StatsModule,
     MessengerModule,
     PolicyRagModule,

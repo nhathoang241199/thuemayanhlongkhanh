@@ -131,7 +131,7 @@ export default function OnboardingPage() {
               <Input
                 type="tel"
                 value={phone}
-                placeholder="0909123456 hoặc +84909123456"
+                placeholder="0909123456"
                 autoComplete="tel"
                 inputMode="tel"
                 {...fieldInputProps}

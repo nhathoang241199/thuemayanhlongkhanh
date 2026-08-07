@@ -53,6 +53,7 @@ import {
   bookingLocalDateKey,
   canAdminDeleteBooking,
   filterAndSortMobileTodayBookings,
+  applyStableBookingListOrder,
   isMobileTodayBookingsMode,
   sortAdminSearchBookings,
 } from "@/app/admin/bookings/booking-list-utils";
@@ -88,6 +89,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -102,6 +104,7 @@ import {
   titleColor,
 } from "@/lib/app-theme";
 import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
+import { fetchShopFeatures } from "@/lib/shop-features";
 import { toaster } from "@/lib/toaster";
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50] as const;
@@ -477,6 +480,7 @@ export default function AdminBookingsPage() {
     null,
   );
   const [printBooking, setPrintBooking] = useState<Booking | null>(null);
+  const [printEnabled, setPrintEnabled] = useState(true);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [editForm, setEditForm] = useState<BookingEditForm | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -502,6 +506,32 @@ export default function AdminBookingsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(30);
   const isMobileViewport = useIsMobileViewport();
+  const listOrderRef = useRef<string[]>([]);
+  const pinnedForFilterRef = useRef<Set<string>>(new Set());
+
+  const resetBookingListOrder = useCallback(() => {
+    listOrderRef.current = [];
+    pinnedForFilterRef.current.clear();
+  }, []);
+
+  const pinBookingInList = useCallback((id: string) => {
+    pinnedForFilterRef.current.add(id);
+  }, []);
+
+  useEffect(() => {
+    resetBookingListOrder();
+  }, [
+    filterDateKey,
+    showAllDates,
+    filterByPickupTime,
+    statusFilter,
+    paymentStatusFilter,
+    cameraFilter,
+    searchField,
+    searchQuery,
+    isMobileViewport,
+    resetBookingListOrder,
+  ]);
 
   const handleDebouncedSearchChange = useCallback(
     (next: { field: SearchField; query: string }) => {
@@ -548,9 +578,10 @@ export default function AdminBookingsPage() {
         prev?.map((row) => (row.id === id ? updated : row)) ?? null,
       );
       setEditingBooking((prev) => (prev?.id === id ? updated : prev));
+      pinBookingInList(id);
       return updated;
     },
-    [],
+    [pinBookingInList],
   );
 
   const copyToClipboard = useCallback(async (text: string) => {
@@ -889,7 +920,7 @@ export default function AdminBookingsPage() {
 
   const handleBookingDelete = useCallback((booking: Booking) => {
     if (!canAdminDeleteBooking(booking.status)) {
-      const msg = "Chỉ xóa được đơn chờ cọc hoặc đơn đã hủy.";
+      const msg = "Chỉ xóa được đơn chờ cọc, chờ lấy máy hoặc đơn đã hủy.";
       toaster.error({ title: msg });
       setPatchError(msg);
       return;
@@ -939,15 +970,17 @@ export default function AdminBookingsPage() {
   const filteredBookings = useMemo(() => {
     if (!bookings) return [];
 
+    const pinnedIds = pinnedForFilterRef.current;
+
     const matchesCommonFilters = (b: Booking) => {
       if (statusFilter !== "ALL" && b.status !== statusFilter) {
-        return false;
+        if (!pinnedIds.has(b.id)) return false;
       }
       if (
         paymentStatusFilter !== "ALL" &&
         b.paymentStatus !== paymentStatusFilter
       ) {
-        return false;
+        if (!pinnedIds.has(b.id)) return false;
       }
       if (cameraFilter !== "ALL" && b.cameraId !== cameraFilter) {
         return false;
@@ -955,37 +988,52 @@ export default function AdminBookingsPage() {
       return bookingMatchesSearch(b, searchField, searchQuery);
     };
 
+    let sorted: Booking[];
+
     if (mobileTodayMode) {
-      return filterAndSortMobileTodayBookings(
+      sorted = filterAndSortMobileTodayBookings(
         bookings.filter(matchesCommonFilters),
         filterDateKey,
       );
-    }
-
-    const applyDateFilter = !showAllDates;
-
-    const filtered = bookings.filter((b) => {
-      if (applyDateFilter) {
-        if (filterByPickupTime) {
-          const pickupKey = bookingLocalDateKey(
-            b.pickupAt ?? b.startBookingDate,
-          );
-          if (pickupKey !== filterDateKey) {
-            return false;
-          }
-        } else if (
-          !bookingCoversDateKeyVN(
-            b.startBookingDate,
-            b.endBookingDate,
-            filterDateKey,
-          )
-        ) {
-          return false;
+      const inList = new Set(sorted.map((b) => b.id));
+      for (const id of pinnedIds) {
+        if (inList.has(id)) continue;
+        const booking = bookings.find((row) => row.id === id);
+        if (booking && matchesCommonFilters(booking)) {
+          sorted.push(booking);
+          inList.add(id);
         }
       }
-      return matchesCommonFilters(b);
-    });
-    return sortAdminSearchBookings(filtered);
+    } else {
+      const applyDateFilter = !showAllDates;
+
+      const filtered = bookings.filter((b) => {
+        if (applyDateFilter) {
+          if (filterByPickupTime) {
+            const pickupKey = bookingLocalDateKey(
+              b.pickupAt ?? b.startBookingDate,
+            );
+            if (pickupKey !== filterDateKey) {
+              return false;
+            }
+          } else if (
+            !bookingCoversDateKeyVN(
+              b.startBookingDate,
+              b.endBookingDate,
+              filterDateKey,
+            )
+          ) {
+            return false;
+          }
+        }
+        return matchesCommonFilters(b);
+      });
+      sorted = sortAdminSearchBookings(filtered);
+    }
+
+    sorted = applyStableBookingListOrder(sorted, listOrderRef.current);
+    listOrderRef.current = sorted.map((b) => b.id);
+    return sorted;
   }, [
     bookings,
     searchField,
@@ -1018,7 +1066,10 @@ export default function AdminBookingsPage() {
       });
       await throwIfNotOk(res, "Lỗi tải dữ liệu đơn thuê");
       const json = (await res.json()) as Booking[];
-      if (!signal?.aborted) setBookings(normalizeBookings(json));
+      if (!signal?.aborted) {
+        setBookings(normalizeBookings(json));
+        resetBookingListOrder();
+      }
     } catch (e) {
       if (signal?.aborted) return;
       setBookings(null);
@@ -1027,7 +1078,7 @@ export default function AdminBookingsPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [resetBookingListOrder]);
 
   const getBookingListProps = useCallback(
     (b: Booking) => ({
@@ -1059,6 +1110,18 @@ export default function AdminBookingsPage() {
       loadBookings,
     ],
   );
+
+  useEffect(() => {
+    const ac = new AbortController();
+    void fetchShopFeatures()
+      .then((features) => {
+        if (!ac.signal.aborted) setPrintEnabled(features.printEnabled);
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setPrintEnabled(true);
+      });
+    return () => ac.abort();
+  }, []);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -1161,10 +1224,12 @@ export default function AdminBookingsPage() {
           key={b.id}
           rowNumber={(clampedPage - 1) * pageSize + index + 1}
           {...getBookingListProps(b)}
-          onPrint={() => setPrintBooking(b)}
+          onPrint={
+            printEnabled ? () => setPrintBooking(b) : undefined
+          }
         />
       )),
-    [pagedBookings, getBookingListProps, clampedPage, pageSize],
+    [pagedBookings, getBookingListProps, clampedPage, pageSize, printEnabled],
   );
 
   const pagedBookingCards = useMemo(() => {
@@ -1173,10 +1238,12 @@ export default function AdminBookingsPage() {
       <BookingListCard
         key={b.id}
         {...getBookingListProps(b)}
-        onPrint={() => setPrintBooking(b)}
+        onPrint={
+          printEnabled ? () => setPrintBooking(b) : undefined
+        }
       />
     ));
-  }, [isMobileViewport, pagedBookings, getBookingListProps]);
+  }, [isMobileViewport, pagedBookings, getBookingListProps, printEnabled]);
 
   const listEmptyMessage = useMemo(
     () =>

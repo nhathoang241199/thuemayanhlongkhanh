@@ -41,10 +41,12 @@ import {
   ChevronRightIcon,
   NoteIcon,
   PrintIcon,
+  TrashIcon,
 } from "./booking-list-icons";
 import type { BookingListRowProps } from "./booking-list-row";
 import {
   bookingVnDateKey,
+  canAdminDeleteBooking,
   formatBookingDateRelative,
   formatPickupAtMobileCard,
   vnd,
@@ -56,6 +58,7 @@ function BookingListCardInner({
   booking: b,
   isRowSaving,
   quickAdvanceSaving,
+  deleteSaving,
   canQuickAdvance,
   canQuickRevert,
   onCopyPhone,
@@ -64,11 +67,13 @@ function BookingListCardInner({
   onMenuOpenChange,
   onQuickAdvance,
   onQuickRevert,
+  onDelete,
   onCccdUploaded,
   onPrint,
 }: BookingListCardProps) {
   const [noteOpen, setNoteOpen] = useState(false);
   const noteText = b.note?.trim() ?? "";
+  const showDelete = canAdminDeleteBooking(b.status);
 
   const dateLabel =
     bookingVnDateKey(b.startBookingDate) !== bookingVnDateKey(b.endBookingDate)
@@ -245,6 +250,20 @@ function BookingListCardInner({
               <PrintIcon boxSize="1.25rem" />
             </IconButton>
           ) : null}
+          {showDelete ? (
+            <IconButton
+              type="button"
+              size="lg"
+              variant="subtle"
+              colorPalette="red"
+              aria-label={`Xóa đơn ${b.bookingCode}`}
+              loading={deleteSaving}
+              disabled={isRowSaving}
+              onClick={onDelete}
+            >
+              <TrashIcon boxSize="1.25rem" />
+            </IconButton>
+          ) : null}
         </HStack>
         <HStack gap={1}>
           {canQuickRevert ? (
@@ -253,7 +272,7 @@ function BookingListCardInner({
               size="lg"
               variant="subtle"
               colorPalette="orange"
-              aria-label="Chuyển về đang thuê"
+              aria-label="Quay lại trạng thái trước"
               disabled={isRowSaving}
               loading={quickAdvanceSaving}
               onClick={onQuickRevert}

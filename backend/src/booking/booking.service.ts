@@ -996,10 +996,11 @@ export class BookingService {
     }
     if (
       booking.status !== BookingStatus.PENDING_PAYMENT &&
+      booking.status !== BookingStatus.CONFIRMED &&
       booking.status !== BookingStatus.CANCELLED
     ) {
       throw new BadRequestException(
-        'Chỉ xóa được đơn chờ cọc hoặc đơn đã hủy.',
+        'Chỉ xóa được đơn chờ cọc, chờ lấy máy hoặc đơn đã hủy.',
       );
     }
 

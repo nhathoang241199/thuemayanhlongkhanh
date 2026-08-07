@@ -61,7 +61,7 @@ function dateKeyAddDays(key: string, days: number): string {
 }
 
 /** Ngày nhận máy = hôm nay hoặc ngày mai (theo todayKey của bộ lọc). */
-function pickupDayInMobilePickupWindow(
+export function pickupDayInMobilePickupWindow(
   pickupDayKey: string,
   todayKey: string,
 ): boolean {
@@ -183,21 +183,19 @@ const MOBILE_TODAY_PICKUP_STATUSES = new Set<BookingStatusValue>([
   "CONFIRMED",
 ]);
 
-const MOBILE_TODAY_RENTING_STATUSES = new Set<BookingStatusValue>(["RENTING"]);
-
-const MOBILE_TODAY_COMPLETED_STATUSES = new Set<BookingStatusValue>([
-  "COMPLETED",
-]);
-
 export const SEARCH_RENTING_STATUSES = new Set<BookingStatusValue>(["RENTING"]);
 
 export function isActiveRentingStatus(status: BookingStatusValue): boolean {
   return status === "RENTING";
 }
 
-/** Admin chỉ xóa đơn chờ cọc hoặc đã hủy (đồng bộ backend). */
+/** Admin xóa đơn chờ cọc, chờ lấy máy hoặc đã hủy (đồng bộ backend). */
 export function canAdminDeleteBooking(status: string): boolean {
-  return status === "PENDING_PAYMENT" || status === "CANCELLED";
+  return (
+    status === "PENDING_PAYMENT" ||
+    status === "CONFIRMED" ||
+    status === "CANCELLED"
+  );
 }
 
 function pickupSortTimeMs(b: Booking): number {
@@ -212,7 +210,7 @@ function startBookingSortTimeMs(b: Booking): number {
   return new Date(b.startBookingDate).getTime();
 }
 
-/** Mobile — đơn hôm nay: chờ cọc/lấy máy & hoàn tất (nhận hôm nay/mai), đang thuê (trả hôm nay). */
+/** Mobile — đơn hôm nay: nhận hôm nay/mai (mọi bước xử lý) + đang thuê trả hôm nay. */
 export function isMobileTodayBookingsMode(params: {
   isMobileViewport: boolean;
   showAllDates: boolean;
@@ -232,47 +230,66 @@ export function filterAndSortMobileTodayBookings(
   bookings: Booking[],
   todayKey: string,
 ): Booking[] {
-  const pickupQueue: Booking[] = [];
-  const rentingQueue: Booking[] = [];
-  const completedPickupTodayQueue: Booking[] = [];
+  const list = bookings.filter((b) => matchesMobileTodayBooking(b, todayKey));
 
-  for (const b of bookings) {
-    const status = b.status as BookingStatusValue;
-    const pickupDayKey = bookingVnDateKey(b.pickupAt ?? b.startBookingDate);
-    if (MOBILE_TODAY_PICKUP_STATUSES.has(status)) {
-      if (pickupDayInMobilePickupWindow(pickupDayKey, todayKey)) {
-        pickupQueue.push(b);
-      }
-    } else if (MOBILE_TODAY_RENTING_STATUSES.has(status)) {
-      if (bookingVnDateKey(b.endBookingDate) === todayKey) {
-        rentingQueue.push(b);
-      }
-    } else if (MOBILE_TODAY_COMPLETED_STATUSES.has(status)) {
-      if (pickupDayInMobilePickupWindow(pickupDayKey, todayKey)) {
-        completedPickupTodayQueue.push(b);
-      }
-    }
-  }
-
-  const comparePickupWindow = (a: Booking, b: Booking) => {
+  list.sort((a, b) => {
     const keyA = bookingVnDateKey(a.pickupAt ?? a.startBookingDate);
     const keyB = bookingVnDateKey(b.pickupAt ?? b.startBookingDate);
-    const dayCmp = pickupDaySortRank(keyA, todayKey) - pickupDaySortRank(keyB, todayKey);
+    const dayCmp =
+      pickupDaySortRank(keyA, todayKey) - pickupDaySortRank(keyB, todayKey);
     if (dayCmp !== 0) return dayCmp;
     return pickupSortTimeMs(a) - pickupSortTimeMs(b);
-  };
-
-  pickupQueue.sort(comparePickupWindow);
-  rentingQueue.sort((a, b) => returnSortTimeMs(a) - returnSortTimeMs(b));
-  completedPickupTodayQueue.sort((a, b) => {
-    const keyA = bookingVnDateKey(a.pickupAt ?? a.startBookingDate);
-    const keyB = bookingVnDateKey(b.pickupAt ?? b.startBookingDate);
-    const dayCmp = pickupDaySortRank(keyA, todayKey) - pickupDaySortRank(keyB, todayKey);
-    if (dayCmp !== 0) return dayCmp;
-    return returnSortTimeMs(b) - returnSortTimeMs(a);
   });
 
-  return [...pickupQueue, ...rentingQueue, ...completedPickupTodayQueue];
+  return list;
+}
+
+/** Đơn hiển thị trên mobile — chế độ hôm nay. */
+export function matchesMobileTodayBooking(
+  b: Booking,
+  todayKey: string,
+): boolean {
+  const status = b.status as BookingStatusValue;
+  const pickupDayKey = bookingVnDateKey(b.pickupAt ?? b.startBookingDate);
+  const returnDayKey = bookingVnDateKey(b.endBookingDate);
+
+  if (status === "PENDING_PAYMENT" || status === "CONFIRMED") {
+    return pickupDayInMobilePickupWindow(pickupDayKey, todayKey);
+  }
+  if (status === "RENTING") {
+    return (
+      pickupDayInMobilePickupWindow(pickupDayKey, todayKey) ||
+      returnDayKey === todayKey
+    );
+  }
+  if (status === "COMPLETED") {
+    return pickupDayInMobilePickupWindow(pickupDayKey, todayKey);
+  }
+  return false;
+}
+
+/** Giữ thứ tự card sau khi admin đổi trạng thái — tránh đơn nhảy/vanish khỏi màn hình. */
+export function applyStableBookingListOrder(
+  sorted: Booking[],
+  previousOrder: readonly string[],
+): Booking[] {
+  if (previousOrder.length === 0) return sorted;
+
+  const byId = new Map(sorted.map((booking) => [booking.id, booking]));
+  const newIdSet = new Set(sorted.map((booking) => booking.id));
+  const merged: Booking[] = [];
+  const used = new Set<string>();
+
+  for (const id of previousOrder) {
+    if (newIdSet.has(id)) {
+      merged.push(byId.get(id)!);
+      used.add(id);
+    }
+  }
+  for (const booking of sorted) {
+    if (!used.has(booking.id)) merged.push(booking);
+  }
+  return merged;
 }
 
 /**

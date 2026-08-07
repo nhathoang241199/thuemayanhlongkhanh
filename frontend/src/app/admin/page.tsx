@@ -274,7 +274,7 @@ export default function AdminPage() {
   return (
     <Stack gap={6}>
       {equipmentValue ? (
-        <SimpleGrid columns={{ base: 1, md: 3 }} gap={4}>
+        <SimpleGrid columns={{ base: 1, md: 3 }} gap={4} display={{ base: "none", md: "grid" }}>
           <CardRoot {...cardSurfaceProps}>
             <CardBody>
               <StatRoot size="lg">
@@ -321,18 +321,10 @@ export default function AdminPage() {
             align="center"
             gap={4}
             flexWrap="wrap"
-            mb={{ base: 0, md: 4 }}
+            mb={4}
+            display={{ base: "none", md: "flex" }}
           >
-            <CardTitle textStyle="lg" display={{ base: "none", md: "block" }}>
-              Chọn kỳ
-            </CardTitle>
-            <Text
-              textStyle="lg"
-              fontWeight="semibold"
-              display={{ base: "block", md: "none" }}
-            >
-              {MONTH_LABELS_VI[month - 1]}
-            </Text>
+            <CardTitle textStyle="lg">Chọn kỳ</CardTitle>
             <Button
               type="button"
               size="sm"
@@ -401,6 +393,68 @@ export default function AdminPage() {
               </NativeSelectRoot>
             </Box>
           </HStack>
+
+          <Stack gap={4} display={{ base: "flex", md: "none" }}>
+            <HStack
+              gap={3}
+              align="flex-end"
+              flexDirection="row-reverse"
+              justify="flex-start"
+            >
+              <Box flex={1} minW={0}>
+                <Text fontSize="sm" mb={1} fontWeight="medium">
+                  Tháng
+                </Text>
+                <NativeSelectRoot size="md">
+                  <NativeSelectField
+                    value={String(month)}
+                    bg="white"
+                    borderWidth="1px"
+                    borderColor="gray.200"
+                    _focusVisible={{
+                      borderColor: "ocean.500",
+                    }}
+                    onChange={(e) =>
+                      setMonth(Number.parseInt(e.target.value, 10))
+                    }
+                  >
+                    {MONTH_LABELS_VI.map((label, i) => (
+                      <option key={label} value={String(i + 1)}>
+                        {label}
+                      </option>
+                    ))}
+                  </NativeSelectField>
+                  <NativeSelectIndicator />
+                </NativeSelectRoot>
+              </Box>
+              <Box flex="0 0 7rem">
+                <Text fontSize="sm" mb={1} fontWeight="medium">
+                  Năm
+                </Text>
+                <NativeSelectRoot size="md">
+                  <NativeSelectField
+                    value={String(year)}
+                    bg="white"
+                    borderWidth="1px"
+                    borderColor="gray.200"
+                    _focusVisible={{
+                      borderColor: "ocean.500",
+                    }}
+                    onChange={(e) =>
+                      setYear(Number.parseInt(e.target.value, 10))
+                    }
+                  >
+                    {years.map((y) => (
+                      <option key={y} value={String(y)}>
+                        {y}
+                      </option>
+                    ))}
+                  </NativeSelectField>
+                  <NativeSelectIndicator />
+                </NativeSelectRoot>
+              </Box>
+            </HStack>
+          </Stack>
         </CardBody>
       </CardRoot>
 
@@ -427,7 +481,7 @@ export default function AdminPage() {
               </StatRoot>
             </CardBody>
           </CardRoot>
-          <CardRoot {...cardSurfaceProps}>
+          <CardRoot {...cardSurfaceProps} display={{ base: "none", md: "block" }}>
             <CardBody>
               <StatRoot size="lg">
                 <StatLabel>Chi phí</StatLabel>
@@ -438,7 +492,7 @@ export default function AdminPage() {
               </StatRoot>
             </CardBody>
           </CardRoot>
-          <CardRoot {...cardSurfaceProps}>
+          <CardRoot {...cardSurfaceProps} display={{ base: "none", md: "block" }}>
             <CardBody>
               <StatRoot size="lg">
                 <StatLabel>Lợi nhuận</StatLabel>
