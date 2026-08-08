@@ -46,6 +46,7 @@ import {
 } from '../common/upload-config';
 import { normalizePhone } from '../common/normalize-phone';
 import { PrismaService } from '../prisma/prisma.service';
+import { ShopFeaturesService } from '../shop-features/shop-features.service';
 import { StatsService } from '../stats/stats.service';
 import {
   parsePendingChange,
@@ -86,6 +87,7 @@ export class BookingService {
     private readonly prisma: PrismaService,
     private readonly availability: AvailabilityService,
     private readonly statsService: StatsService,
+    private readonly shopFeaturesService: ShopFeaturesService,
   ) {}
 
   private async generateBookingCode(): Promise<string> {
@@ -727,6 +729,8 @@ export class BookingService {
       bookingCode = await this.generateBookingCode();
     }
 
+    const { depositEnabled } = await this.shopFeaturesService.get();
+
     try {
       return await this.prisma.booking.create({
         data: {
@@ -744,15 +748,21 @@ export class BookingService {
           note: dto.note,
           shippingAddress: dto.shippingAddress,
           paymentStatus: PaymentStatus.PENDING,
-          status: BookingStatus.PENDING_PAYMENT,
-          payment: {
-            create: {
-              provider: 'SEPAY',
-              amount: BOOKING_DEPOSIT_VND,
-              status: PaymentRecordStatus.PENDING,
-              providerTxnRef: bookingCode,
-            },
-          },
+          status: depositEnabled
+            ? BookingStatus.PENDING_PAYMENT
+            : BookingStatus.CONFIRMED,
+          ...(depositEnabled
+            ? {
+                payment: {
+                  create: {
+                    provider: 'SEPAY',
+                    amount: BOOKING_DEPOSIT_VND,
+                    status: PaymentRecordStatus.PENDING,
+                    providerTxnRef: bookingCode,
+                  },
+                },
+              }
+            : {}),
         },
         include: bookingInclude,
       });

@@ -26,6 +26,7 @@ import { toaster } from "@/lib/toaster";
 
 export default function AdminFeaturesPage() {
   const [printEnabled, setPrintEnabled] = useState(true);
+  const [depositEnabled, setDepositEnabled] = useState(true);
   const [saved, setSaved] = useState<ShopFeatures | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,6 +39,7 @@ export default function AdminFeaturesPage() {
       const json = await fetchShopFeatures();
       if (signal?.aborted) return;
       setPrintEnabled(json.printEnabled);
+      setDepositEnabled(json.depositEnabled);
       setSaved(json);
     } catch (e) {
       if (signal?.aborted) return;
@@ -54,15 +56,19 @@ export default function AdminFeaturesPage() {
     return () => ac.abort();
   }, [load]);
 
-  const dirty = saved !== null && printEnabled !== saved.printEnabled;
+  const dirty =
+    saved !== null &&
+    (printEnabled !== saved.printEnabled ||
+      depositEnabled !== saved.depositEnabled);
 
   const save = () => {
     void (async () => {
       setSaving(true);
       setError(null);
       try {
-        const json = await updateShopFeatures({ printEnabled });
+        const json = await updateShopFeatures({ printEnabled, depositEnabled });
         setPrintEnabled(json.printEnabled);
+        setDepositEnabled(json.depositEnabled);
         setSaved(json);
         toaster.success({ title: "Đã lưu cấu hình chức năng" });
       } catch (e) {
@@ -102,6 +108,21 @@ export default function AdminFeaturesPage() {
               </CheckboxRoot>
               <Text fontSize="xs" color="fg.muted" mt={1} pl={6}>
                 Hiện nút in trên trang đơn thuê (mobile và desktop).
+              </Text>
+            </Box>
+            <Box>
+              <CheckboxRoot
+                checked={depositEnabled}
+                disabled={loading}
+                colorPalette={APP_COLOR_PALETTE}
+                onCheckedChange={(e) => setDepositEnabled(!!e.checked)}
+              >
+                <CheckboxHiddenInput />
+                <CheckboxControl />
+                <CheckboxLabel fontSize="sm">Đặt cọc</CheckboxLabel>
+              </CheckboxRoot>
+              <Text fontSize="xs" color="fg.muted" mt={1} pl={6}>
+                Khi tắt, khách không cần thanh toán cọc online khi đặt lịch.
               </Text>
             </Box>
             <Button

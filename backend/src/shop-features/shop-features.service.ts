@@ -22,7 +22,15 @@ export class ShopFeaturesService {
     const row = await this.findOrDefault();
     return {
       printEnabled: row.printEnabled,
+      depositEnabled: row.depositEnabled,
       updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  async getPublic() {
+    const row = await this.findOrDefault();
+    return {
+      depositEnabled: row.depositEnabled,
     };
   }
 
@@ -32,13 +40,16 @@ export class ShopFeaturesService {
       create: {
         id: SINGLETON_ID,
         printEnabled: dto.printEnabled,
+        depositEnabled: dto.depositEnabled,
       },
       update: {
         printEnabled: dto.printEnabled,
+        depositEnabled: dto.depositEnabled,
       },
     });
     return {
       printEnabled: row.printEnabled,
+      depositEnabled: row.depositEnabled,
       updatedAt: row.updatedAt.toISOString(),
     };
   }

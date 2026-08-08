@@ -8,4 +8,11 @@ export class UpdateShopFeaturesDto {
   })
   @IsBoolean()
   printEnabled: boolean;
+
+  @ApiProperty({
+    example: true,
+    description: 'Bật bước đặt cọc online khi khách đặt lịch',
+  })
+  @IsBoolean()
+  depositEnabled: boolean;
 }

@@ -2,7 +2,12 @@ import { apiBase } from "@/lib/api-base";
 
 export type ShopFeatures = {
   printEnabled: boolean;
+  depositEnabled: boolean;
   updatedAt?: string;
+};
+
+export type PublicShopFeatures = {
+  depositEnabled: boolean;
 };
 
 async function parseJson<T>(res: Response): Promise<T> {
@@ -20,8 +25,13 @@ export async function fetchShopFeatures(): Promise<ShopFeatures> {
   return parseJson(res);
 }
 
+export async function fetchPublicShopFeatures(): Promise<PublicShopFeatures> {
+  const res = await fetch(`${apiBase()}/api/shop-features/public`);
+  return parseJson(res);
+}
+
 export async function updateShopFeatures(
-  data: Pick<ShopFeatures, "printEnabled">,
+  data: Pick<ShopFeatures, "printEnabled" | "depositEnabled">,
 ): Promise<ShopFeatures> {
   const res = await fetch(`${apiBase()}/api/shop-features`, {
     method: "PUT",

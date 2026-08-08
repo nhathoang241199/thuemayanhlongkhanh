@@ -112,6 +112,8 @@ import {
   returnNextMorningSurchargeVnd,
 } from "@/lib/rental-pricing";
 import { getSession, setSession } from "@/lib/customer-session";
+import { fetchPublicShopFeatures } from "@/lib/shop-features";
+import { toaster } from "@/lib/toaster";
 import {
   APP_COLOR_PALETTE,
   titleColor,
@@ -206,6 +208,7 @@ function BookPageContent() {
   const [shopPromotion, setShopPromotion] = useState<PublicShopPromotion | null>(
     null,
   );
+  const [depositEnabled, setDepositEnabled] = useState(true);
 
   const [calendarYm, setCalendarYm] = useState(nowYm);
 
@@ -244,6 +247,18 @@ function BookPageContent() {
       })
       .catch(() => {
         if (!ac.signal.aborted) setShopPromotion(null);
+      });
+    return () => ac.abort();
+  }, []);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    void fetchPublicShopFeatures()
+      .then((r) => {
+        if (!ac.signal.aborted) setDepositEnabled(r.depositEnabled);
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setDepositEnabled(true);
       });
     return () => ac.abort();
   }, []);
@@ -976,6 +991,11 @@ function BookPageContent() {
             ? shippingAddress.trim()
             : undefined,
       });
+      if (booking.status === "CONFIRMED") {
+        toaster.success({ title: "Đặt lịch thành công" });
+        router.push("/home");
+        return;
+      }
       router.push(`/book/payment?bookingId=${booking.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tạo được đơn");
@@ -1440,7 +1460,9 @@ function BookPageContent() {
             ? "Xác nhận thay đổi"
             : isEditPending
               ? "Lưu & thanh toán cọc"
-              : "Xác nhận & thanh toán cọc"}
+              : depositEnabled
+                ? "Xác nhận & thanh toán cọc"
+                : "Xác nhận đặt lịch"}
         </Button>
       </Stack>
     );
