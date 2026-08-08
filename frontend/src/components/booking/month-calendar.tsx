@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Button, Grid, HStack, Text } from "@chakra-ui/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatDateVi, type CalendarDay } from "@/lib/booking-api";
 import { titleColor, userOutlineButtonProps } from "@/lib/user-theme";
@@ -50,10 +50,20 @@ export function MonthCalendar({
   const [viewYear, setViewYear] = useState(year);
   const [viewMonth, setViewMonth] = useState(month);
   const [pickStart, setPickStart] = useState<string | null>(startDate);
+  const onViewChangeRef = useRef(onViewChange);
 
   useEffect(() => {
-    onViewChange?.(viewYear, viewMonth);
-  }, [viewYear, viewMonth, onViewChange]);
+    onViewChangeRef.current = onViewChange;
+  }, [onViewChange]);
+
+  useEffect(() => {
+    setViewYear(year);
+    setViewMonth(month);
+  }, [year, month]);
+
+  useEffect(() => {
+    onViewChangeRef.current?.(viewYear, viewMonth);
+  }, [viewYear, viewMonth]);
 
   const dayMap = useMemo(() => {
     const m = new Map<string, CalendarDay>();
