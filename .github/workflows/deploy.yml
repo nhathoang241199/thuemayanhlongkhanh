@@ -36,6 +36,8 @@ jobs:
             APP_DIRS="${{ secrets.VPS_APP_DIRS }}"
             export VPS_APP_DIRS="$APP_DIRS"
             cd "$APP_DIR"
-            git -c safe.directory="$APP_DIR" pull --ff-only
+            BRANCH="$(git -c safe.directory="$APP_DIR" rev-parse --abbrev-ref HEAD)"
+            git -c safe.directory="$APP_DIR" fetch origin "$BRANCH"
+            git -c safe.directory="$APP_DIR" reset --hard "origin/$BRANCH"
             chmod +x deploy/deploy.sh deploy/deploy-all-sites.sh
             ./deploy/deploy-all-sites.sh

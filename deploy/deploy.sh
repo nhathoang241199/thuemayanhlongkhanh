@@ -16,8 +16,10 @@ command -v pm2 >/dev/null || die "pm2 chưa cài (npm i -g pm2)"
 command -v docker >/dev/null || die "Docker chưa cài"
 
 if [[ "${DEPLOY_SKIP_PULL:-0}" != "1" ]]; then
-  log "git pull..."
-  git -c safe.directory="$ROOT" pull --ff-only
+  log "git fetch & sync..."
+  BRANCH="$(git -c safe.directory="$ROOT" rev-parse --abbrev-ref HEAD)"
+  git -c safe.directory="$ROOT" fetch origin "$BRANCH"
+  git -c safe.directory="$ROOT" reset --hard "origin/$BRANCH"
 fi
 
 if [[ "${DEPLOY_SKIP_POSTGRES:-0}" != "1" ]]; then
