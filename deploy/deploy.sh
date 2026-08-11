@@ -17,7 +17,7 @@ command -v docker >/dev/null || die "Docker chưa cài"
 
 if [[ "${DEPLOY_SKIP_PULL:-0}" != "1" ]]; then
   log "git pull..."
-  git pull --ff-only
+  git -c safe.directory="$ROOT" pull --ff-only
 fi
 
 if [[ "${DEPLOY_SKIP_POSTGRES:-0}" != "1" ]]; then
@@ -57,6 +57,10 @@ log "Frontend: install, build..."
 
 log "PM2 restart..."
 cd "$ROOT"
+# ai-service (Python) không còn deploy — gỡ process cũ nếu còn sót trên VPS
+for app in ai-service thue-may-ai binhthanh-ai; do
+  pm2 delete "$app" 2>/dev/null || true
+done
 ECOSYSTEM="${PM2_ECOSYSTEM:-deploy/ecosystem.config.cjs}"
 pm2 startOrRestart "$ECOSYSTEM" --update-env
 pm2 save
