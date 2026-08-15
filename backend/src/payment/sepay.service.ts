@@ -79,6 +79,22 @@ export class SepayService {
     return `https://img.vietqr.io/image/${bin}-${account}-compact2.png?${params.toString()}`;
   }
 
+  /** QR chuyển khoản chung (không gắn đơn) — hiển thị trang chủ khách. */
+  getPublicBankInfo() {
+    const { bin, account, accountName, bankName } = this.bankConfig();
+    const params = new URLSearchParams();
+    if (accountName) {
+      params.set('accountName', accountName);
+    }
+    const qs = params.toString();
+    return {
+      bankName,
+      accountNumber: account,
+      accountName,
+      qrImageUrl: `https://img.vietqr.io/image/${bin}-${account}-compact2.png${qs ? `?${qs}` : ''}`,
+    };
+  }
+
   async getPaymentInstructions(bookingId: string, phoneRaw: string) {
     const phone = normalizePhone(phoneRaw);
     if (phone.length < 9) {

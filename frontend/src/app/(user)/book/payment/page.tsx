@@ -6,8 +6,6 @@ import {
   CardBody,
   CardRoot,
   HStack,
-  Image,
-  Skeleton,
   Spinner,
   Stack,
   Text,
@@ -18,6 +16,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
 import { YoutubeEmbed } from "@/components/camera/youtube-embed";
+import { QrCodeCard } from "@/components/payment/qr-code-card";
 import { fetchMyBookings } from "@/lib/api";
 import {
   fetchPublicCamera,
@@ -60,63 +59,6 @@ const vnd = new Intl.NumberFormat("vi-VN", {
 const POLL_MS = 4000;
 /** Cho phép khách chuyển khoản muộn (vd. chụp QR rồi CK sau). */
 const MAX_POLL_MS = 2 * 60 * 60 * 1000;
-
-const QR_IMAGE_SIZE = 280;
-const QR_BOX_PADDING = 12;
-const QR_BOX_MAX_W = QR_IMAGE_SIZE + QR_BOX_PADDING * 2;
-
-function QrCodeCard({ imageUrl }: { imageUrl: string }) {
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    setLoaded(false);
-  }, [imageUrl]);
-
-  return (
-    <Box
-      mx="auto"
-      p={3}
-      bg="white"
-      borderRadius="lg"
-      borderWidth="1px"
-      borderColor="cerulean.200"
-      w="full"
-      maxW={`${QR_BOX_MAX_W}px`}
-      boxSizing="border-box"
-    >
-      <Box
-        position="relative"
-        w={`${QR_IMAGE_SIZE}px`}
-        h={`${QR_IMAGE_SIZE}px`}
-        maxW="100%"
-        mx="auto"
-      >
-        {!loaded ? (
-          <Skeleton
-            position="absolute"
-            inset={0}
-            w="full"
-            h="full"
-            borderRadius="md"
-          />
-        ) : null}
-        <Image
-          src={imageUrl}
-          alt="Mã QR chuyển khoản"
-          position="absolute"
-          inset={0}
-          w="full"
-          h="full"
-          objectFit="contain"
-          opacity={loaded ? 1 : 0}
-          transition="opacity 0.2s"
-          onLoad={() => setLoaded(true)}
-          onError={() => setLoaded(true)}
-        />
-      </Box>
-    </Box>
-  );
-}
 
 function PaymentContent() {
   const router = useRouter();

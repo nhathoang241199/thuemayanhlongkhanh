@@ -266,6 +266,57 @@ export async function fetchSepayInstructions(
   return parseJson(res);
 }
 
+export type PublicBankInfo = {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  qrImageUrl: string;
+};
+
+function buildPublicBankInfo(
+  bin: string,
+  account: string,
+  accountName: string,
+  bankName: string,
+): PublicBankInfo {
+  const params = new URLSearchParams();
+  if (accountName) {
+    params.set("accountName", accountName);
+  }
+  const qs = params.toString();
+  return {
+    bankName,
+    accountNumber: account,
+    accountName,
+    qrImageUrl: `https://img.vietqr.io/image/${bin}-${account}-compact2.png${qs ? `?${qs}` : ""}`,
+  };
+}
+
+function publicBankInfoFromEnv(): PublicBankInfo | null {
+  const bin = process.env.NEXT_PUBLIC_SEPAY_BANK_BIN?.trim();
+  const account = process.env.NEXT_PUBLIC_SEPAY_BANK_ACCOUNT?.trim();
+  if (!bin || !account) return null;
+  return buildPublicBankInfo(
+    bin,
+    account,
+    process.env.NEXT_PUBLIC_SEPAY_ACCOUNT_NAME?.trim() ?? "",
+    process.env.NEXT_PUBLIC_SEPAY_BANK_NAME?.trim() || "Ngân hàng",
+  );
+}
+
+/** API production; fallback NEXT_PUBLIC_SEPAY_* khi VPS chưa deploy endpoint mới. */
+export async function fetchPublicBankInfo(): Promise<PublicBankInfo | null> {
+  try {
+    const res = await fetch(`${apiBase()}/api/payments/sepay/public-bank`);
+    if (res.ok) {
+      return parseJson<PublicBankInfo>(res);
+    }
+  } catch {
+    /* proxy / VPS chưa có route */
+  }
+  return publicBankInfoFromEnv();
+}
+
 export function dayCountInclusive(start: string, end: string): number {
   const s = new Date(`${start}T12:00:00`);
   const e = new Date(`${end}T12:00:00`);

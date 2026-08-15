@@ -23,3 +23,8 @@ export function getStoreMapUrl(): string {
   const configured = process.env.NEXT_PUBLIC_STORE_MAP_URL?.trim();
   return configured || DEFAULT_STORE_MAP_URL;
 }
+
+/** Link m.me hoặc Facebook Messages — mở chat fanpage. */
+export function getMessengerUrl(): string {
+  return process.env.NEXT_PUBLIC_MESSENGER_URL?.trim() ?? "";
+}

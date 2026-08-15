@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CameraTutorialDialog } from "@/components/camera/camera-tutorial-dialog";
+import { QrCodeCard } from "@/components/payment/qr-code-card";
 import {
   cancelCustomerBooking,
   fetchMyBookings,
@@ -40,9 +41,11 @@ import {
   formatBookingUsageDetailHome,
 } from "@/lib/booking-status";
 import {
+  fetchPublicBankInfo,
   fetchRangeAvailability,
   type BookingSlot,
   type CameraBrand,
+  type PublicBankInfo,
 } from "@/lib/booking-api";
 import {
   formatPickupAtHomeDisplay,
@@ -156,6 +159,8 @@ export default function UserHomePage() {
     Record<string, boolean | null>
   >({});
   const [shopInfo, setShopInfo] = useState<PublicShopInfo | null>(null);
+  const [bankInfo, setBankInfo] = useState<PublicBankInfo | null>(null);
+  const [bankQrOpen, setBankQrOpen] = useState(false);
 
   const storeMapUrl = useMemo(
     () => resolveShopMapUrl(shopInfo),
@@ -247,6 +252,18 @@ export default function UserHomePage() {
     return () => ac.abort();
   }, []);
 
+  useEffect(() => {
+    const ac = new AbortController();
+    void fetchPublicBankInfo()
+      .then((info) => {
+        if (!ac.signal.aborted) setBankInfo(info);
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setBankInfo(null);
+      });
+    return () => ac.abort();
+  }, []);
+
   const closeCancelModal = () => {
     setCancelTarget(null);
     setBankAccountInfo("");
@@ -328,6 +345,18 @@ export default function UserHomePage() {
                 >
                   {shopInfo.phone.trim()}
                 </Link>
+              </Text>
+            ) : null}
+            {bankInfo?.accountNumber ? (
+              <Text color="fg.muted">
+                QR chuyển khoản:{" "}
+                <Text
+                  as="button"
+                  {...inlineTextLinkProps}
+                  onClick={() => setBankQrOpen(true)}
+                >
+                  {bankInfo.bankName}
+                </Text>
               </Text>
             ) : null}
             <Link
@@ -603,6 +632,56 @@ export default function UserHomePage() {
         cameraName={guideCamera?.name}
         onClose={() => setGuideCamera(null)}
       />
+
+      <DialogRoot
+        open={bankQrOpen}
+        onOpenChange={(e) => {
+          if (!e.open) setBankQrOpen(false);
+        }}
+        lazyMount
+        unmountOnExit
+      >
+        <DialogBackdrop />
+        <DialogPositioner>
+          <DialogContent maxW="md" mx={4}>
+            <DialogHeader>
+              <DialogTitle color={titleColor}>Chuyển khoản</DialogTitle>
+              <DialogCloseTrigger />
+            </DialogHeader>
+            <DialogBody>
+              <Stack gap={4}>
+                {bankInfo?.qrImageUrl ? (
+                  <QrCodeCard imageUrl={bankInfo.qrImageUrl} />
+                ) : null}
+                <Stack gap={2} fontSize="sm">
+                  <HStack justify="space-between" align="flex-start">
+                    <Text color="fg.muted">Ngân hàng</Text>
+                    <Text textAlign="right">{bankInfo?.bankName ?? "—"}</Text>
+                  </HStack>
+                  <HStack justify="space-between" align="flex-start">
+                    <Text color="fg.muted">Số tài khoản</Text>
+                    <Text fontWeight="medium" textAlign="right">
+                      {bankInfo?.accountNumber ?? "—"}
+                    </Text>
+                  </HStack>
+                  <HStack justify="space-between" align="flex-start">
+                    <Text color="fg.muted">Chủ tài khoản</Text>
+                    <Text textAlign="right">{bankInfo?.accountName ?? "—"}</Text>
+                  </HStack>
+                </Stack>
+                <Text fontSize="xs" color="fg.muted" textAlign="center">
+                  Quét mã QR bằng app ngân hàng để chuyển khoản.
+                </Text>
+              </Stack>
+            </DialogBody>
+            <DialogFooter>
+              <Button {...userOutlineButtonProps} onClick={() => setBankQrOpen(false)}>
+                Đóng
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </DialogPositioner>
+      </DialogRoot>
 
       <DialogRoot
         open={!!cancelTarget}

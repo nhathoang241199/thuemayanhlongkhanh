@@ -25,6 +25,12 @@ export class PaymentController {
     return this.sepayService.getPaymentInstructions(bookingId, phone);
   }
 
+  @Get('sepay/public-bank')
+  @ApiOperation({ summary: 'Thông tin TK ngân hàng + QR (public)' })
+  getPublicBank() {
+    return this.sepayService.getPublicBankInfo();
+  }
+
   @Post('sepay/webhook')
   @ApiOperation({ summary: 'SePay webhook (tiền vào TK)' })
   async sepayWebhook(
