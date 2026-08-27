@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import https from 'node:https';
 
 type NewBookingNotification = {
   customer: { name: string; phone: string };
@@ -47,15 +48,51 @@ export class TelegramBookingNotificationService {
       return false;
     }
 
-    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: formatNewBookingNotification(booking) }),
+    const payload = JSON.stringify({
+      chat_id: chatId,
+      text: formatNewBookingNotification(booking),
     });
-    if (!response.ok) {
-      throw new Error(`Telegram API HTTP ${response.status}`);
-    }
-    const result = (await response.json()) as { ok?: boolean; description?: string };
+    const result = await new Promise<{ ok?: boolean; description?: string }>(
+      (resolve, reject) => {
+        const request = https.request(
+          `https://api.telegram.org/bot${token}/sendMessage`,
+          {
+            method: 'POST',
+            family: 4,
+            timeout: 15_000,
+            headers: {
+              'content-type': 'application/json',
+              'content-length': Buffer.byteLength(payload),
+            },
+          },
+          (response) => {
+            let body = '';
+            response.setEncoding('utf8');
+            response.on('data', (chunk: string) => {
+              body += chunk;
+            });
+            response.on('end', () => {
+              let parsed: { ok?: boolean; description?: string };
+              try {
+                parsed = JSON.parse(body) as { ok?: boolean; description?: string };
+              } catch {
+                reject(new Error(`Telegram API HTTP ${response.statusCode}`));
+                return;
+              }
+              if (response.statusCode && response.statusCode >= 400) {
+                reject(new Error(`Telegram API HTTP ${response.statusCode}`));
+                return;
+              }
+              resolve(parsed);
+            });
+          },
+        );
+        request.on('timeout', () => request.destroy(new Error('Telegram request timed out')));
+        request.on('error', reject);
+        request.write(payload);
+        request.end();
+      },
+    );
     if (!result.ok) {
       throw new Error(result.description ?? 'Telegram API rejected the message');
     }
