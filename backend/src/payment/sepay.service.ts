@@ -14,6 +14,7 @@ import { BOOKING_DEPOSIT_VND, balanceDueVnd } from '../common/booking-payment';
 import { normalizePhone } from '../common/normalize-phone';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentService } from './payment.service';
+import { TelegramBookingNotificationService } from './telegram-booking-notification';
 import {
   buildTransferContent,
   compactPaymentRef,
@@ -38,6 +39,7 @@ export class SepayService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly paymentService: PaymentService,
+    private readonly telegramNotification: TelegramBookingNotificationService,
   ) {}
 
   private bankConfig() {
@@ -346,6 +348,22 @@ export class SepayService {
           externalTransId: externalId,
         },
       });
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: payment.bookingId },
+        include: { customer: true, camera: true },
+      });
+      if (booking) {
+        try {
+          await this.telegramNotification.notifyNewDeposit({
+            customer: booking.customer,
+            camera: booking.camera,
+            pickupAt: booking.pickupAt ?? booking.startBookingDate,
+            note: booking.note,
+          });
+        } catch (error) {
+          console.error('[telegram] Failed to send new-booking notification', error);
+        }
+      }
       return { success: true };
     }
 

@@ -4,11 +4,12 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { PaymentController } from './payment.controller';
 import { PaymentService } from './payment.service';
 import { SepayService } from './sepay.service';
+import { TelegramBookingNotificationService } from './telegram-booking-notification';
 
 @Module({
   imports: [PrismaModule, AvailabilityModule],
   controllers: [PaymentController],
-  providers: [PaymentService, SepayService],
+  providers: [PaymentService, SepayService, TelegramBookingNotificationService],
   exports: [PaymentService, SepayService],
 })
 export class PaymentModule {}
