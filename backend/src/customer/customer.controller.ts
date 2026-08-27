@@ -28,6 +28,7 @@ import {
 } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import { Public } from '../auth/public.decorator';
+import { HermesApiAccess } from '../auth/hermes-api.decorator';
 import { MAX_VERIFICATION_IMAGE_BYTES } from '../common/upload-config';
 import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -41,6 +42,7 @@ export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 
   @Get()
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Danh sách khách hàng' })
   @ApiOkResponse({
     description:
@@ -93,6 +95,7 @@ export class CustomerController {
   }
 
   @Get(':id')
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Chi tiết khách hàng' })
   @ApiOkResponse()
   @ApiNotFoundResponse()
@@ -155,6 +158,7 @@ export class CustomerController {
   }
 
   @Patch(':id')
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Cập nhật khách hàng' })
   @ApiOkResponse()
   @ApiNotFoundResponse()

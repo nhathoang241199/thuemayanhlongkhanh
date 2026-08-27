@@ -31,6 +31,7 @@ import {
   ParseFilePipe,
 } from '@nestjs/common/pipes';
 import { Public } from '../auth/public.decorator';
+import { HermesApiAccess } from '../auth/hermes-api.decorator';
 import { BookingService } from './booking.service';
 import { CancelCustomerBookingDto } from './dto/cancel-customer-booking.dto';
 import { RequestChangeCustomerBookingDto } from './dto/request-change-customer-booking.dto';
@@ -47,6 +48,7 @@ export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
   @Get()
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Danh sách booking' })
   @ApiOkResponse({ description: 'Kèm customer và camera (rút gọn)' })
   findAll() {
@@ -115,6 +117,7 @@ export class BookingController {
   }
 
   @Get(':id')
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Chi tiết booking' })
   @ApiOkResponse()
   @ApiNotFoundResponse()
@@ -173,6 +176,7 @@ export class BookingController {
   }
 
   @Patch(':id')
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Cập nhật booking' })
   @ApiOkResponse()
   @ApiNotFoundResponse()

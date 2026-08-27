@@ -4,12 +4,23 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { HERMES_API_ACCESS_KEY } from './hermes-api.decorator';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 export const ADMIN_COOKIE_NAME = 'admin_token';
+
+function safeEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return (
+    leftBuffer.length === rightBuffer.length &&
+    timingSafeEqual(leftBuffer, rightBuffer)
+  );
+}
 
 export type AdminJwtPayload = {
   sub: string;
@@ -31,6 +42,25 @@ export class AdminAuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const req = context.switchToHttp().getRequest<Request>();
+    const hermesApiAccess = this.reflector.getAllAndOverride<boolean>(
+      HERMES_API_ACCESS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    const hermesApiKey = req.header('x-hermes-api-key');
+    const configuredHermesApiKey = process.env.HERMES_API_KEY;
+    if (
+      hermesApiAccess &&
+      hermesApiKey &&
+      configuredHermesApiKey &&
+      safeEqual(hermesApiKey, configuredHermesApiKey)
+    ) {
+      (req as Request & { admin?: AdminJwtPayload }).admin = {
+        sub: 'hermes-agent',
+        role: 'admin',
+      };
+      return true;
+    }
+
     const token = req.cookies?.[ADMIN_COOKIE_NAME] as string | undefined;
     if (!token) {
       throw new UnauthorizedException('Chưa đăng nhập admin');

@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from '../auth/public.decorator';
+import { HermesApiAccess } from '../auth/hermes-api.decorator';
 import { CameraBrand } from '../../generated/prisma/enums';
 import { CameraService } from './camera.service';
 import { CreateCameraDto } from './dto/create-camera.dto';
@@ -30,6 +31,7 @@ export class CameraController {
   constructor(private readonly cameraService: CameraService) {}
 
   @Get()
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Danh sách máy ảnh' })
   @ApiOkResponse({ description: 'Mảng Camera' })
   findAll() {
@@ -62,6 +64,7 @@ export class CameraController {
   }
 
   @Get(':id')
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Chi tiết một máy' })
   @ApiOkResponse({ description: 'Camera' })
   @ApiNotFoundResponse()
@@ -77,6 +80,7 @@ export class CameraController {
   }
 
   @Patch(':id')
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Cập nhật máy' })
   @ApiOkResponse({ description: 'Camera sau cập nhật' })
   @ApiNotFoundResponse()
