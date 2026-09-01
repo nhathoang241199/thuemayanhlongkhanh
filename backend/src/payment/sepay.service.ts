@@ -2,9 +2,11 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import {
   BookingStatus,
   PaymentRecordStatus,
@@ -36,6 +38,8 @@ export type SePayWebhookBody = {
 
 @Injectable()
 export class SepayService {
+  private readonly logger = new Logger(SepayService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly paymentService: PaymentService,
@@ -55,18 +59,42 @@ export class SepayService {
     return { bin, account, accountName, bankName };
   }
 
+  private normalizeEnvValue(value: string | undefined) {
+    return value?.trim().replace(/^["']|["']$/g, '') ?? '';
+  }
+
+  private webhookKeyMatches(provided: string, expected: string) {
+    const candidates = [
+      provided.trim(),
+      provided.replace(/^Apikey\s+/i, '').replace(/^Bearer\s+/i, '').trim(),
+    ];
+    return candidates.some((candidate) => {
+      if (candidate.length !== expected.length) return false;
+      return timingSafeEqual(Buffer.from(candidate), Buffer.from(expected));
+    });
+  }
+
   private verifyWebhookAuth(headers: Record<string, string | undefined>) {
-    const expected = process.env.SEPAY_WEBHOOK_API_KEY;
-    if (!expected?.trim()) {
+    const expected = this.normalizeEnvValue(process.env.SEPAY_WEBHOOK_API_KEY);
+    if (!expected) {
       return;
     }
-    const auth = headers.authorization ?? headers.Authorization ?? '';
-    const apiKey = headers['x-api-key'] ?? headers['X-Api-Key'] ?? '';
-    const token = auth.replace(/^Apikey\s+/i, '').replace(/^Bearer\s+/i, '').trim();
-    const provided = token || apiKey;
-    if (provided !== expected) {
-      throw new UnauthorizedException('Webhook không hợp lệ');
+
+    const providedHeaders = [
+      headers.authorization,
+      headers.Authorization,
+      headers['x-api-key'],
+      headers['X-Api-Key'],
+    ].filter((value): value is string => Boolean(value?.trim()));
+
+    if (providedHeaders.some((value) => this.webhookKeyMatches(value, expected))) {
+      return;
     }
+
+    this.logger.warn(
+      `[sepay] Webhook auth failed (headers: authorization=${Boolean(headers.authorization || headers.Authorization)}, x-api-key=${Boolean(headers['x-api-key'] || headers['X-Api-Key'])})`,
+    );
+    throw new UnauthorizedException('Webhook không hợp lệ');
   }
 
   buildQrImageUrl(amount: number, transferContent: string): string {
@@ -309,12 +337,18 @@ export class SepayService {
       return { success: true };
     }
 
+    const externalId = String(body.id);
     const payment = await this.findPaymentForWebhook(body);
     if (!payment) {
+      const texts = this.webhookTextFields(body);
+      if (texts.length > 0) {
+        this.logger.warn(
+          `[sepay] Webhook ${externalId}: không khớp payment pending (content=${texts.join(' | ').slice(0, 120)})`,
+        );
+      }
       return { success: true };
     }
 
-    const externalId = String(body.id);
     if (
       payment.status === PaymentRecordStatus.SUCCESS ||
       payment.externalTransId === externalId

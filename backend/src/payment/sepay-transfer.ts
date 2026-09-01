@@ -14,18 +14,20 @@ export function compactPaymentRef(value: string): string {
 
 export function stripTransferPrefix(text: string): string {
   const prefix = sepayTransferPrefix();
-  const re = new RegExp(`^${prefix}\\s*`, 'i');
-  return text.replace(re, '').trim();
+  const re = new RegExp(`${prefix}\\s*`, 'gi');
+  return text.replace(re, ' ').replace(/\s+/g, ' ').trim();
 }
 
-/** Trích mã đơn DH-YYYYMMDD-XXXX từ nội dung CK (có/không dấu gạch). */
+/** Trích mã đơn DH-YYYYMMDD-XXXX từ nội dung CK (có/không dấu gạch, có thể kèm tiền tố NH/SePay). */
 export function extractBookingCodeFromTransferText(text: string): string | null {
-  const stripped = stripTransferPrefix(text);
-  const dashed = stripped.match(/DH-\d{8}-[A-Z0-9]+/i);
+  const normalized = text.trim();
+  if (!normalized) return null;
+
+  const dashed = normalized.match(/DH-\d{8}-[A-Z0-9]+/i);
   if (dashed) return dashed[0].toUpperCase();
 
-  const compact = compactPaymentRef(stripped);
-  const compactMatch = compact.match(/^DH(\d{8})([A-Z0-9]+)$/);
+  const compact = compactPaymentRef(normalized);
+  const compactMatch = compact.match(/DH(\d{8})([A-Z0-9]+)/);
   if (compactMatch) {
     return `DH-${compactMatch[1]}-${compactMatch[2]}`;
   }
