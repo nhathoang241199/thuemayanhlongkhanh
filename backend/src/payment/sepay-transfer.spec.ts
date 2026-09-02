@@ -1,5 +1,6 @@
 import {
   buildTransferContent,
+  collectWebhookSearchTexts,
   compactPaymentRef,
   extractBookingCodeFromTransferText,
 } from './sepay-transfer';
@@ -26,5 +27,40 @@ describe('sepay-transfer', () => {
     expect(
       extractBookingCodeFromTransferText('ZP7D96VQGBUI SEVQR DH20260901M8UB'),
     ).toBe('DH-20260901-M8UB');
+  });
+
+  it('extractBookingCodeFromTransferText handles IBFT prefix and split lines', () => {
+    expect(
+      extractBookingCodeFromTransferText(
+        '922D6090212TQS41 IBFT SEVQR DH202609023XCQ',
+      ),
+    ).toBe('DH-20260902-3XCQ');
+    expect(
+      extractBookingCodeFromTransferText('922D6090212TQS41 IBFT SEVQR\nDH202609023XCQ'),
+    ).toBe('DH-20260902-3XCQ');
+    expect(extractBookingCodeFromTransferText('DH202609023XCQ')).toBe(
+      'DH-20260902-3XCQ',
+    );
+  });
+
+  it('collectWebhookSearchTexts joins split webhook fields', () => {
+    const texts = collectWebhookSearchTexts([
+      '922D6090212TQS41 IBFT SEVQR',
+      'DH202609023XCQ',
+    ]);
+    expect(texts).toContain('DH202609023XCQ');
+    expect(
+      extractBookingCodeFromTransferText(
+        texts.find((text) => text.includes('922D6090212TQS41')) ?? '',
+      ),
+    ).toBeNull();
+    expect(
+      extractBookingCodeFromTransferText(
+        texts.find((text) => text.includes('DH202609023XCQ')) ?? '',
+      ),
+    ).toBe('DH-20260902-3XCQ');
+    expect(extractBookingCodeFromTransferText(texts.at(-1) ?? '')).toBe(
+      'DH-20260902-3XCQ',
+    );
   });
 });

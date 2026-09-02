@@ -20,7 +20,7 @@ export function stripTransferPrefix(text: string): string {
 
 /** Trích mã đơn DH-YYYYMMDD-XXXX từ nội dung CK (có/không dấu gạch, có thể kèm tiền tố NH/SePay). */
 export function extractBookingCodeFromTransferText(text: string): string | null {
-  const normalized = text.trim();
+  const normalized = text.replace(/\s+/g, ' ').trim();
   if (!normalized) return null;
 
   const dashed = normalized.match(/DH-\d{8}-[A-Z0-9]+/i);
@@ -32,4 +32,11 @@ export function extractBookingCodeFromTransferText(text: string): string | null 
     return `DH-${compactMatch[1]}-${compactMatch[2]}`;
   }
   return null;
+}
+
+/** Gom mọi trường text webhook (từng field + nối chung) để NH tách dòng vẫn khớp được. */
+export function collectWebhookSearchTexts(fields: string[]): string[] {
+  const trimmed = fields.map((field) => field.trim()).filter(Boolean);
+  const combined = trimmed.join(' ').replace(/\s+/g, ' ').trim();
+  return [...new Set([...trimmed, combined].filter(Boolean))];
 }

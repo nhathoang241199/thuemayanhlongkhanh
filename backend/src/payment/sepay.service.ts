@@ -19,6 +19,7 @@ import { PaymentService } from './payment.service';
 import { TelegramBookingNotificationService } from './telegram-booking-notification';
 import {
   buildTransferContent,
+  collectWebhookSearchTexts,
   compactPaymentRef,
   extractBookingCodeFromTransferText,
   stripTransferPrefix,
@@ -284,7 +285,7 @@ export class SepayService {
   }
 
   private async findPaymentForWebhook(body: SePayWebhookBody) {
-    const texts = this.webhookTextFields(body);
+    const texts = collectWebhookSearchTexts(this.webhookTextFields(body));
 
     for (const text of texts) {
       const exact = await this.prisma.payment.findFirst({
