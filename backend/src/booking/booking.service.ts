@@ -889,11 +889,40 @@ export class BookingService {
     }
 
     try {
-      return await this.prisma.booking.update({
+      const updated = await this.prisma.booking.update({
         where: { id },
         data,
         include: bookingInclude,
       });
+
+      const becameDeposited =
+        dto.paymentStatus === PaymentStatus.DEPOSITED &&
+        existing.paymentStatus !== PaymentStatus.DEPOSITED;
+      const becameConfirmedFromPending =
+        dto.status === BookingStatus.CONFIRMED &&
+        existing.status === BookingStatus.PENDING_PAYMENT;
+
+      if (becameDeposited || becameConfirmedFromPending) {
+        await this.prisma.payment.updateMany({
+          where: {
+            bookingId: id,
+            status: { in: [PaymentRecordStatus.PENDING, PaymentRecordStatus.FAILED] },
+          },
+          data: { status: PaymentRecordStatus.SUCCESS },
+        });
+        if (updated.paymentStatus === PaymentStatus.PENDING) {
+          return this.prisma.booking.update({
+            where: { id },
+            data: {
+              paymentStatus: PaymentStatus.DEPOSITED,
+              status: BookingStatus.CONFIRMED,
+            },
+            include: bookingInclude,
+          });
+        }
+      }
+
+      return updated;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2025') {

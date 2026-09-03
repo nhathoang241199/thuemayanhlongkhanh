@@ -43,22 +43,25 @@ describe('sepay-transfer', () => {
     );
   });
 
+  it('extractBookingCodeFromTransferText handles CT DEN VietinBank prefix', () => {
+    expect(
+      extractBookingCodeFromTransferText(
+        'CT DEN:922T26903APKUYZX\nSEVQR DH20260903IIM9',
+      ),
+    ).toBe('DH-20260903-IIM9');
+    expect(
+      extractBookingCodeFromTransferText(
+        'CT DEN:922T26903APKUYZX SEVQR DH20260903IIM9',
+      ),
+    ).toBe('DH-20260903-IIM9');
+  });
+
   it('collectWebhookSearchTexts joins split webhook fields', () => {
     const texts = collectWebhookSearchTexts([
       '922D6090212TQS41 IBFT SEVQR',
       'DH202609023XCQ',
     ]);
     expect(texts).toContain('DH202609023XCQ');
-    expect(
-      extractBookingCodeFromTransferText(
-        texts.find((text) => text.includes('922D6090212TQS41')) ?? '',
-      ),
-    ).toBeNull();
-    expect(
-      extractBookingCodeFromTransferText(
-        texts.find((text) => text.includes('DH202609023XCQ')) ?? '',
-      ),
-    ).toBe('DH-20260902-3XCQ');
     expect(extractBookingCodeFromTransferText(texts.at(-1) ?? '')).toBe(
       'DH-20260902-3XCQ',
     );

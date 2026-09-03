@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { timingSafeEqual } from 'crypto';
@@ -19,6 +20,7 @@ import { PaymentService } from './payment.service';
 import { TelegramBookingNotificationService } from './telegram-booking-notification';
 import {
   buildTransferContent,
+  collectStringsFromWebhookPayload,
   collectWebhookSearchTexts,
   compactPaymentRef,
   extractBookingCodeFromTransferText,
@@ -70,30 +72,40 @@ export class SepayService {
       provided.replace(/^Apikey\s+/i, '').replace(/^Bearer\s+/i, '').trim(),
     ];
     return candidates.some((candidate) => {
-      if (candidate.length !== expected.length) return false;
+      if (!candidate || candidate.length !== expected.length) return false;
       return timingSafeEqual(Buffer.from(candidate), Buffer.from(expected));
     });
   }
 
-  private verifyWebhookAuth(headers: Record<string, string | undefined>) {
+  private verifyWebhookAuth(
+    headers: Record<string, string | string[] | undefined>,
+    queryApiKey?: string,
+  ) {
     const expected = this.normalizeEnvValue(process.env.SEPAY_WEBHOOK_API_KEY);
     if (!expected) {
       return;
     }
 
-    const providedHeaders = [
+    const headerValues = [
       headers.authorization,
       headers.Authorization,
       headers['x-api-key'],
       headers['X-Api-Key'],
-    ].filter((value): value is string => Boolean(value?.trim()));
+    ].flatMap((value) => {
+      if (Array.isArray(value)) return value;
+      return value ? [value] : [];
+    });
 
-    if (providedHeaders.some((value) => this.webhookKeyMatches(value, expected))) {
+    const provided = [...headerValues, queryApiKey ?? ''].filter((value) =>
+      Boolean(value?.trim()),
+    );
+
+    if (provided.some((value) => this.webhookKeyMatches(value, expected))) {
       return;
     }
 
     this.logger.warn(
-      `[sepay] Webhook auth failed (headers: authorization=${Boolean(headers.authorization || headers.Authorization)}, x-api-key=${Boolean(headers['x-api-key'] || headers['X-Api-Key'])})`,
+      `[sepay] Webhook auth failed (authorization=${Boolean(headers.authorization || headers.Authorization)}, x-api-key=${Boolean(headers['x-api-key'] || headers['X-Api-Key'])}, query=${Boolean(queryApiKey?.trim())}, expectedKeyLen=${expected.length})`,
     );
     throw new UnauthorizedException('Webhook không hợp lệ');
   }
@@ -264,9 +276,11 @@ export class SepayService {
   }
 
   private webhookTextFields(body: SePayWebhookBody): string[] {
-    return [body.code, body.content, body.referenceCode]
+    const preferred = [body.code, body.content, body.referenceCode]
       .map((s) => s?.trim())
       .filter((s): s is string => !!s);
+    const fromPayload = collectStringsFromWebhookPayload(body);
+    return [...new Set([...preferred, ...fromPayload])];
   }
 
   private async findPendingPaymentByBookingCode(bookingCode: string) {
@@ -330,9 +344,10 @@ export class SepayService {
 
   async handleWebhook(
     body: SePayWebhookBody,
-    headers: Record<string, string | undefined>,
+    headers: Record<string, string | string[] | undefined>,
+    queryApiKey?: string,
   ) {
-    this.verifyWebhookAuth(headers);
+    this.verifyWebhookAuth(headers, queryApiKey);
 
     if (body.transferType && body.transferType !== 'in') {
       return { success: true };
@@ -341,10 +356,10 @@ export class SepayService {
     const externalId = String(body.id);
     const payment = await this.findPaymentForWebhook(body);
     if (!payment) {
-      const texts = this.webhookTextFields(body);
+      const texts = collectWebhookSearchTexts(this.webhookTextFields(body));
       if (texts.length > 0) {
         this.logger.warn(
-          `[sepay] Webhook ${externalId}: không khớp payment pending (content=${texts.join(' | ').slice(0, 120)})`,
+          `[sepay] Webhook ${externalId}: không khớp payment pending (content=${texts.join(' | ').slice(0, 160)})`,
         );
       }
       return { success: true };
@@ -402,8 +417,8 @@ export class SepayService {
       return { success: true };
     }
 
-    // Tiền đã vào TK nhưng chưa confirm được đơn — giữ PENDING để SePay retry webhook.
-    console.warn(
+    // Tiền đã vào TK nhưng chưa confirm được đơn — trả 503 để SePay retry webhook.
+    this.logger.warn(
       `[sepay] Webhook ${externalId}: đã khớp payment ${payment.id} nhưng không confirm booking ${payment.bookingId}`,
     );
     await this.prisma.payment.update({
@@ -414,6 +429,8 @@ export class SepayService {
       },
     });
 
-    return { success: true };
+    throw new ServiceUnavailableException(
+      'Đã nhận tiền nhưng chưa giữ được chỗ — thử lại sau',
+    );
   }
 }

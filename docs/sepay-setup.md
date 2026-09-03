@@ -32,11 +32,26 @@ Mã đơn vẫn dạng `DH-YYYYMMDD-XXXX`. Webhook khớp theo `code` / `content
 https://<ngrok-or-domain>/api/payments/sepay/webhook
 ```
 
-Ví dụ dev với ngrok:
+Ví dụ production:
 
 ```text
-https://xxxx.ngrok-free.app/api/payments/sepay/webhook
+https://thuemayanhlongkhanh.com/api/payments/sepay/webhook
 ```
+
+**Quan trọng — Authentication:**
+
+1. Trên SePay chọn **API Key** (không dùng HMAC nếu backend chưa cấu hình HMAC).
+2. `SEPAY_WEBHOOK_API_KEY` trong `backend/.env` phải **khớp 100%** với API Key trên SePay (bọc `"..."` nếu key có `#`).
+3. Nginx phải forward header auth (xem `deploy/nginx-*.conf`):
+
+```nginx
+proxy_set_header Authorization $http_authorization;
+proxy_set_header X-Api-Key $http_x_api_key;
+```
+
+Sau khi sửa nginx: `sudo nginx -t && sudo systemctl reload nginx`.
+
+Nếu webhook bị **401**, SePay đã nhận tiền nhưng app **không** đổi trạng thái đơn. Kiểm tra delivery log trên SePay.
 
 SePay yêu cầu phản hồi **HTTP 200** và body `{ "success": true }` — đã xử lý trong API.
 

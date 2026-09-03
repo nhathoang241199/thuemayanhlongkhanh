@@ -27,7 +27,13 @@ export function extractBookingCodeFromTransferText(text: string): string | null 
   if (dashed) return dashed[0].toUpperCase();
 
   const compact = compactPaymentRef(normalized);
-  const compactMatch = compact.match(/DH(\d{8})([A-Z0-9]+)/);
+  // Ưu tiên đoạn ngay sau SEVQR nếu có (tránh khớp nhầm chuỗi DH trong mã NH).
+  const afterSevqr = compact.match(/SEVQR.*?DH(\d{8})([A-Z0-9]{3,8})/);
+  if (afterSevqr) {
+    return `DH-${afterSevqr[1]}-${afterSevqr[2]}`;
+  }
+
+  const compactMatch = compact.match(/DH(\d{8})([A-Z0-9]{3,8})/);
   if (compactMatch) {
     return `DH-${compactMatch[1]}-${compactMatch[2]}`;
   }
@@ -39,4 +45,27 @@ export function collectWebhookSearchTexts(fields: string[]): string[] {
   const trimmed = fields.map((field) => field.trim()).filter(Boolean);
   const combined = trimmed.join(' ').replace(/\s+/g, ' ').trim();
   return [...new Set([...trimmed, combined].filter(Boolean))];
+}
+
+/** Lấy mọi chuỗi từ payload SePay (content/code/description/…). */
+export function collectStringsFromWebhookPayload(value: unknown, out: string[] = []): string[] {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed) out.push(trimmed);
+    return out;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    out.push(String(value));
+    return out;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectStringsFromWebhookPayload(item, out);
+    return out;
+  }
+  if (value && typeof value === 'object') {
+    for (const item of Object.values(value as Record<string, unknown>)) {
+      collectStringsFromWebhookPayload(item, out);
+    }
+  }
+  return out;
 }
