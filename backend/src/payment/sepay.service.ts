@@ -24,6 +24,7 @@ import {
   collectWebhookSearchTexts,
   compactPaymentRef,
   extractAllBookingCodesFromTransferText,
+  normalizeSePayPaymentCode,
 } from './sepay-transfer';
 
 export type SePayWebhookBody = {
@@ -275,12 +276,18 @@ export class SepayService {
     });
   }
 
-  private webhookTextFields(body: SePayWebhookBody): string[] {
-    const preferred = [body.code, body.content, body.referenceCode]
+  private webhookMatchTexts(body: SePayWebhookBody): string[] {
+    // Không đưa mã thanh toán cụt (DH+ngày) vào fuzzy match — dễ khớp nhầm nhiều đơn cùng ngày.
+    const paymentCode = normalizeSePayPaymentCode(body.code);
+    const preferred = [paymentCode, body.content, body.referenceCode]
       .map((s) => s?.trim())
       .filter((s): s is string => !!s);
-    const fromPayload = collectStringsFromWebhookPayload(body);
-    return [...new Set([...preferred, ...fromPayload])];
+    const fromPayload = collectStringsFromWebhookPayload({
+      content: body.content,
+      referenceCode: body.referenceCode,
+      description: (body as { description?: string | null }).description,
+    });
+    return collectWebhookSearchTexts([...preferred, ...fromPayload]);
   }
 
   private async listMatchablePayments() {
@@ -322,11 +329,32 @@ export class SepayService {
     );
   }
 
+  /**
+   * Khớp giao dịch SePay với payment đang chờ cọc.
+   * 1) `code` (Mã thanh toán) nếu ĐỦ hậu tố — so trực tiếp với bookingCode đã lưu
+   * 2) Trích DH-YYYYMMDD-XXXX từ nội dung CK (bỏ CT DEN / IBFT / SEVQR)
+   * 3) Fuzzy: compact mã đơn nằm trong nội dung
+   */
   private async findPaymentForWebhook(body: SePayWebhookBody) {
-    const texts = collectWebhookSearchTexts(this.webhookTextFields(body));
     const matchable = await this.listMatchablePayments();
     if (matchable.length === 0) return null;
 
+    const fromSePayCode = normalizeSePayPaymentCode(body.code);
+    if (fromSePayCode) {
+      const byPaymentCode = this.pickPaymentByBookingCode(matchable, fromSePayCode);
+      if (byPaymentCode) {
+        this.logger.log(
+          `[sepay] Khớp theo Mã thanh toán (code=${fromSePayCode}) → booking ${byPaymentCode.booking.bookingCode}`,
+        );
+        return byPaymentCode;
+      }
+    } else if (body.code?.trim()) {
+      this.logger.warn(
+        `[sepay] Bỏ qua Mã thanh toán cụt/không hợp lệ: "${body.code.trim()}" — cần đủ dạng DH+YYYYMMDD+hậu tố`,
+      );
+    }
+
+    const texts = this.webhookMatchTexts(body);
     const extractedCodes = new Set<string>();
     for (const text of texts) {
       for (const code of extractAllBookingCodesFromTransferText(text)) {
@@ -336,12 +364,22 @@ export class SepayService {
 
     for (const bookingCode of extractedCodes) {
       const byCode = this.pickPaymentByBookingCode(matchable, bookingCode);
-      if (byCode) return byCode;
+      if (byCode) {
+        this.logger.log(
+          `[sepay] Khớp theo nội dung CK (extracted=${bookingCode}) → booking ${byCode.booking.bookingCode}`,
+        );
+        return byCode;
+      }
     }
 
     for (const text of texts) {
       for (const payment of matchable) {
-        if (this.paymentMatchesText(payment, text)) return payment;
+        if (this.paymentMatchesText(payment, text)) {
+          this.logger.log(
+            `[sepay] Khớp fuzzy content → booking ${payment.booking.bookingCode}`,
+          );
+          return payment;
+        }
       }
     }
 
@@ -373,12 +411,13 @@ export class SepayService {
     const externalId = String(body.id ?? '');
     const payment = await this.findPaymentForWebhook(body);
     if (!payment) {
-      const texts = collectWebhookSearchTexts(this.webhookTextFields(body));
-      const codes = texts.flatMap((text) =>
-        extractAllBookingCodesFromTransferText(text),
-      );
+      const texts = this.webhookMatchTexts(body);
+      const codes = [
+        normalizeSePayPaymentCode(body.code),
+        ...texts.flatMap((text) => extractAllBookingCodesFromTransferText(text)),
+      ].filter(Boolean);
       this.logger.warn(
-        `[sepay] Webhook ${externalId || 'unknown'}: không khớp payment (codes=${codes.join(',') || 'none'}; content=${texts.join(' | ').slice(0, 180)})`,
+        `[sepay] Webhook ${externalId || 'unknown'}: không khớp payment (sepayCode=${body.code ?? 'null'}; codes=${codes.join(',') || 'none'}; content=${texts.join(' | ').slice(0, 180)})`,
       );
       return { success: true };
     }

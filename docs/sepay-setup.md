@@ -22,7 +22,25 @@ Nội dung chuyển khoản hiển thị trên app = **`SEVQR` + mã đơn** (vd
 
 **VietinBank + SePay (API Banking):** mọi giao dịch vào TK phải có nội dung **bắt đầu bằng `SEVQR`** thì SePay mới nhận biến động số dư và gửi webhook. Chuyển chỉ `DH-...` hoặc `DH20260517...` **không** xuất hiện trong SePay.
 
-Mã đơn vẫn dạng `DH-YYYYMMDD-XXXX`. Webhook khớp theo `code` / `content` (có hoặc không dấu `-`). Trên SePay có thể lọc tiền tố **DH** trong mã thanh toán.
+Mã đơn dạng `DH-YYYYMMDD-XXXX` (vd. `DH-20260521-M9F2` / compact `DH20260521M9F2`).
+
+Webhook khớp theo thứ tự:
+
+1. **`code` (Mã thanh toán)** — chỉ khi SePay trả **mã đủ hậu tố** (không dùng mã cụt `DH20260521`).
+2. **`content` (Nội dung)** — trích `DH…` sau `SEVQR`, bỏ prefix ngân hàng (`CT DEN:`, `IBFT`, …).
+3. Fuzzy: compact mã đơn nằm trong nội dung.
+
+### Cấu hình nhận diện Mã thanh toán trên SePay
+
+Trên dashboard SePay, pattern phải lấy **cả hậu tố**, không chỉ ngày:
+
+| Sai (đang gặp) | Đúng |
+| --- | --- |
+| `DH20260521` (trùng mọi đơn trong ngày) | `DH20260521M9F2` |
+
+Gợi ý: tiền tố `DH`, độ dài tối thiểu đủ cho `DH` + 8 số ngày + 4 ký tự hậu tố (khoảng 14+ ký tự alphanumeric), hoặc regex tương đương `DH[0-9]{8}[A-Z0-9]{4}`.
+
+Nếu cột Mã thanh toán vẫn cụt, app vẫn xác minh được nhờ parse **Nội dung** — miễn webhook gọi được và đơn còn trạng thái chờ cọc.
 
 ## Webhook URL
 

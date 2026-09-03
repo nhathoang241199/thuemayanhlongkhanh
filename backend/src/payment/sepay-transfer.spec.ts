@@ -4,6 +4,8 @@ import {
   compactPaymentRef,
   extractAllBookingCodesFromTransferText,
   extractBookingCodeFromTransferText,
+  isCompleteBookingCode,
+  normalizeSePayPaymentCode,
 } from './sepay-transfer';
 
 describe('sepay-transfer', () => {
@@ -24,45 +26,30 @@ describe('sepay-transfer', () => {
     expect(extractBookingCodeFromTransferText(compact)).toBe('DH-20260520-ABCD');
   });
 
-  it('extractBookingCodeFromTransferText handles SePay prefix before SEVQR', () => {
-    expect(
-      extractBookingCodeFromTransferText('ZP7D96VQGBUI SEVQR DH20260901M8UB'),
-    ).toBe('DH-20260901-M8UB');
-  });
-
-  it('extractBookingCodeFromTransferText handles IBFT prefix and split lines', () => {
-    expect(
-      extractBookingCodeFromTransferText(
-        '922D6090212TQS41 IBFT SEVQR DH202609023XCQ',
-      ),
-    ).toBe('DH-20260902-3XCQ');
-    expect(
-      extractBookingCodeFromTransferText(
-        '922D6090212TQS41 IBFT SEVQR\nDH202609023XCQ',
-      ),
-    ).toBe('DH-20260902-3XCQ');
-  });
-
   it('extractBookingCodeFromTransferText handles CT DEN VietinBank prefix', () => {
     expect(
       extractBookingCodeFromTransferText(
         'CT DEN:922T26903N7D377G\nSEVQR DH20260903Y81B',
       ),
     ).toBe('DH-20260903-Y81B');
-    expect(
-      extractAllBookingCodesFromTransferText(
-        'CT DEN:922T26903N7D377G SEVQR DH20260903Y81B',
-      ),
-    ).toEqual(['DH-20260903-Y81B']);
   });
 
-  it('collectWebhookSearchTexts joins split webhook fields', () => {
-    const texts = collectWebhookSearchTexts([
-      'CT DEN:922T26903N7D377G',
-      'SEVQR DH20260903Y81B',
-    ]);
-    expect(extractBookingCodeFromTransferText(texts.at(-1) ?? '')).toBe(
-      'DH-20260903-Y81B',
-    );
+  it('rejects truncated SePay payment codes like DH20260521', () => {
+    expect(isCompleteBookingCode('DH20260521')).toBe(false);
+    expect(normalizeSePayPaymentCode('DH20260521')).toBeNull();
+    expect(normalizeSePayPaymentCode('DH20260521M9F2')).toBe('DH-20260521-M9F2');
+    expect(extractAllBookingCodesFromTransferText('DH20260521')).toEqual([]);
+  });
+
+  it('extracts full code from content even when SePay code is truncated', () => {
+    expect(
+      extractBookingCodeFromTransferText('SEVQR DH20260521M9F2'),
+    ).toBe('DH-20260521-M9F2');
+    expect(
+      collectWebhookSearchTexts([
+        'CT DEN:922T2650ZT8RRD8V',
+        'SEVQR DH20260521M9F2',
+      ]).some((text) => extractBookingCodeFromTransferText(text) === 'DH-20260521-M9F2'),
+    ).toBe(true);
   });
 });

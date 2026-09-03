@@ -12,6 +12,18 @@ export function compactPaymentRef(value: string): string {
   return value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 }
 
+/** Mã đơn đầy đủ: DH + YYYYMMDD + hậu tố 3–8 ký tự (không chấp nhận chỉ DH+ngày). */
+export function isCompleteBookingCode(value: string): boolean {
+  return /^DH\d{8}[A-Z0-9]{3,8}$/.test(compactPaymentRef(value));
+}
+
+export function toDashedBookingCode(compactOrDashed: string): string | null {
+  const compact = compactPaymentRef(compactOrDashed);
+  const match = compact.match(/^DH(\d{8})([A-Z0-9]{3,8})$/);
+  if (!match) return null;
+  return `DH-${match[1]}-${match[2]}`;
+}
+
 export function stripTransferPrefix(text: string): string {
   const prefix = sepayTransferPrefix();
   const re = new RegExp(`${prefix}\\s*`, 'gi');
@@ -24,15 +36,15 @@ export function extractBookingCodeFromTransferText(text: string): string | null 
   return codes[0] ?? null;
 }
 
-/** Lấy mọi mã đơn có trong nội dung (ưu tiên đoạn sau SEVQR). */
+/** Lấy mọi mã đơn ĐẦY ĐỦ có trong nội dung (bỏ mã cụt kiểu DH20260521 của SePay). */
 export function extractAllBookingCodesFromTransferText(text: string): string[] {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (!normalized) return [];
 
   const found: string[] = [];
   const push = (code: string) => {
-    const upper = code.toUpperCase();
-    if (!found.includes(upper)) found.push(upper);
+    const dashed = toDashedBookingCode(code);
+    if (dashed && !found.includes(dashed)) found.push(dashed);
   };
 
   for (const match of normalized.matchAll(/DH-\d{8}-[A-Z0-9]{3,8}/gi)) {
@@ -40,16 +52,24 @@ export function extractAllBookingCodesFromTransferText(text: string): string[] {
   }
 
   const compact = compactPaymentRef(normalized);
-  const afterSevqr = [...compact.matchAll(/SEVQR.*?DH(\d{8})([A-Z0-9]{3,8})/g)];
-  for (const match of afterSevqr) {
+  for (const match of compact.matchAll(/SEVQR.*?DH(\d{8})([A-Z0-9]{3,8})/g)) {
     push(`DH-${match[1]}-${match[2]}`);
   }
-
   for (const match of compact.matchAll(/DH(\d{8})([A-Z0-9]{3,8})/g)) {
     push(`DH-${match[1]}-${match[2]}`);
   }
 
-  return found;
+  return found.filter((code) => isCompleteBookingCode(code));
+}
+
+/**
+ * Chuẩn hóa field `code` (Mã thanh toán) từ SePay.
+ * Chỉ chấp nhận mã đủ hậu tố — bỏ qua mã cụt như DH20260521 (trùng nhiều đơn trong ngày).
+ */
+export function normalizeSePayPaymentCode(code?: string | null): string | null {
+  if (!code?.trim()) return null;
+  const dashed = toDashedBookingCode(code);
+  return dashed && isCompleteBookingCode(dashed) ? dashed : null;
 }
 
 /** Gom mọi trường text webhook (từng field + nối chung) để NH tách dòng vẫn khớp được. */
