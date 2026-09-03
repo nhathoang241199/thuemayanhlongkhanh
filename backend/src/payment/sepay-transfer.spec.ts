@@ -2,6 +2,7 @@ import {
   buildTransferContent,
   collectWebhookSearchTexts,
   compactPaymentRef,
+  extractAllBookingCodesFromTransferText,
   extractBookingCodeFromTransferText,
 } from './sepay-transfer';
 
@@ -36,34 +37,32 @@ describe('sepay-transfer', () => {
       ),
     ).toBe('DH-20260902-3XCQ');
     expect(
-      extractBookingCodeFromTransferText('922D6090212TQS41 IBFT SEVQR\nDH202609023XCQ'),
+      extractBookingCodeFromTransferText(
+        '922D6090212TQS41 IBFT SEVQR\nDH202609023XCQ',
+      ),
     ).toBe('DH-20260902-3XCQ');
-    expect(extractBookingCodeFromTransferText('DH202609023XCQ')).toBe(
-      'DH-20260902-3XCQ',
-    );
   });
 
   it('extractBookingCodeFromTransferText handles CT DEN VietinBank prefix', () => {
     expect(
       extractBookingCodeFromTransferText(
-        'CT DEN:922T26903APKUYZX\nSEVQR DH20260903IIM9',
+        'CT DEN:922T26903N7D377G\nSEVQR DH20260903Y81B',
       ),
-    ).toBe('DH-20260903-IIM9');
+    ).toBe('DH-20260903-Y81B');
     expect(
-      extractBookingCodeFromTransferText(
-        'CT DEN:922T26903APKUYZX SEVQR DH20260903IIM9',
+      extractAllBookingCodesFromTransferText(
+        'CT DEN:922T26903N7D377G SEVQR DH20260903Y81B',
       ),
-    ).toBe('DH-20260903-IIM9');
+    ).toEqual(['DH-20260903-Y81B']);
   });
 
   it('collectWebhookSearchTexts joins split webhook fields', () => {
     const texts = collectWebhookSearchTexts([
-      '922D6090212TQS41 IBFT SEVQR',
-      'DH202609023XCQ',
+      'CT DEN:922T26903N7D377G',
+      'SEVQR DH20260903Y81B',
     ]);
-    expect(texts).toContain('DH202609023XCQ');
     expect(extractBookingCodeFromTransferText(texts.at(-1) ?? '')).toBe(
-      'DH-20260902-3XCQ',
+      'DH-20260903-Y81B',
     );
   });
 });

@@ -20,24 +20,36 @@ export function stripTransferPrefix(text: string): string {
 
 /** Trích mã đơn DH-YYYYMMDD-XXXX từ nội dung CK (có/không dấu gạch, có thể kèm tiền tố NH/SePay). */
 export function extractBookingCodeFromTransferText(text: string): string | null {
-  const normalized = text.replace(/\s+/g, ' ').trim();
-  if (!normalized) return null;
+  const codes = extractAllBookingCodesFromTransferText(text);
+  return codes[0] ?? null;
+}
 
-  const dashed = normalized.match(/DH-\d{8}-[A-Z0-9]+/i);
-  if (dashed) return dashed[0].toUpperCase();
+/** Lấy mọi mã đơn có trong nội dung (ưu tiên đoạn sau SEVQR). */
+export function extractAllBookingCodesFromTransferText(text: string): string[] {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return [];
+
+  const found: string[] = [];
+  const push = (code: string) => {
+    const upper = code.toUpperCase();
+    if (!found.includes(upper)) found.push(upper);
+  };
+
+  for (const match of normalized.matchAll(/DH-\d{8}-[A-Z0-9]{3,8}/gi)) {
+    push(match[0]);
+  }
 
   const compact = compactPaymentRef(normalized);
-  // Ưu tiên đoạn ngay sau SEVQR nếu có (tránh khớp nhầm chuỗi DH trong mã NH).
-  const afterSevqr = compact.match(/SEVQR.*?DH(\d{8})([A-Z0-9]{3,8})/);
-  if (afterSevqr) {
-    return `DH-${afterSevqr[1]}-${afterSevqr[2]}`;
+  const afterSevqr = [...compact.matchAll(/SEVQR.*?DH(\d{8})([A-Z0-9]{3,8})/g)];
+  for (const match of afterSevqr) {
+    push(`DH-${match[1]}-${match[2]}`);
   }
 
-  const compactMatch = compact.match(/DH(\d{8})([A-Z0-9]{3,8})/);
-  if (compactMatch) {
-    return `DH-${compactMatch[1]}-${compactMatch[2]}`;
+  for (const match of compact.matchAll(/DH(\d{8})([A-Z0-9]{3,8})/g)) {
+    push(`DH-${match[1]}-${match[2]}`);
   }
-  return null;
+
+  return found;
 }
 
 /** Gom mọi trường text webhook (từng field + nối chung) để NH tách dòng vẫn khớp được. */

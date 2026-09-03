@@ -23,8 +23,7 @@ import {
   collectStringsFromWebhookPayload,
   collectWebhookSearchTexts,
   compactPaymentRef,
-  extractBookingCodeFromTransferText,
-  stripTransferPrefix,
+  extractAllBookingCodesFromTransferText,
 } from './sepay-transfer';
 
 export type SePayWebhookBody = {
@@ -264,15 +263,16 @@ export class SepayService {
     payment: { providerTxnRef: string; booking: { bookingCode: string } },
     raw: string,
   ): boolean {
-    const text = stripTransferPrefix(raw);
-    const compact = compactPaymentRef(text);
+    const compact = compactPaymentRef(raw);
     const refs = [payment.providerTxnRef, payment.booking.bookingCode];
-    return refs.some(
-      (ref) =>
-        text.includes(ref) ||
-        compact.includes(compactPaymentRef(ref)) ||
-        compactPaymentRef(ref).includes(compact),
-    );
+    return refs.some((ref) => {
+      const refCompact = compactPaymentRef(ref);
+      if (!refCompact) return false;
+      return (
+        compact.includes(refCompact) ||
+        raw.toUpperCase().includes(ref.toUpperCase())
+      );
+    });
   }
 
   private webhookTextFields(body: SePayWebhookBody): string[] {
@@ -283,51 +283,65 @@ export class SepayService {
     return [...new Set([...preferred, ...fromPayload])];
   }
 
-  private async findPendingPaymentByBookingCode(bookingCode: string) {
-    const normalized = bookingCode.trim().toUpperCase();
-    return this.prisma.payment.findFirst({
+  private async listMatchablePayments() {
+    return this.prisma.payment.findMany({
       where: {
         provider: 'SEPAY',
-        status: PaymentRecordStatus.PENDING,
-        OR: [
-          { providerTxnRef: normalized },
-          { booking: { bookingCode: normalized } },
-        ],
+        status: {
+          in: [PaymentRecordStatus.PENDING, PaymentRecordStatus.FAILED],
+        },
+        booking: { status: BookingStatus.PENDING_PAYMENT },
       },
       include: { booking: true },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
     });
+  }
+
+  private pickPaymentByBookingCode<
+    T extends {
+      id: string;
+      bookingId: string;
+      providerTxnRef: string;
+      booking: { bookingCode: string };
+    },
+  >(payments: T[], bookingCode: string): T | null {
+    const normalized = bookingCode.trim().toUpperCase();
+    const compact = compactPaymentRef(normalized);
+    return (
+      payments.find((payment) => {
+        const codes = [
+          payment.providerTxnRef,
+          payment.booking.bookingCode,
+        ].map((value) => value.trim().toUpperCase());
+        return (
+          codes.includes(normalized) ||
+          codes.some((code) => compactPaymentRef(code) === compact)
+        );
+      }) ?? null
+    );
   }
 
   private async findPaymentForWebhook(body: SePayWebhookBody) {
     const texts = collectWebhookSearchTexts(this.webhookTextFields(body));
+    const matchable = await this.listMatchablePayments();
+    if (matchable.length === 0) return null;
 
+    const extractedCodes = new Set<string>();
     for (const text of texts) {
-      const exact = await this.prisma.payment.findFirst({
-        where: {
-          provider: 'SEPAY',
-          status: PaymentRecordStatus.PENDING,
-          providerTxnRef: text,
-        },
-        include: { booking: true },
-      });
-      if (exact) return exact;
-
-      const bookingCode = extractBookingCodeFromTransferText(text);
-      if (bookingCode) {
-        const byBooking = await this.findPendingPaymentByBookingCode(bookingCode);
-        if (byBooking) return byBooking;
+      for (const code of extractAllBookingCodesFromTransferText(text)) {
+        extractedCodes.add(code);
       }
     }
 
+    for (const bookingCode of extractedCodes) {
+      const byCode = this.pickPaymentByBookingCode(matchable, bookingCode);
+      if (byCode) return byCode;
+    }
+
     for (const text of texts) {
-      const pending = await this.prisma.payment.findMany({
-        where: { status: PaymentRecordStatus.PENDING, provider: 'SEPAY' },
-        include: { booking: true },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
-      });
-      for (const p of pending) {
-        if (this.paymentMatchesText(p, text)) return p;
+      for (const payment of matchable) {
+        if (this.paymentMatchesText(payment, text)) return payment;
       }
     }
 
@@ -349,19 +363,23 @@ export class SepayService {
   ) {
     this.verifyWebhookAuth(headers, queryApiKey);
 
-    if (body.transferType && body.transferType !== 'in') {
+    if (
+      body.transferType &&
+      String(body.transferType).trim().toLowerCase() !== 'in'
+    ) {
       return { success: true };
     }
 
-    const externalId = String(body.id);
+    const externalId = String(body.id ?? '');
     const payment = await this.findPaymentForWebhook(body);
     if (!payment) {
       const texts = collectWebhookSearchTexts(this.webhookTextFields(body));
-      if (texts.length > 0) {
-        this.logger.warn(
-          `[sepay] Webhook ${externalId}: không khớp payment pending (content=${texts.join(' | ').slice(0, 160)})`,
-        );
-      }
+      const codes = texts.flatMap((text) =>
+        extractAllBookingCodesFromTransferText(text),
+      );
+      this.logger.warn(
+        `[sepay] Webhook ${externalId || 'unknown'}: không khớp payment (codes=${codes.join(',') || 'none'}; content=${texts.join(' | ').slice(0, 180)})`,
+      );
       return { success: true };
     }
 
