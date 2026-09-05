@@ -126,6 +126,7 @@ export type ShipOrder = {
   shipperName: string | null;
   claimedAt: string | null;
   completedAt: string | null;
+  scheduleAt: string;
   requestedAt: string;
   updatedAt: string;
 };

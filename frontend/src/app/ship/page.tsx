@@ -99,7 +99,7 @@ function mergeBoardOrders(
   }
   return [...byId.values()].sort(
     (a, b) =>
-      new Date(a.requestedAt).getTime() - new Date(b.requestedAt).getTime(),
+      new Date(a.scheduleAt).getTime() - new Date(b.scheduleAt).getTime(),
   );
 }
 
@@ -170,7 +170,7 @@ function ShipOrderCard({
               flex="1"
               minW={0}
             >
-              {formatShipOrderRequestedAt(order.requestedAt)}
+              {formatShipOrderRequestedAt(order.scheduleAt)}
             </Text>
             {showActions ? (
               <HStack justify="flex-end" gap={1} flexShrink={0}>
@@ -337,7 +337,7 @@ export default function ShipBoardPage() {
         return a.displayStatus === "WAIT_RETURN" ? -1 : 1;
       }
       return (
-        new Date(a.requestedAt).getTime() - new Date(b.requestedAt).getTime()
+        new Date(a.scheduleAt).getTime() - new Date(b.scheduleAt).getTime()
       );
     });
   }, [orders, activeTab]);

@@ -44,10 +44,34 @@ const shipOrderInclude = {
   shipper: { select: { name: true } },
   booking: {
     select: {
+      pickupAt: true,
+      startBookingDate: true,
+      endBookingDate: true,
+      returnNextMorning: true,
+      slot: true,
       customer: { select: { id: true, verificationImageUrls: true } },
     },
   },
 } as const;
+
+function scheduleAtForLeg(
+  leg: ShipLeg,
+  booking:
+    | {
+        pickupAt: Date | null;
+        startBookingDate: Date;
+        endBookingDate: Date;
+      }
+    | null
+    | undefined,
+  fallback: Date,
+): Date {
+  if (!booking) return fallback;
+  if (leg === 'OUTBOUND') {
+    return booking.pickupAt ?? booking.startBookingDate ?? fallback;
+  }
+  return booking.endBookingDate ?? fallback;
+}
 
 @Injectable()
 export class ShipOrderService {
@@ -90,18 +114,23 @@ export class ShipOrderService {
     requestedAt: Date;
     updatedAt: Date;
     booking?: {
+      pickupAt: Date | null;
+      startBookingDate: Date;
+      endBookingDate: Date;
       customer: { id: string; verificationImageUrls: string[] };
     } | null;
   }): ShipOrderView {
     const verificationUrls = row.booking?.customer?.verificationImageUrls ?? [];
+    const leg = row.leg as ShipLeg;
+    const scheduleAt = scheduleAtForLeg(leg, row.booking, row.requestedAt);
     return {
       id: row.id,
       bookingId: row.bookingId,
       bookingCode: row.bookingCode,
-      leg: row.leg as ShipLeg,
+      leg,
       status: row.status as ShipOrderStatus,
       displayStatus: resolveShipDisplayStatus(
-        row.leg as ShipLeg,
+        leg,
         row.status as ShipOrderStatus,
       ),
       customerName: row.customerName,
@@ -115,6 +144,7 @@ export class ShipOrderService {
       shipperName: row.shipper?.name ?? null,
       claimedAt: row.claimedAt?.toISOString() ?? null,
       completedAt: row.completedAt?.toISOString() ?? null,
+      scheduleAt: scheduleAt.toISOString(),
       requestedAt: row.requestedAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

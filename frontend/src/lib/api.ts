@@ -54,6 +54,7 @@ export type ShipOrder = {
   address: string;
   shipperId: string | null;
   shipper?: { name: string } | null;
+  scheduleAt?: string;
   requestedAt: string;
   claimedAt: string | null;
   completedAt: string | null;

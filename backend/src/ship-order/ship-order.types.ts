@@ -49,6 +49,8 @@ export type ShipOrderView = {
   shipperName: string | null;
   claimedAt: string | null;
   completedAt: string | null;
+  /** Thời gian shipper cần tới: giao = pickupAt; trả = endBookingDate. */
+  scheduleAt: string;
   requestedAt: string;
   updatedAt: string;
 };
