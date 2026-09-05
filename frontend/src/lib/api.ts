@@ -44,6 +44,22 @@ export async function identifyCustomer(
   return (await res.json()) as IdentifyCustomerResponse;
 }
 
+export type ShipOrder = {
+  id: string;
+  leg: "OUTBOUND" | "RETURN";
+  status: string;
+  bookingCode: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  shipperId: string | null;
+  shipper?: { name: string } | null;
+  requestedAt: string;
+  claimedAt: string | null;
+  completedAt: string | null;
+  updatedAt: string;
+};
+
 export type MyBooking = {
   id: string;
   bookingCode: string;
@@ -56,6 +72,8 @@ export type MyBooking = {
   status: string;
   paymentStatus: string;
   note: string | null;
+  shippingAddress?: string | null;
+  shipOrders?: ShipOrder[];
   pendingChange?: unknown;
   /** CONFIRMED: máy vật lý sẵn sàng nhận; null: không hiện badge */
   cameraReady?: boolean | null;
@@ -163,6 +181,25 @@ export async function cancelCustomerBooking(
     throw new Error(text || res.statusText);
   }
   return (await res.json()) as CancelBookingResult;
+}
+
+export async function requestCustomerReturn(
+  bookingId: string,
+  phone: string,
+): Promise<ShipOrder> {
+  const res = await fetch(
+    `${apiBase()}/api/bookings/customer/${bookingId}/request-return`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+  return (await res.json()) as ShipOrder;
 }
 
 export function sessionFromIdentify(

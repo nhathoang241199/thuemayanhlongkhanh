@@ -10,37 +10,19 @@ Hướng dẫn cấu hình thanh toán chuyển khoản qua [SePay Webhooks](htt
 
 ## Biến môi trường
 
-| Biến                    | Mô tả                                                                               |
-| ----------------------- | ----------------------------------------------------------------------------------- |
+| Biến                    | Mô tả                                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SEPAY_WEBHOOK_API_KEY` | API Key đăng ký trên SePay — header `Authorization: Apikey ...` khi webhook gọi vào. **Bọc trong dấu ngoặc kép** nếu key có `#` hoặc `!` (trong `.env`, `#` là comment) |
-| `SEPAY_BANK_BIN`        | Mã BIN ngân hàng (6 số) cho VietQR, vd. `970436`                                    |
-| `SEPAY_BANK_ACCOUNT`    | Số tài khoản nhận tiền                                                              |
-| `SEPAY_ACCOUNT_NAME`    | Tên chủ TK (hiển thị + VietQR)                                                      |
-| `SEPAY_BANK_NAME`       | Tên ngân hàng hiển thị (vd. Vietcombank)                                            |
+| `SEPAY_BANK_BIN`        | Mã BIN ngân hàng (6 số) cho VietQR, vd. `970436`                                                                                                                        |
+| `SEPAY_BANK_ACCOUNT`    | Số tài khoản nhận tiền                                                                                                                                                  |
+| `SEPAY_ACCOUNT_NAME`    | Tên chủ TK (hiển thị + VietQR)                                                                                                                                          |
+| `SEPAY_BANK_NAME`       | Tên ngân hàng hiển thị (vd. Vietcombank)                                                                                                                                |
 
 Nội dung chuyển khoản hiển thị trên app = **`SEVQR` + mã đơn** (vd. `SEVQR DH-20260517-ABCD`).
 
 **VietinBank + SePay (API Banking):** mọi giao dịch vào TK phải có nội dung **bắt đầu bằng `SEVQR`** thì SePay mới nhận biến động số dư và gửi webhook. Chuyển chỉ `DH-...` hoặc `DH20260517...` **không** xuất hiện trong SePay.
 
-Mã đơn dạng `DH-YYYYMMDD-XXXX` (vd. `DH-20260521-M9F2` / compact `DH20260521M9F2`).
-
-Webhook khớp theo thứ tự:
-
-1. **`code` (Mã thanh toán)** — chỉ khi SePay trả **mã đủ hậu tố** (không dùng mã cụt `DH20260521`).
-2. **`content` (Nội dung)** — trích `DH…` sau `SEVQR`, bỏ prefix ngân hàng (`CT DEN:`, `IBFT`, …).
-3. Fuzzy: compact mã đơn nằm trong nội dung.
-
-### Cấu hình nhận diện Mã thanh toán trên SePay
-
-Trên dashboard SePay, pattern phải lấy **cả hậu tố**, không chỉ ngày:
-
-| Sai (đang gặp) | Đúng |
-| --- | --- |
-| `DH20260521` (trùng mọi đơn trong ngày) | `DH20260521M9F2` |
-
-Gợi ý: tiền tố `DH`, độ dài tối thiểu đủ cho `DH` + 8 số ngày + 4 ký tự hậu tố (khoảng 14+ ký tự alphanumeric), hoặc regex tương đương `DH[0-9]{8}[A-Z0-9]{4}`.
-
-Nếu cột Mã thanh toán vẫn cụt, app vẫn xác minh được nhờ parse **Nội dung** — miễn webhook gọi được và đơn còn trạng thái chờ cọc.
+Mã đơn vẫn dạng `DH-YYYYMMDD-XXXX`. Webhook khớp theo `code` / `content` (có hoặc không dấu `-`). Trên SePay có thể lọc tiền tố **DH** trong mã thanh toán.
 
 ## Webhook URL
 
@@ -50,26 +32,11 @@ Nếu cột Mã thanh toán vẫn cụt, app vẫn xác minh được nhờ pars
 https://<ngrok-or-domain>/api/payments/sepay/webhook
 ```
 
-Ví dụ production:
+Ví dụ dev với ngrok:
 
 ```text
-https://thuemayanhlongkhanh.com/api/payments/sepay/webhook
+https://xxxx.ngrok-free.app/api/payments/sepay/webhook
 ```
-
-**Quan trọng — Authentication:**
-
-1. Trên SePay chọn **API Key** (không dùng HMAC nếu backend chưa cấu hình HMAC).
-2. `SEPAY_WEBHOOK_API_KEY` trong `backend/.env` phải **khớp 100%** với API Key trên SePay (bọc `"..."` nếu key có `#`).
-3. Nginx phải forward header auth (xem `deploy/nginx-*.conf`):
-
-```nginx
-proxy_set_header Authorization $http_authorization;
-proxy_set_header X-Api-Key $http_x_api_key;
-```
-
-Sau khi sửa nginx: `sudo nginx -t && sudo systemctl reload nginx`.
-
-Nếu webhook bị **401**, SePay đã nhận tiền nhưng app **không** đổi trạng thái đơn. Kiểm tra delivery log trên SePay.
 
 SePay yêu cầu phản hồi **HTTP 200** và body `{ "success": true }` — đã xử lý trong API.
 

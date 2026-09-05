@@ -482,6 +482,20 @@ export function formatPickupAtMobileCard(
   return `${timePhrase} ${dayPart}`;
 }
 
+/**
+ * Thời gian đơn ship: "14:30 · hôm nay" (múi VN, ngày tương đối như admin).
+ */
+export function formatShipOrderRequestedAt(
+  iso: string,
+  refDate: Date = new Date(),
+): string {
+  const hm = pickupHourMinuteVN(iso);
+  if (!hm) return iso;
+  const time = `${pad2(hm.hour)}:${pad2(hm.minute)}`;
+  const dayPart = formatPickupDayRelativeLowerVi(iso, refDate);
+  return `${time} · ${dayPart}`;
+}
+
 /** datetime-local (VN) → hiển thị HH:mm, dd/mm/yyyy. */
 export function formatPickupAtLocalVi(local: string): string {
   try {

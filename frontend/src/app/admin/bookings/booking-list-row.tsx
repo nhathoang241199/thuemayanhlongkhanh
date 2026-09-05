@@ -13,10 +13,12 @@ import {
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 
+import { ActionTooltip } from "@/components/admin/action-tooltip";
 import { APP_COLOR_PALETTE } from "@/lib/app-theme";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 import { FREE_KIT_LABEL } from "@/lib/lens-step";
 
+import { AdminShipOrders } from "./admin-ship-orders";
 import {
   BookingPaymentMenuCell,
   BookingStatusMenuCell,
@@ -159,6 +161,9 @@ function BookingListRowInner({
         <Text fontSize="xs" color="fg.muted">
           {b.lens?.name ?? FREE_KIT_LABEL}
         </Text>
+        {b.shippingAddress?.trim() || b.shipOrders?.length ? (
+          <AdminShipOrders orders={b.shipOrders} />
+        ) : null}
       </TableCell>
       <TableCell {...tableCellPad} textAlign="end">
         <Text fontSize="sm">{vnd.format(b.amount)}</Text>
@@ -196,32 +201,36 @@ function BookingListRowInner({
       <TableCell {...tableCellPad}>
         <HStack gap={1} justify="flex-end">
           {canQuickRevert ? (
-            <IconButton
-              type="button"
-              size="sm"
-              variant="subtle"
-              colorPalette="orange"
-              aria-label="Quay lại trạng thái trước"
-              disabled={isRowSaving}
-              loading={quickAdvanceSaving}
-              onClick={onQuickRevert}
-            >
-              <ChevronLeftIcon />
-            </IconButton>
+            <ActionTooltip label="Quay lại trạng thái trước">
+              <IconButton
+                type="button"
+                size="sm"
+                variant="subtle"
+                colorPalette="orange"
+                aria-label="Quay lại trạng thái trước"
+                disabled={isRowSaving}
+                loading={quickAdvanceSaving}
+                onClick={onQuickRevert}
+              >
+                <ChevronLeftIcon />
+              </IconButton>
+            </ActionTooltip>
           ) : null}
           {canQuickAdvance ? (
-            <IconButton
-              type="button"
-              size="sm"
-              variant="subtle"
-              colorPalette="green"
-              aria-label="Chuyển tiếp trạng thái"
-              disabled={isRowSaving}
-              loading={quickAdvanceSaving}
-              onClick={onQuickAdvance}
-            >
-              <ChevronRightIcon />
-            </IconButton>
+            <ActionTooltip label="Chuyển tiếp trạng thái">
+              <IconButton
+                type="button"
+                size="sm"
+                variant="subtle"
+                colorPalette="green"
+                aria-label="Chuyển tiếp trạng thái"
+                disabled={isRowSaving}
+                loading={quickAdvanceSaving}
+                onClick={onQuickAdvance}
+              >
+                <ChevronRightIcon />
+              </IconButton>
+            </ActionTooltip>
           ) : null}
           <BookingCccdAction
             customerId={b.customer.id}
@@ -232,42 +241,48 @@ function BookingListRowInner({
             onCccdUploaded={onCccdUploaded}
           />
           {onPrint ? (
-            <IconButton
-              type="button"
-              size="sm"
-              variant="subtle"
-              colorPalette="gray"
-              aria-label="In phiếu thuê"
-              disabled={isRowSaving}
-              onClick={onPrint}
-            >
-              <PrintIcon />
-            </IconButton>
+            <ActionTooltip label="In phiếu thuê">
+              <IconButton
+                type="button"
+                size="sm"
+                variant="subtle"
+                colorPalette="gray"
+                aria-label="In phiếu thuê"
+                disabled={isRowSaving}
+                onClick={onPrint}
+              >
+                <PrintIcon />
+              </IconButton>
+            </ActionTooltip>
           ) : null}
-          <IconButton
-            type="button"
-            size="sm"
-            variant="subtle"
-            colorPalette="blue"
-            aria-label={`Sửa đơn ${b.bookingCode}`}
-            disabled={isRowSaving}
-            onClick={onEdit}
-          >
-            <PencilIcon />
-          </IconButton>
-          {showDelete ? (
+          <ActionTooltip label="Sửa">
             <IconButton
               type="button"
               size="sm"
               variant="subtle"
-              colorPalette="red"
-              aria-label={`Xóa đơn ${b.bookingCode}`}
-              loading={deleteSaving}
+              colorPalette="blue"
+              aria-label={`Sửa đơn ${b.bookingCode}`}
               disabled={isRowSaving}
-              onClick={onDelete}
+              onClick={onEdit}
             >
-              <TrashIcon />
+              <PencilIcon />
             </IconButton>
+          </ActionTooltip>
+          {showDelete ? (
+            <ActionTooltip label="Xóa">
+              <IconButton
+                type="button"
+                size="sm"
+                variant="subtle"
+                colorPalette="red"
+                aria-label={`Xóa đơn ${b.bookingCode}`}
+                loading={deleteSaving}
+                disabled={isRowSaving}
+                onClick={onDelete}
+              >
+                <TrashIcon />
+              </IconButton>
+            </ActionTooltip>
           ) : null}
         </HStack>
       </TableCell>

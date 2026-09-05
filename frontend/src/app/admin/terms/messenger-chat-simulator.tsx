@@ -22,14 +22,13 @@ import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { toaster } from "@/lib/toaster";
 
 /** Giống Nest `conversation.service.ts` — production dùng 30s. */
-const SIMULATOR_INACTIVITY_MS = 5_000;
+const SIMULATOR_INACTIVITY_MS = 10_000;
 const MESSAGE_JOIN = "\n---\n";
 
 type SimulateStatus = {
   configured: boolean;
   model: string;
   history_limit: number;
-  rag_enabled?: boolean;
 };
 
 type ChatTurn = {
@@ -49,12 +48,7 @@ function aiServiceBase(): string {
 }
 
 function aiServiceHeaders(): HeadersInit {
-  const token = process.env.NEXT_PUBLIC_AI_SERVICE_TOKEN;
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (token) {
-    headers["X-Internal-Token"] = token;
-  }
-  return headers;
+  return { "Content-Type": "application/json" };
 }
 
 function historyFromTurns(
@@ -231,9 +225,8 @@ export function MessengerChatSimulator() {
               </Text>
               {status ? (
                 <Text fontSize="xs" color="fg.muted" mt={1}>
-                  Service: {aiServiceBase()} · Model: {status.model} · Lịch sử{" "}
+                  Service: {aiServiceBase()} · Model:                   {status.model} · Lịch sử{" "}
                   {limit} tin ({messageCount}/{limit})
-                  {status.rag_enabled ? " · RAG bật" : ""}
                   {" · Debounce "}
                   {SIMULATOR_INACTIVITY_MS / 1000}s
                 </Text>

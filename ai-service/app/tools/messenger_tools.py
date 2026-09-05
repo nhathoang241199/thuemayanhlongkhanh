@@ -7,7 +7,6 @@ from langchain_core.tools import tool
 
 from app.db.repositories import availability as avail_repo
 from app.db.repositories import cameras as cam_repo
-from app.db.repositories import policy as policy_repo
 from app.domain.formatters import format_camera_list, format_lens_list, parse_slot
 
 
@@ -34,15 +33,7 @@ def build_tools(pool: asyncpg.Pool):
 
     @tool
     async def get_booking_terms() -> str:
-        """Toàn bộ điều khoản đặt lịch."""
-        return await cam_repo.get_booking_terms(pool)
-
-    @tool
-    async def search_booking_policy(query: str) -> str:
-        """Tìm đoạn chính sách đặt lịch (cọc, đền bù, nhận/trả máy…)."""
-        hits = await policy_repo.search_policy(pool, query)
-        if hits:
-            return policy_repo.format_hits_for_tool(hits)
+        """Toàn bộ điều khoản đặt lịch (cọc, giao nhận, đền bù, thời gian thuê…)."""
         return await cam_repo.get_booking_terms(pool)
 
     @tool
@@ -88,7 +79,6 @@ def build_tools(pool: asyncpg.Pool):
         get_camera,
         list_lenses,
         get_booking_terms,
-        search_booking_policy,
         check_availability,
         list_available_cameras,
         closed_days,

@@ -10,6 +10,11 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { HERMES_API_ACCESS_KEY } from './hermes-api.decorator';
 import { IS_PUBLIC_KEY } from './public.decorator';
+import {
+  SHIPPER_ACCESS_KEY,
+  SHIPPER_COOKIE_NAME,
+  type ShipperJwtPayload,
+} from './shipper-access.decorator';
 
 export const ADMIN_COOKIE_NAME = 'admin_token';
 
@@ -42,6 +47,28 @@ export class AdminAuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const req = context.switchToHttp().getRequest<Request>();
+
+    const shipperAccess = this.reflector.getAllAndOverride<boolean>(
+      SHIPPER_ACCESS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (shipperAccess) {
+      const token = req.cookies?.[SHIPPER_COOKIE_NAME] as string | undefined;
+      if (!token) {
+        throw new UnauthorizedException('Chưa đăng nhập shipper');
+      }
+      try {
+        const payload = this.jwtService.verify<ShipperJwtPayload>(token);
+        if (payload.role !== 'shipper' || !payload.shipperId) {
+          throw new UnauthorizedException('Phiên shipper không hợp lệ');
+        }
+        (req as Request & { shipper?: ShipperJwtPayload }).shipper = payload;
+        return true;
+      } catch {
+        throw new UnauthorizedException('Phiên shipper hết hạn hoặc không hợp lệ');
+      }
+    }
+
     const hermesApiAccess = this.reflector.getAllAndOverride<boolean>(
       HERMES_API_ACCESS_KEY,
       [context.getHandler(), context.getClass()],

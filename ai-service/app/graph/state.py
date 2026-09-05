@@ -19,3 +19,4 @@ class ChatState(TypedDict, total=False):
     canned: bool
     graph_trace: Annotated[list[str], operator.add]
     rounds: list[dict]
+    handoff: bool

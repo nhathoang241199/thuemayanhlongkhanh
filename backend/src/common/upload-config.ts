@@ -128,3 +128,35 @@ export function parseCollateralUploadPath(
   if (!bookingId || !filename || filename.includes('..')) return null;
   return { bookingId, filename };
 }
+
+export const MAX_PAYOUT_QR_BYTES = 3 * 1024 * 1024;
+
+export function payoutQrUploadPublicUrl(
+  shipperId: string,
+  filename: string,
+): string {
+  return `${getPublicApiUrl()}/api/uploads/shipper/${shipperId}/${encodeURIComponent(filename)}`;
+}
+
+export function payoutQrUploadDiskPath(
+  shipperId: string,
+  filename: string,
+): string {
+  return join(getUploadDir(), 'shipper', shipperId, filename);
+}
+
+export const MAX_BLOG_BANNER_BYTES = 3 * 1024 * 1024;
+
+export function blogBannerUploadPublicUrl(
+  postId: string,
+  filename: string,
+): string {
+  return `${getPublicApiUrl()}/api/uploads/blog/${postId}/${encodeURIComponent(filename)}`;
+}
+
+export function blogBannerUploadDiskPath(
+  postId: string,
+  filename: string,
+): string {
+  return join(getUploadDir(), 'blog', postId, filename);
+}

@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { timingSafeEqual } from 'crypto';
 import type { AdminJwtPayload } from './admin-auth.guard';
+import type { ShipperJwtPayload } from './shipper-access.decorator';
 
 function adminCredentials() {
   const username = process.env.ADMIN_USERNAME?.trim() || 'admin';
@@ -44,5 +45,13 @@ export class AuthService {
 
   verifyAdminToken(token: string): AdminJwtPayload {
     return this.jwtService.verify<AdminJwtPayload>(token);
+  }
+
+  signShipperToken(payload: ShipperJwtPayload): string {
+    return this.jwtService.sign(payload);
+  }
+
+  verifyShipperToken(token: string): ShipperJwtPayload {
+    return this.jwtService.verify<ShipperJwtPayload>(token);
   }
 }

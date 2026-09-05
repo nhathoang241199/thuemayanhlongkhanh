@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CameraTutorialDialog } from "@/components/camera/camera-tutorial-dialog";
+import { BookingDeliveryBlock } from "@/components/booking/booking-delivery-block";
 import { QrCodeCard } from "@/components/payment/qr-code-card";
 import {
   cancelCustomerBooking,
@@ -534,6 +535,13 @@ export default function UserHomePage() {
                       Xem địa chỉ
                     </Link>
                   </HStack>
+                ) : null}
+                {session ? (
+                  <BookingDeliveryBlock
+                    booking={b}
+                    phone={session.phone}
+                    onUpdated={() => void loadBookings(session.phone)}
+                  />
                 ) : null}
                 {b.status === "PENDING_PAYMENT" ? (
                   <HStack gap={2} w="full">

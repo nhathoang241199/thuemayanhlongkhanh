@@ -263,6 +263,16 @@ export function AdminMobileNavDrawer({
             </Button>
             <Button
               asChild
+              variant={navVariant(pathname === "/admin/shippers")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+              justifyContent="flex-start"
+              onClick={close}
+            >
+              <NextLink href="/admin/shippers">Shipper</NextLink>
+            </Button>
+            <Button
+              asChild
               variant={navVariant(pathname === "/admin/features")}
               colorPalette={ADMIN_COLOR_PALETTE}
               size="sm"
@@ -280,6 +290,36 @@ export function AdminMobileNavDrawer({
               onClick={close}
             >
               <NextLink href="/admin/terms">Điều khoản</NextLink>
+            </Button>
+            <Button
+              asChild
+              variant={navVariant(pathname === "/admin/messenger-learn")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+              justifyContent="flex-start"
+              onClick={close}
+            >
+              <NextLink href="/admin/messenger-learn">Học Messenger</NextLink>
+            </Button>
+            <Button
+              asChild
+              variant={navVariant(pathname === "/admin/fanpage-posts")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+              justifyContent="flex-start"
+              onClick={close}
+            >
+              <NextLink href="/admin/fanpage-posts">Bài fanpage</NextLink>
+            </Button>
+            <Button
+              asChild
+              variant={navVariant(pathname === "/admin/blog-posts")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+              justifyContent="flex-start"
+              onClick={close}
+            >
+              <NextLink href="/admin/blog-posts">Blog</NextLink>
             </Button>
           </Stack>
           <Button
@@ -382,6 +422,14 @@ export function AdminDesktopNav({
             </Button>
             <Button
               asChild
+              variant={navVariant(pathname === "/admin/shippers")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+            >
+              <NextLink href="/admin/shippers">Shipper</NextLink>
+            </Button>
+            <Button
+              asChild
               variant={navVariant(pathname === "/admin/features")}
               colorPalette={ADMIN_COLOR_PALETTE}
               size="sm"
@@ -395,6 +443,30 @@ export function AdminDesktopNav({
               size="sm"
             >
               <NextLink href="/admin/terms">Điều khoản</NextLink>
+            </Button>
+            <Button
+              asChild
+              variant={navVariant(pathname === "/admin/messenger-learn")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+            >
+              <NextLink href="/admin/messenger-learn">Học Messenger</NextLink>
+            </Button>
+            <Button
+              asChild
+              variant={navVariant(pathname === "/admin/fanpage-posts")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+            >
+              <NextLink href="/admin/fanpage-posts">Bài fanpage</NextLink>
+            </Button>
+            <Button
+              asChild
+              variant={navVariant(pathname === "/admin/blog-posts")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+            >
+              <NextLink href="/admin/blog-posts">Blog</NextLink>
             </Button>
           </HStack>
           <Button

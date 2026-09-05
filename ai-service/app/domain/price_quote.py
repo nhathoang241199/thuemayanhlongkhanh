@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from app.domain.canned import is_how_to_rent_question, is_late_return_fee_question
+from app.domain.canned import is_how_to_rent_question, is_late_return_fee_question, is_shift_duration_question, is_full_day_duration_question
 from app.domain.formatters import (
     compute_camera_rental_total,
     format_price_quote_customer_reply,
@@ -88,6 +88,8 @@ def is_price_quote_question(text: str) -> bool:
     lower = text.lower().strip()
     if is_how_to_rent_question(text) or is_late_return_fee_question(text):
         return False
+    if is_shift_duration_question(text) or is_full_day_duration_question(text):
+        return False
     return bool(PRICE_HINT.search(lower))
 
 
@@ -144,6 +146,24 @@ def match_camera_in_text(text: str, cameras: list[dict]) -> dict | None:
         if text_contains_model(text, camera["name"]):
             return camera
     return None
+
+
+def match_cameras_in_text(text: str, cameras: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    matched: list[dict] = []
+    sorted_cams = sorted(
+        cameras,
+        key=lambda c: len(normalize_model_token(c["name"])),
+        reverse=True,
+    )
+    for camera in sorted_cams:
+        cid = camera["id"]
+        if cid in seen:
+            continue
+        if text_contains_model(text, camera["name"]):
+            matched.append(camera)
+            seen.add(cid)
+    return matched
 
 
 def build_price_quote_context(text: str, history: list[PronounChatTurn]) -> str:

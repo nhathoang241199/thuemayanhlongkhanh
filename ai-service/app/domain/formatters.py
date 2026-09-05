@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import urlparse
 
 from app.domain.pricing import (
     BookingSlot,
@@ -125,3 +126,41 @@ def compute_camera_rental_total(camera: dict, day_count: int, slot: BookingSlot 
 def format_price_quote_customer_reply(camera: dict, day_count: int, total_vnd: int) -> str:
     label = camera_model_short_label(camera["brand"], camera["name"])
     return f"{label} {day_count} ngày {format_vnd_short(total_vnd)} nhé ạ."
+
+
+def _is_localhost_url(url: str) -> bool:
+    host = urlparse(url.strip()).netloc.lower()
+    return not host or host.startswith("localhost") or host.startswith("127.0.0.1")
+
+
+def resolve_public_frontend_url(context_url: str | None, default_url: str) -> str:
+    """Prefer public URL — ignore localhost from caller when default is production."""
+    ctx = (context_url or "").strip().rstrip("/")
+    default = (default_url or "").strip().rstrip("/")
+    if ctx and not _is_localhost_url(ctx):
+        return ctx
+    if default and not _is_localhost_url(default):
+        return default
+    return ctx or default
+
+
+def public_book_url(frontend_url: str) -> str:
+    base = frontend_url.rstrip("/")
+    return f"{base}/book" if base else "/book"
+
+
+_MD_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+_MD_ITALIC_RE = re.compile(r"(?<!\*)\*([^*\n]+?)\*(?!\*)")
+_MD_CODE_RE = re.compile(r"`([^`]+)`")
+
+
+def format_messenger_reply(text: str) -> str:
+    """Plain text for Messenger — strip Markdown the model sometimes emits."""
+    t = text.strip()
+    if not t:
+        return t
+    for _ in range(3):
+        t = _MD_BOLD_RE.sub(r"\1", t)
+    t = _MD_ITALIC_RE.sub(r"\1", t)
+    t = _MD_CODE_RE.sub(r"\1", t)
+    return re.sub(r"[ \t]+", " ", t).strip()

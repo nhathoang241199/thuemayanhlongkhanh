@@ -29,6 +29,7 @@ export type Booking = {
   amount: number;
   note: string | null;
   shippingAddress: string | null;
+  shipOrders?: import("@/lib/api").ShipOrder[];
   paymentStatus: string;
   status: string;
   contractCccd?: string | null;

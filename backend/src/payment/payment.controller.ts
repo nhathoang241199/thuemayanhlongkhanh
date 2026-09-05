@@ -35,9 +35,8 @@ export class PaymentController {
   @ApiOperation({ summary: 'SePay webhook (tiền vào TK)' })
   async sepayWebhook(
     @Body() body: SePayWebhookBody,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-    @Query('api_key') apiKey?: string,
+    @Headers() headers: Record<string, string | undefined>,
   ) {
-    return this.sepayService.handleWebhook(body, headers, apiKey);
+    return this.sepayService.handleWebhook(body, headers);
   }
 }

@@ -32,8 +32,10 @@ import {
 } from '@nestjs/common/pipes';
 import { Public } from '../auth/public.decorator';
 import { HermesApiAccess } from '../auth/hermes-api.decorator';
+import { ShipOrderService } from '../ship-order/ship-order.service';
 import { BookingService } from './booking.service';
 import { CancelCustomerBookingDto } from './dto/cancel-customer-booking.dto';
+import { CustomerReturnPhoneDto } from './dto/customer-return-phone.dto';
 import { RequestChangeCustomerBookingDto } from './dto/request-change-customer-booking.dto';
 import { UpdatePendingCustomerBookingDto } from './dto/update-pending-customer-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -45,7 +47,10 @@ import { MAX_VERIFICATION_IMAGE_BYTES } from '../common/upload-config';
 @ApiTags('bookings')
 @Controller('bookings')
 export class BookingController {
-  constructor(private readonly bookingService: BookingService) {}
+  constructor(
+    private readonly bookingService: BookingService,
+    private readonly shipOrderService: ShipOrderService,
+  ) {}
 
   @Get()
   @HermesApiAccess()
@@ -114,6 +119,17 @@ export class BookingController {
     @Body() dto: UpdatePendingCustomerBookingDto,
   ) {
     return this.bookingService.updatePendingCustomerBooking(id, dto);
+  }
+
+  @Public()
+  @Post('customer/:id/request-return')
+  @ApiOperation({ summary: 'Khách yêu cầu trả máy (tạo đơn ship RETURN)' })
+  @ApiOkResponse()
+  requestReturn(
+    @Param('id') id: string,
+    @Body() dto: CustomerReturnPhoneDto,
+  ) {
+    return this.shipOrderService.ensureReturn(id, dto.phone);
   }
 
   @Get(':id')

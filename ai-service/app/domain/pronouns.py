@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Literal, TypedDict
 
 
@@ -16,6 +17,14 @@ class PronounChatTurn(TypedDict):
     content: str
 
 
+DEFAULT_PRONOUNS: MessengerPronouns = {"shop": "anh", "customer": "em"}
+
+
+def _norm(text: str) -> str:
+    nfd = unicodedata.normalize("NFD", text.lower().strip())
+    return "".join(c for c in nfd if unicodedata.category(c) != "Mn")
+
+
 def customer_self_refers_as_em(text: str) -> bool:
     lower = text.lower().strip()
     return bool(
@@ -27,33 +36,25 @@ def customer_self_refers_as_em(text: str) -> bool:
     )
 
 
-def customer_addresses_shop_as_anh(text: str) -> bool:
-    lower = text.lower().strip()
+def customer_self_refers_as_anh(text: str) -> bool:
+    """Khách tự xưng anh (anh muốn, anh cần thuê…)."""
+    lower = _norm(text)
     return bool(
-        re.search(r"\banh\s*$", lower, re.I)
-        or re.search(r"\banh\s*(oi|a|ah|ạ)\s*$", lower, re.I)
-        or re.search(r"(cho|hoi|xin|muon).*\banh\b", lower)
+        re.match(
+            r"^(anh|a)\s+(muon|can|xin|dat|thue|hoi|cho|dang|dinh)\b",
+            lower,
+        )
     )
-
-
-def customer_addresses_shop_as_anh_at_start(text: str) -> bool:
-    """Khách gọi shop là anh ở đầu câu (anh còn, anh ơi, a ơi…) — không coi là khách xưng anh."""
-    lower = text.lower().strip()
-    return bool(re.match(r"^(anh|a)(\s+|$)", lower) or re.match(r"^a\s+oi\b", lower))
 
 
 def customer_addresses_shop_as_chi(text: str) -> bool:
-    lower = text.lower().strip()
+    lower = _norm(text)
     return bool(
-        re.search(r"\bchi\s*$", lower, re.I)
-        or re.search(r"\bchi\s*(oi|a|ah|ạ)\s*$", lower, re.I)
+        re.search(r"\bchi\s*$", lower)
+        or re.search(r"\bchi\s*(oi|a|ah|a)\s*$", lower)
         or re.search(r"(cho|hoi|xin).*\bchi\b", lower)
+        or re.match(r"^chi(\s+|$)", lower)
     )
-
-
-def customer_addresses_shop_as_chi_at_start(text: str) -> bool:
-    lower = text.lower().strip()
-    return bool(re.match(r"^chi(\s+|$)", lower))
 
 
 def resolve_messenger_pronouns(
@@ -62,29 +63,13 @@ def resolve_messenger_pronouns(
 ) -> MessengerPronouns:
     history = history or []
     user_texts = [m["content"] for m in history if m["role"] == "user"] + [text]
-    latest = user_texts[-1] if user_texts else text
-
-    if customer_self_refers_as_em(latest):
-        return {"shop": "anh", "customer": "em"}
-    if customer_addresses_shop_as_chi(latest):
-        return {"shop": "em", "customer": "chị"}
-    if customer_addresses_shop_as_anh(latest):
-        return {"shop": "em", "customer": "anh"}
-    if customer_addresses_shop_as_chi_at_start(latest):
-        return {"shop": "em", "customer": "bạn"}
-    if customer_addresses_shop_as_anh_at_start(latest):
-        return {"shop": "em", "customer": "bạn"}
 
     for t in reversed(user_texts):
         if customer_self_refers_as_em(t):
             return {"shop": "anh", "customer": "em"}
+        if customer_self_refers_as_anh(t):
+            return {"shop": "em", "customer": "anh"}
         if customer_addresses_shop_as_chi(t):
             return {"shop": "em", "customer": "chị"}
-        if customer_addresses_shop_as_anh(t):
-            return {"shop": "em", "customer": "anh"}
-        if customer_addresses_shop_as_chi_at_start(t):
-            return {"shop": "em", "customer": "bạn"}
-        if customer_addresses_shop_as_anh_at_start(t):
-            return {"shop": "em", "customer": "bạn"}
 
-    return {"shop": "mình", "customer": "bạn"}
+    return DEFAULT_PRONOUNS

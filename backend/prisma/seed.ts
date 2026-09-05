@@ -12,6 +12,7 @@ import {
   rentalAmountVnd,
   slotWindow,
 } from "../src/common/booking-schedule";
+import { hashPassword } from "../src/common/password-hash";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -46,6 +47,8 @@ const SEED_CAMERA_IMAGES = {
 } as const;
 
 async function main() {
+  await prisma.shipOrder.deleteMany();
+  await prisma.shipper.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.customer.deleteMany();
@@ -473,11 +476,221 @@ async function main() {
     },
   });
 
+  /** Shipper + đơn ship cố định — test `/ship` local (npm run db:seed). */
+  const shipDemoAddress = "123 Nguyễn Trãi, Long Khánh, Đồng Nai";
+  const shipDemoAddress2 = "45 Hà Huy Giáp, Biên Hòa, Đồng Nai";
+
+  const shipper1 = await prisma.shipper.create({
+    data: {
+      phone: "0900111222",
+      name: "Shipper Test",
+      passwordHash: hashPassword("ship123"),
+      active: true,
+    },
+  });
+
+  const shipper2 = await prisma.shipper.create({
+    data: {
+      phone: "0900333444",
+      name: "Shipper Demo",
+      passwordHash: hashPassword("ship456"),
+      active: true,
+    },
+  });
+
+  const shipDemoStart = new Date(now);
+  shipDemoStart.setHours(10, 0, 0, 0);
+  const shipDemoEnd = inferEndBookingDate(shipDemoStart, "AFTERNOON");
+
+  const shipDemoBookingBase = {
+    customerId: customer1.id,
+    cameraId: camCanon.id,
+    startBookingDate: shipDemoStart,
+    endBookingDate: shipDemoEnd,
+    slot: "AFTERNOON" as const,
+    pickupAt: defaultPickupAt(todayKey, "AFTERNOON"),
+    amount: camCanon.shiftPrice + deliveryFeeVnd(shipDemoAddress),
+    shippingAddress: shipDemoAddress,
+    paymentStatus: "PAID" as const,
+  };
+
+  const shipOutPending = await prisma.booking.create({
+    data: {
+      ...shipDemoBookingBase,
+      bookingCode: "DH-SHIP-OUT-PEND",
+      note: "[M50 II] Demo — đơn giao chờ nhận (seed ship)",
+      status: "CONFIRMED",
+    },
+  });
+  bookingCount += 1;
+
+  const shipOutClaimed = await prisma.booking.create({
+    data: {
+      ...shipDemoBookingBase,
+      bookingCode: "DH-SHIP-OUT-CLAIM",
+      customerId: customer2.id,
+      note: "[M50 II] Demo — đơn giao đã nhận (seed ship)",
+      status: "RENTING",
+    },
+  });
+  bookingCount += 1;
+
+  const shipRetPending = await prisma.booking.create({
+    data: {
+      ...shipDemoBookingBase,
+      bookingCode: "DH-SHIP-RET-PEND",
+      shippingAddress: shipDemoAddress2,
+      amount: camCanon.shiftPrice + deliveryFeeVnd(shipDemoAddress2),
+      note: "[M50 II] Demo — giao xong, chờ trả máy (seed ship)",
+      status: "RENTING",
+    },
+  });
+  bookingCount += 1;
+
+  const shipRetClaimed = await prisma.booking.create({
+    data: {
+      ...shipDemoBookingBase,
+      bookingCode: "DH-SHIP-RET-CLAIM",
+      customerId: customer2.id,
+      note: "[M50 II] Demo — đơn trả đã nhận (seed ship)",
+      status: "RENTING",
+    },
+  });
+  bookingCount += 1;
+
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+  const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000);
+
+  await prisma.shipOrder.createMany({
+    data: [
+      {
+        bookingId: shipOutPending.id,
+        bookingCode: shipOutPending.bookingCode,
+        leg: "OUTBOUND",
+        status: "PENDING",
+        customerName: customer1.name,
+        customerPhone: customer1.phone,
+        address: shipDemoAddress,
+      },
+      {
+        bookingId: shipOutClaimed.id,
+        bookingCode: shipOutClaimed.bookingCode,
+        leg: "OUTBOUND",
+        status: "CLAIMED",
+        customerName: customer2.name,
+        customerPhone: customer2.phone,
+        address: shipDemoAddress,
+        shipperId: shipper1.id,
+        claimedAt: thirtyMinAgo,
+      },
+      {
+        bookingId: shipRetPending.id,
+        bookingCode: shipRetPending.bookingCode,
+        leg: "OUTBOUND",
+        status: "COMPLETED",
+        customerName: customer1.name,
+        customerPhone: customer1.phone,
+        address: shipDemoAddress2,
+        shipperId: shipper1.id,
+        claimedAt: twoHoursAgo,
+        completedAt: oneHourAgo,
+      },
+      {
+        bookingId: shipRetPending.id,
+        bookingCode: shipRetPending.bookingCode,
+        leg: "RETURN",
+        status: "PENDING",
+        customerName: customer1.name,
+        customerPhone: customer1.phone,
+        address: shipDemoAddress2,
+      },
+      {
+        bookingId: shipRetClaimed.id,
+        bookingCode: shipRetClaimed.bookingCode,
+        leg: "OUTBOUND",
+        status: "COMPLETED",
+        customerName: customer2.name,
+        customerPhone: customer2.phone,
+        address: shipDemoAddress,
+        shipperId: shipper2.id,
+        claimedAt: twoHoursAgo,
+        completedAt: oneHourAgo,
+      },
+      {
+        bookingId: shipRetClaimed.id,
+        bookingCode: shipRetClaimed.bookingCode,
+        leg: "RETURN",
+        status: "CLAIMED",
+        customerName: customer2.name,
+        customerPhone: customer2.phone,
+        address: shipDemoAddress,
+        shipperId: shipper2.id,
+        claimedAt: thirtyMinAgo,
+      },
+    ],
+  });
+
+  /** Backfill OUTBOUND cho booking seed có địa chỉ giao (trừ demo đã tạo tay). */
+  const demoBookingIds = new Set([
+    shipOutPending.id,
+    shipOutClaimed.id,
+    shipRetPending.id,
+    shipRetClaimed.id,
+  ]);
+  const shipEligible = await prisma.booking.findMany({
+    where: {
+      id: { notIn: [...demoBookingIds] },
+      shippingAddress: { not: null },
+      status: { notIn: ["CANCELLED", "COMPLETED"] },
+      paymentStatus: { in: ["PAID", "PENDING"] },
+    },
+    include: { customer: true },
+    take: 12,
+    orderBy: { startBookingDate: "asc" },
+  });
+
+  let shipBackfillCount = 0;
+  for (const b of shipEligible) {
+    const addr = b.shippingAddress?.trim();
+    if (!addr) continue;
+    const existing = await prisma.shipOrder.findUnique({
+      where: { bookingId_leg: { bookingId: b.id, leg: "OUTBOUND" } },
+    });
+    if (existing) continue;
+    await prisma.shipOrder.create({
+      data: {
+        bookingId: b.id,
+        bookingCode: b.bookingCode,
+        leg: "OUTBOUND",
+        status: "PENDING",
+        customerName: b.customer.name,
+        customerPhone: b.customer.phone,
+        address: addr,
+      },
+    });
+    shipBackfillCount += 1;
+  }
+
   console.log("Seed xong:", {
     cameras: [camFuji.id, camCanon.id, camCanonR50.id, camDji.id],
     customers: [customer1.id, customer2.id],
     bookings: bookingCount,
     expenses: 2,
+    shippers: [
+      { phone: "0900111222", password: "ship123", name: shipper1.name },
+      { phone: "0900333444", password: "ship456", name: shipper2.name },
+    ],
+    shipOrders: {
+      demo: 6,
+      backfillOutbound: shipBackfillCount,
+    },
+    shipDemoCodes: [
+      "DH-SHIP-OUT-PEND",
+      "DH-SHIP-OUT-CLAIM",
+      "DH-SHIP-RET-PEND",
+      "DH-SHIP-RET-CLAIM",
+    ],
   });
 }
 

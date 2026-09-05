@@ -106,6 +106,7 @@ model Booking {
   paymentStatus PaymentStatus @default(PENDING)
   status        BookingStatus @default(PENDING_PAYMENT)
   payment       Payment?
+  shipOrders ShipOrder[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -205,6 +206,8 @@ model ShopInfo {
   phone     String   @default("")
   address   String   @default("")
   mapUrl    String   @default("")
+  latitude  Float?
+  longitude Float?
   updatedAt DateTime @updatedAt
 }
 
@@ -216,12 +219,28 @@ model ShopFeatures {
 }
 
 model MessengerConversation {
-  id            String             @id @default(cuid())
-  psid          String             @unique
+  id            String                  @id @default(cuid())
+  psid          String                  @unique
   handoffUntil  DateTime?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
   messages      MessengerMessage[]
+  learnExamples MessengerLearnExample[]
+}
+
+model MessengerLearnExample {
+  id             String                @id @default(cuid())
+  conversationId String
+  conversation   MessengerConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userMessage    String
+  ownerReply     String
+  status         String                @default("pending")
+  note           String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([status, createdAt])
+  @@index([conversationId, createdAt])
 }
 
 model MessengerMessage {
@@ -233,4 +252,90 @@ model MessengerMessage {
   createdAt      DateTime              @default(now())
 
   @@index([conversationId, createdAt])
+}
+
+model FanpagePostDraft {
+  id             String    @id @default(cuid())
+  message        String
+  link           String?
+  publishPublic  Boolean   @default(true)
+  status         String    @default("pending")
+  source         String    @default("hermes")
+  promotionNote  String?
+  facebookPostId String?
+  rejectNote     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  publishedAt    DateTime?
+
+  @@index([status, createdAt])
+}
+
+model BlogPost {
+  id             String    @id @default(cuid())
+  slug           String    @unique
+  title          String
+  excerpt        String?
+  content        String
+  coverImageUrl  String?
+  seoDescription String?
+  status         String    @default("pending")
+  source         String    @default("hermes")
+  rejectNote     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  publishedAt    DateTime?
+
+  @@index([status, publishedAt])
+}
+
+model Shipper {
+  id                 String              @id @default(cuid())
+  phone              String              @unique
+  name               String
+  passwordHash       String
+  active             Boolean             @default(true)
+  balanceVnd         Int                 @default(0)
+  payoutQrUrl        String              @default("")
+  payoutRequestedAt  DateTime?
+  messengerPsid      String              @default("")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  shipOrders         ShipOrder[]
+  withdrawals        ShipperWithdrawal[]
+
+  @@index([messengerPsid])
+}
+
+model ShipperWithdrawal {
+  id        String   @id @default(cuid())
+  shipperId String
+  shipper   Shipper  @relation(fields: [shipperId], references: [id], onDelete: Cascade)
+  amountVnd Int
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([shipperId, createdAt])
+}
+
+model ShipOrder {
+  id            String    @id @default(cuid())
+  bookingId     String
+  booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingCode   String
+  leg           String
+  status        String    @default("PENDING")
+  customerName  String
+  customerPhone String
+  address       String
+  shipperId     String?
+  shipper       Shipper?  @relation(fields: [shipperId], references: [id], onDelete: SetNull)
+  claimedAt     DateTime?
+  completedAt   DateTime?
+  requestedAt   DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([bookingId, leg])
+  @@index([status, requestedAt])
+  @@index([shipperId, status])
 }

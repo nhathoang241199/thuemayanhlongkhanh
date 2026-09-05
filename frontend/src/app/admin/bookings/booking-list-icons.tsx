@@ -235,3 +235,33 @@ export const CameraIcon = createIcon({
     </>
   ),
 });
+
+export const QrCodeIcon = createIcon({
+  displayName: "QrCodeIcon",
+  path: (
+    <>
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h2v2h-2zM19 15h2v2h-2zM15 19h2v2h-2zM19 19h2v2h-2z"
+      />
+    </>
+  ),
+});
+
+export const CheckIcon = createIcon({
+  displayName: "CheckIcon",
+  path: (
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M20 6 9 17l-5-5"
+    />
+  ),
+});

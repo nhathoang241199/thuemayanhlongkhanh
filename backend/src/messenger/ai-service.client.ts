@@ -10,6 +10,7 @@ export type AiChatResponse = {
   reply: string;
   reply_raw?: string;
   canned?: boolean;
+  handoff?: boolean;
   intent?: string;
   graph_trace?: string[];
   rounds?: unknown[];
@@ -59,6 +60,7 @@ export class AiServiceClient {
         reply: data.reply?.trim() || FALLBACK_REPLY,
         reply_raw: data.reply_raw,
         canned: data.canned,
+        handoff: data.handoff,
         intent: data.intent,
         graph_trace: data.graph_trace,
         rounds: data.rounds,

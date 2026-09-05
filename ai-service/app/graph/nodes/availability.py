@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.config import get_settings
 from app.db.pool import get_pool
 from app.db.repositories import availability as avail_repo
 from app.db.repositories.cameras import list_public_cameras
@@ -60,4 +61,4 @@ async def availability_node(state: ChatState) -> dict:
 def availability_decision(state: ChatState) -> str:
     if state.get("reply"):
         return "end"
-    return "agent"
+    return "agent" if get_settings().llm_routing_enabled else "handoff"

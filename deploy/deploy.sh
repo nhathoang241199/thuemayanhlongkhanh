@@ -57,10 +57,20 @@ log "Frontend: install, build..."
   npm run build
 )
 
+log "AI service: venv + deps..."
+(
+  cd ai-service
+  if [[ ! -d .venv ]]; then
+    python3 -m venv .venv
+  fi
+  .venv/bin/pip install -r requirements.txt -q
+)
+[[ -f ai-service/.env ]] || log "WARN: Thiếu ai-service/.env — cp ai-service/.env.example ai-service/.env"
+
 log "PM2 restart..."
 cd "$ROOT"
-# ai-service (Python) không còn deploy — gỡ process cũ nếu còn sót trên VPS
-for app in ai-service thue-may-ai binhthanh-ai; do
+# Gỡ tên process cũ nếu còn sót
+for app in ai-service binhthanh-ai; do
   pm2 delete "$app" 2>/dev/null || true
 done
 ECOSYSTEM="${PM2_ECOSYSTEM:-deploy/ecosystem.config.cjs}"

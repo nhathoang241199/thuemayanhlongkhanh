@@ -59,6 +59,7 @@ import { RequestChangeCustomerBookingDto } from './dto/request-change-customer-b
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { UpdatePendingCustomerBookingDto } from './dto/update-pending-customer-booking.dto';
 import { SaveBookingContractDto } from './dto/save-booking-contract.dto';
+import { ShipOrderService } from '../ship-order/ship-order.service';
 
 const bookingInclude = {
   customer: {
@@ -72,6 +73,24 @@ const bookingInclude = {
   camera: { select: { id: true, name: true, brand: true } },
   lens: {
     select: { id: true, name: true, dayPrice: true, shiftPrice: true },
+  },
+  shipOrders: {
+    orderBy: { requestedAt: 'asc' as const },
+    select: {
+      id: true,
+      leg: true,
+      status: true,
+      bookingCode: true,
+      customerName: true,
+      customerPhone: true,
+      address: true,
+      shipperId: true,
+      shipper: { select: { name: true } },
+      requestedAt: true,
+      claimedAt: true,
+      completedAt: true,
+      updatedAt: true,
+    },
   },
 } as const;
 
@@ -88,7 +107,14 @@ export class BookingService {
     private readonly availability: AvailabilityService,
     private readonly statsService: StatsService,
     private readonly shopFeaturesService: ShopFeaturesService,
+    private readonly shipOrderService: ShipOrderService,
   ) {}
+
+  private syncShipOrderForBooking(bookingId: string): void {
+    this.shipOrderService.ensureOutboundForBookingId(bookingId).catch((err) => {
+      console.warn(`[ship-order] sync failed for booking ${bookingId}`, err);
+    });
+  }
 
   private async generateBookingCode(): Promise<string> {
     const now = new Date();
@@ -277,6 +303,7 @@ export class BookingService {
         pendingChange: Prisma.DbNull,
       },
     });
+    this.syncShipOrderForBooking(bookingId);
     return true;
   }
 
@@ -303,6 +330,7 @@ export class BookingService {
         },
         include: bookingInclude,
       });
+      await this.shipOrderService.cancelActiveForBooking(id);
       return {
         booking: updated,
         refundEligible: false,
@@ -330,6 +358,7 @@ export class BookingService {
         },
         include: bookingInclude,
       });
+      await this.shipOrderService.cancelActiveForBooking(id);
       return {
         booking: updated,
         refundEligible: true,
@@ -346,6 +375,7 @@ export class BookingService {
       },
       include: bookingInclude,
     });
+    await this.shipOrderService.cancelActiveForBooking(id);
     return {
       booking: updated,
       refundEligible: false,
@@ -645,7 +675,7 @@ export class BookingService {
     const { endBookingDate } = slotWindow(dto.endDate, dto.slot);
     const pickupAt = this.resolvePickupAt(dto.startDate, dto.slot, dto.pickupAt);
 
-    return this.prisma.booking.update({
+    const updated = await this.prisma.booking.update({
       where: { id },
       data: {
         cameraId: dto.cameraId,
@@ -662,6 +692,8 @@ export class BookingService {
       },
       include: bookingInclude,
     });
+    this.syncShipOrderForBooking(updated.id);
+    return updated;
   }
 
   async createCustomerBooking(dto: CreateCustomerBookingDto) {
@@ -732,7 +764,7 @@ export class BookingService {
     const { depositEnabled } = await this.shopFeaturesService.get();
 
     try {
-      return await this.prisma.booking.create({
+      const booking = await this.prisma.booking.create({
         data: {
           bookingCode,
           customerId: dto.customerId,
@@ -766,6 +798,8 @@ export class BookingService {
         },
         include: bookingInclude,
       });
+      this.syncShipOrderForBooking(booking.id);
+      return booking;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2002') {
@@ -793,7 +827,7 @@ export class BookingService {
 
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        return await this.prisma.booking.create({
+        const booking = await this.prisma.booking.create({
           data: {
             bookingCode,
             customerId: dto.customerId,
@@ -812,6 +846,8 @@ export class BookingService {
           },
           include: bookingInclude,
         });
+        this.syncShipOrderForBooking(booking.id);
+        return booking;
       } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError) {
           if (e.code === 'P2002' && !dto.bookingCode?.trim()) {
@@ -849,7 +885,7 @@ export class BookingService {
           'Không áp dụng được thay đổi đang chờ — kiểm tra chỗ trống',
         );
       }
-      return this.prisma.booking.update({
+      const booking = await this.prisma.booking.update({
         where: { id },
         data: {
           status: BookingStatus.CONFIRMED,
@@ -859,6 +895,12 @@ export class BookingService {
         },
         include: bookingInclude,
       });
+      await this.shipOrderService.applyBookingStatusChange(
+        booking.id,
+        existing.status,
+        BookingStatus.CONFIRMED,
+      );
+      return booking;
     }
 
     const { startBookingDate, endBookingDate, pickupAt, lensId, ...rest } = dto;
@@ -889,40 +931,21 @@ export class BookingService {
     }
 
     try {
-      const updated = await this.prisma.booking.update({
+      const booking = await this.prisma.booking.update({
         where: { id },
         data,
         include: bookingInclude,
       });
-
-      const becameDeposited =
-        dto.paymentStatus === PaymentStatus.DEPOSITED &&
-        existing.paymentStatus !== PaymentStatus.DEPOSITED;
-      const becameConfirmedFromPending =
-        dto.status === BookingStatus.CONFIRMED &&
-        existing.status === BookingStatus.PENDING_PAYMENT;
-
-      if (becameDeposited || becameConfirmedFromPending) {
-        await this.prisma.payment.updateMany({
-          where: {
-            bookingId: id,
-            status: { in: [PaymentRecordStatus.PENDING, PaymentRecordStatus.FAILED] },
-          },
-          data: { status: PaymentRecordStatus.SUCCESS },
-        });
-        if (updated.paymentStatus === PaymentStatus.PENDING) {
-          return this.prisma.booking.update({
-            where: { id },
-            data: {
-              paymentStatus: PaymentStatus.DEPOSITED,
-              status: BookingStatus.CONFIRMED,
-            },
-            include: bookingInclude,
-          });
-        }
+      if (dto.status !== undefined && dto.status !== existing.status) {
+        await this.shipOrderService.applyBookingStatusChange(
+          booking.id,
+          existing.status,
+          dto.status,
+        );
+      } else {
+        this.syncShipOrderForBooking(booking.id);
       }
-
-      return updated;
+      return booking;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2025') {

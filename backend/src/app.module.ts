@@ -16,7 +16,11 @@ import { ShopInfoModule } from './shop-info/shop-info.module';
 import { ShopFeaturesModule } from './shop-features/shop-features.module';
 import { StatsModule } from './stats/stats.module';
 import { MessengerModule } from './messenger/messenger.module';
-import { PolicyRagModule } from './policy-rag/policy-rag.module';
+import { HermesModule } from './hermes/hermes.module';
+import { BlogPostModule } from './blog-post/blog-post.module';
+import { FanpagePostModule } from './fanpage-post/fanpage-post.module';
+import { ShipOrderModule } from './ship-order/ship-order.module';
+import { ShipperModule } from './shipper/shipper.module';
 
 @Module({
   imports: [
@@ -35,7 +39,11 @@ import { PolicyRagModule } from './policy-rag/policy-rag.module';
     ShopFeaturesModule,
     StatsModule,
     MessengerModule,
-    PolicyRagModule,
+    HermesModule,
+    FanpagePostModule,
+    BlogPostModule,
+    ShipOrderModule,
+    ShipperModule,
   ],
   controllers: [AppController],
   providers: [AppService],

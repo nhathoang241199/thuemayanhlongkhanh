@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
+from app.domain.formatters import resolve_public_frontend_url
 from app.graph.builder import run_chat
 
 router = APIRouter(prefix="/v1", tags=["chat"])
@@ -40,18 +41,17 @@ async def status():
     settings = get_settings()
     return {
         "configured": settings.agent_enabled,
-        "model": settings.anthropic_model,
+        "model": settings.minimax_model,
         "history_limit": settings.history_limit,
-        "rag_enabled": settings.rag_enabled,
+        "use_llm_agent": settings.llm_routing_enabled,
     }
 
 
 @router.post("/chat")
 async def chat(body: ChatRequest, _: None = Depends(verify_token)):
     settings = get_settings()
-    frontend_url = (
-        body.context.frontend_url if body.context and body.context.frontend_url else settings.frontend_url
-    )
+    context_url = body.context.frontend_url if body.context else None
+    frontend_url = resolve_public_frontend_url(context_url, settings.frontend_url)
     history = [t.model_dump() for t in body.history]
     capped = history[-settings.history_limit :]
 
@@ -70,6 +70,7 @@ async def chat(body: ChatRequest, _: None = Depends(verify_token)):
         "history": new_history,
         "message_count": len(new_history),
         "canned": result.get("canned", False),
+        "handoff": result.get("handoff", False),
         "intent": result.get("intent", ""),
         "graph_trace": result.get("graph_trace", []),
         "rounds": result.get("rounds", []),

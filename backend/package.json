@@ -24,7 +24,6 @@
     "db:migrate-phones": "ts-node prisma/migrate-phone-normalize.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.105.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",

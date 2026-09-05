@@ -3,18 +3,6 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true,
-    "assets": [
-      {
-        "include": "messenger/data/**/*",
-        "outDir": "dist/src",
-        "watchAssets": true
-      },
-      {
-        "include": "admin-assistant/data/**/*",
-        "outDir": "dist/src",
-        "watchAssets": true
-      }
-    ]
+    "deleteOutDir": true
   }
 }

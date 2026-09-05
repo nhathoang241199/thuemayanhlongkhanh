@@ -21,7 +21,6 @@ import { apiBase } from "@/lib/api-base";
 import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { toaster } from "@/lib/toaster";
 
-import { PolicyRagTestPanel } from "./policy-rag-test-panel";
 import { MessengerChatSimulator } from "./messenger-chat-simulator";
 
 type BookingTerms = {
@@ -100,8 +99,9 @@ export default function AdminTermsPage() {
             <CardTitle textStyle="lg">Điều khoản đặt lịch</CardTitle>
             <Text fontSize="sm" color="fg.muted">
               Nội dung hiển thị khi khách bấm &quot;điều khoản&quot; ở bước xác
-              nhận. Để trống = không bắt khách tick xác nhận. Gợi ý format RAG:
-              dòng IN HOA (section), mỗi ý một dòng bắt đầu &quot;- &quot;.
+              nhận. Để trống = không bắt khách tick xác nhận. Bot đọc nội dung
+              này qua tool <code>get_booking_terms</code> khi khách hỏi chính
+              sách.
             </Text>
             {error ? (
               <Text color="red.fg" fontSize="sm" fontWeight="medium">
@@ -136,7 +136,6 @@ export default function AdminTermsPage() {
       </CardRoot>
 
       <MessengerChatSimulator />
-      <PolicyRagTestPanel />
     </Stack>
   );
 }

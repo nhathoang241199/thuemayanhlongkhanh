@@ -122,7 +122,7 @@ Biến `SEPAY_*` trong `backend/.env` — xem [sepay-setup.md](./sepay-setup.md)
 - https://thuemayanhlongkhanh.com/book — đặt lịch
 - https://thuemayanhlongkhanh.com/admin — quản trị
 - https://thuemayanhlongkhanh.com/api/docs — Swagger API
-- `pm2 status` — `thue-may-api` và `thue-may-web` online
+- `pm2 status` — `thue-may-api`, `thue-may-ai` và `thue-may-web` online
 
 ## Cập nhật sau khi sửa code
 

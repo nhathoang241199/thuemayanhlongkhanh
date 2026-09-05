@@ -1,16 +1,18 @@
-"""Claude agent node — LangChain create_react_agent on LangGraph."""
+"""MiniMax agent node — LangChain create_react_agent on LangGraph."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
 from app.config import get_settings
 from app.db.pool import get_pool
 from app.db.repositories.cameras import list_public_cameras
+from app.domain.canned import format_camera_comparison_reply, is_camera_comparison_question
 from app.domain.formatters import camera_model_short_label
 from app.domain.price_quote import (
     build_price_quote_context,
@@ -90,6 +92,20 @@ def _load_system_prompt(
     return "\n\n".join(parts)
 
 
+_THINK_TAG = chr(60) + "think" + chr(62)
+_THINK_END = chr(60) + "/" + "think" + chr(62)
+_THINKING_RE = re.compile(
+    rf"<think>[\s\S]*?</think>\s*"
+    rf"|{_THINK_TAG}[\s\S]*?{_THINK_END}\s*",
+    re.IGNORECASE,
+)
+
+
+def _strip_thinking(text: str) -> str:
+    """Remove MiniMax M2.x reasoning blocks from user-facing text."""
+    return _THINKING_RE.sub("", text).strip()
+
+
 def _truncate_reply(text: str, max_len: int = 500) -> str:
     t = text.strip()
     if len(t) <= max_len:
@@ -98,11 +114,12 @@ def _truncate_reply(text: str, max_len: int = 500) -> str:
 
 
 def _ai_message_text(message: AIMessage) -> str:
-    """Extract user-facing text from AIMessage (string or Anthropic content blocks)."""
+    """Extract user-facing text from AIMessage (string or content blocks)."""
     content = message.content
+    raw = ""
     if isinstance(content, str):
-        return content.strip()
-    if isinstance(content, list):
+        raw = content.strip()
+    elif isinstance(content, list):
         parts: list[str] = []
         for block in content:
             if isinstance(block, str):
@@ -115,8 +132,32 @@ def _ai_message_text(message: AIMessage) -> str:
                 text = getattr(block, "text", None)
                 if text:
                     parts.append(str(text).strip())
-        return "\n".join(p for p in parts if p)
-    return str(content).strip() if content else ""
+        raw = "\n".join(p for p in parts if p)
+    elif content:
+        raw = str(content).strip()
+    return _strip_thinking(raw)
+
+
+def _pick_final_ai_text(messages: list) -> str:
+    """Last assistant message without tool calls — skip reasoning-only turns."""
+    for m in reversed(messages):
+        if not isinstance(m, AIMessage):
+            continue
+        if getattr(m, "tool_calls", None):
+            continue
+        text = _ai_message_text(m)
+        if text:
+            return text
+    return ""
+
+
+def _is_weak_reply(text: str) -> bool:
+    t = text.strip()
+    if len(t) < 35:
+        return True
+    if re.match(r"^[A-Za-z0-9\s, và+và]+$", t) and len(t) < 80:
+        return True
+    return False
 
 
 async def _get_agent():
@@ -126,10 +167,11 @@ async def _get_agent():
     settings = get_settings()
     pool = await get_pool()
     tools = build_tools(pool)
-    model = ChatAnthropic(
-        model=settings.anthropic_model,
-        api_key=settings.anthropic_api_key,
-        max_tokens=120,
+    model = ChatOpenAI(
+        model=settings.minimax_model,
+        api_key=settings.minimax_api_key,
+        base_url=settings.minimax_base_url,
+        max_tokens=1024,
         temperature=0,
     )
     _AGENT = create_react_agent(model, tools)
@@ -175,19 +217,20 @@ async def agent_node(state: ChatState) -> dict:
     result = await agent.ainvoke({"messages": lc_messages})
 
     messages = result.get("messages", [])
-    raw = ""
-    for m in reversed(messages):
-        if isinstance(m, AIMessage):
-            text = _ai_message_text(m)
-            if text:
-                raw = text
-                break
-    if not raw:
-        p = resolve_messenger_pronouns(state["user_message"], history)
-        raw = (
-            f"{p['shop'].capitalize()} chưa rõ câu hỏi — "
-            f"{p['customer']} mô tả thêm giúp {p['shop']} nhé?"
-        )
+    raw = _pick_final_ai_text(messages)
+    if not raw or _is_weak_reply(raw):
+        if is_camera_comparison_question(state["user_message"]):
+            raw = format_camera_comparison_reply(
+                state["user_message"],
+                cameras,
+                state.get("frontend_url", settings.frontend_url),
+            )
+        elif not raw:
+            p = resolve_messenger_pronouns(state["user_message"], history)
+            raw = (
+                f"{p['shop'].capitalize()} chưa rõ câu hỏi — "
+                f"{p['customer']} mô tả thêm giúp {p['shop']} nhé?"
+            )
     reply = _truncate_reply(raw)
 
     return {

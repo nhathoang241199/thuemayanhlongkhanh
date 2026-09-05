@@ -15,7 +15,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Chỉnh DATABASE_URL, ANTHROPIC_API_KEY, OPENAI_API_KEY (RAG)
+# Chỉnh DATABASE_URL, MINIMAX_API_KEY
 ```
 
 ## Chạy
@@ -28,8 +28,8 @@ uvicorn app.main:app --reload --port 8000
 
 1. **route** — phân loại intent (regex)
 2. **greeting_node / booking_node / policy_fees_node / shop_contact_node** — canned
-3. **price_node / availability_node** — DB, không gọi Claude
-4. **agent_node** — LangChain ReAct agent + tools
+3. **price_node / availability_node** — DB, không gọi LLM
+4. **agent_node** — LangChain ReAct agent + tools (MiniMax-M2.5)
 
 Xem trace trong response: `graph_trace`.
 

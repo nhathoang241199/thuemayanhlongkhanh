@@ -11,6 +11,11 @@ def test_detect_price():
     assert detect_intent("còn 3 ngày") == "price"
 
 
+def test_detect_booking_done():
+    assert detect_intent("em đặt rồi ạ") == "booking_done"
+    assert detect_intent("book rồi nhé") == "booking_done"
+
+
 def test_detect_booking():
     assert detect_intent("cách đặt lịch") == "booking_redirect"
 
@@ -22,6 +27,7 @@ def test_detect_availability():
 
 def test_detect_address():
     assert detect_intent("shop ở đâu") == "address_or_phone"
+    assert detect_intent("nhà anh ở đâu") == "address_or_phone"
 
 
 def test_detect_delivery_arrange_to_lk():

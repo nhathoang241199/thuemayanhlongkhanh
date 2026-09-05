@@ -52,8 +52,20 @@ function adminBreadcrumbs(pathname: string): Crumb[] {
   if (pathname === "/admin/terms") {
     return [home, admin, { href: null, label: "Điều khoản" }];
   }
+  if (pathname === "/admin/messenger-learn") {
+    return [home, admin, { href: null, label: "Học Messenger" }];
+  }
+  if (pathname === "/admin/fanpage-posts") {
+    return [home, admin, { href: null, label: "Bài fanpage" }];
+  }
+  if (pathname === "/admin/blog-posts") {
+    return [home, admin, { href: null, label: "Blog" }];
+  }
   if (pathname === "/admin/info") {
     return [home, admin, { href: null, label: "Thông tin" }];
+  }
+  if (pathname === "/admin/shippers") {
+    return [home, admin, { href: null, label: "Shipper" }];
   }
   if (pathname === "/admin/features") {
     return [home, admin, { href: null, label: "Chức năng" }];

@@ -17,7 +17,7 @@ import { Public } from '../auth/public.decorator';
 import { ConversationService } from './conversation.service';
 import {
   getMessengerConfig,
-  isMessengerConfigured,
+  isMessengerWebhookConfigured,
 } from './messenger.config';
 import type { MessengerWebhookBody } from './messenger.types';
 
@@ -54,8 +54,8 @@ export class MessengerWebhookController {
     @Req() req: RawBodyRequest,
   ) {
     this.verifySignature(req.rawBody, signature);
-    if (!isMessengerConfigured()) {
-      this.logger.warn('Webhook nhận event nhưng bot chưa cấu hình');
+    if (!isMessengerWebhookConfigured()) {
+      this.logger.warn('Webhook nhận event nhưng Messenger chưa cấu hình');
       return 'EVENT_RECEIVED';
     }
     this.conversation.handleWebhookAsync(body);

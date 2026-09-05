@@ -1,17 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ShipperService } from '../shipper/shipper.service';
 import { AiServiceClient } from './ai-service.client';
 import { FacebookGraphService } from './facebook-graph.service';
 import {
   getHandoffDurationMs,
   getMessengerConfig,
-  isMessengerConfigured,
+  isMessengerBotEnabled,
 } from './messenger.config';
+import { MessengerLearnService } from './messenger-learn.service';
 import { truncateMessengerReply } from './messenger-reply-format';
 import {
   ESCALATE_KEYWORDS,
   MENU_PAYLOADS,
   matchesEscalateKeyword,
+  parseShipMessengerLink,
   shouldResetBot,
   type MessengerMessagingEvent,
   type MessengerWebhookBody,
@@ -36,6 +39,8 @@ export class ConversationService {
     private readonly prisma: PrismaService,
     private readonly graph: FacebookGraphService,
     private readonly aiService: AiServiceClient,
+    private readonly learn: MessengerLearnService,
+    private readonly shipperService: ShipperService,
   ) {}
 
   handleWebhookAsync(body: MessengerWebhookBody): void {
@@ -54,15 +59,49 @@ export class ConversationService {
   }
 
   private async routeEvent(event: MessengerMessagingEvent): Promise<void> {
-    const text = this.extractInboundText(event);
-    if (!text) return;
+    const config = getMessengerConfig();
 
-    if (!isMessengerConfigured()) {
-      this.logger.warn('Messenger bot chưa cấu hình đủ env');
+    if (config.learnMode && this.isOwnerEcho(event)) {
+      const psid = event.recipient.id;
+      const text = event.message?.text?.trim();
+      if (text) {
+        await this.learn.recordOwnerReply(psid, text);
+        this.logger.log(`Learn mode: ghi câu trả lời shop psid=${psid}`);
+      }
       return;
     }
 
+    const text = this.extractInboundText(event);
+    if (!text) return;
+
     const psid = event.sender.id;
+    const shipLink = parseShipMessengerLink(text);
+    if (shipLink) {
+      this.cancelPending(psid);
+      const result =
+        shipLink.action === 'unlink'
+          ? await this.shipperService.unlinkMessengerByPsid(psid)
+          : await this.shipperService.linkMessengerPsid(shipLink.phone, psid);
+      try {
+        await this.graph.sendText(psid, result.message);
+      } catch (err) {
+        this.logger.error(
+          `Ship link reply failed psid=${psid}`,
+          err instanceof Error ? err.stack : err,
+        );
+      }
+      return;
+    }
+
+    if (config.learnMode) {
+      await this.handleLearnCustomerMessage(event.sender.id, text);
+      return;
+    }
+
+    if (!isMessengerBotEnabled()) {
+      this.logger.warn('Messenger bot tắt — bỏ qua tin khách');
+      return;
+    }
 
     if (this.shouldProcessImmediately(event, text)) {
       this.cancelPending(psid);
@@ -207,6 +246,17 @@ export class ConversationService {
       );
       const reply = truncateMessengerReply(aiResult.reply);
 
+      if (aiResult.handoff) {
+        await this.prisma.messengerConversation.update({
+          where: { psid },
+          data: { handoffUntil: new Date(Date.now() + getHandoffDurationMs()) },
+        });
+        await this.notifyAdmin(
+          psid,
+          `Bot không có canned — chuyển admin.\nKhách: ${userContent}`,
+        );
+      }
+
       await this.saveMessage(conversationId, 'assistant', reply);
       await this.graph.sendTextWithQuickReplies(
         psid,
@@ -216,6 +266,33 @@ export class ConversationService {
     } finally {
       this.processingPsids.delete(psid);
     }
+  }
+
+  private isOwnerEcho(event: MessengerMessagingEvent): boolean {
+    const text = event.message?.text?.trim();
+    if (!text) return false;
+
+    if (event.message?.is_echo) return true;
+
+    const { pageId } = getMessengerConfig();
+    if (
+      pageId &&
+      event.sender.id === pageId &&
+      event.recipient.id !== pageId
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private async handleLearnCustomerMessage(
+    psid: string,
+    text: string,
+  ): Promise<void> {
+    const conversation = await this.learn.ensureConversation(psid);
+    await this.learn.saveUserTurn(conversation.id, text);
+    this.logger.log(`Learn mode: ghi tin khách psid=${psid}`);
   }
 
   private extractInboundText(event: MessengerMessagingEvent): string | null {
@@ -249,11 +326,11 @@ export class ConversationService {
 
     switch (payload) {
       case MENU_PAYLOADS.PRICES:
-        return 'Khách xem giá — liệt kê tối đa 3 máy, trả lời 1–2 câu.';
+        return 'giá máy ạ';
       case MENU_PAYLOADS.AVAILABILITY:
-        return 'Khách check lịch — trả lời 1–2 câu tone anh/em: còn máy + hướng lên trang đặt lịch. Không gọi tool, không liệt kê máy.';
+        return 'ngày mai còn máy không ạ';
       case MENU_PAYLOADS.TERMS:
-        return 'Khách hỏi cọc — get_booking_terms, tóm tắt 1–2 câu.';
+        return 'Quy định cọc';
       default:
         return null;
     }

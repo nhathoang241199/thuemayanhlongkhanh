@@ -5,7 +5,9 @@ from __future__ import annotations
 from app.domain.availability import is_availability_question
 from app.domain.canned import (
     detect_policy_canned,
+    is_booking_done_acknowledgment,
     is_booking_redirect_question,
+    is_camera_comparison_question,
     is_delivery_arrangement_request,
     is_greeting_only,
     is_shop_address_question,
@@ -27,6 +29,8 @@ async def route_node(state: ChatState) -> dict:
 def detect_intent(text: str, history: list | None = None) -> str:
     if is_greeting_only(text):
         return "greeting"
+    if is_booking_done_acknowledgment(text):
+        return "booking_done"
     if is_booking_redirect_question(text):
         return "booking_redirect"
     if is_delivery_arrangement_request(text):
@@ -41,6 +45,8 @@ def detect_intent(text: str, history: list | None = None) -> str:
         return "price"
     if is_availability_question(text):
         return "availability"
+    if is_camera_comparison_question(text):
+        return "camera_compare"
     return "general"
 
 

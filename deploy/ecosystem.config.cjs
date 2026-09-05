@@ -17,6 +17,19 @@ module.exports = {
       },
     },
     {
+      name: "thue-may-ai",
+      cwd: path.join(root, "ai-service"),
+      script: path.join(root, "ai-service/.venv/bin/uvicorn"),
+      args: "app.main:app --host 127.0.0.1 --port 8000",
+      interpreter: "none",
+      instances: 1,
+      autorestart: true,
+      max_memory_restart: "400M",
+      env: {
+        PYTHONUNBUFFERED: "1",
+      },
+    },
+    {
       name: "thue-may-web",
       cwd: path.join(root, "frontend"),
       script: "node_modules/next/dist/bin/next",

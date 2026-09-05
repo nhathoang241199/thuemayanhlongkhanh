@@ -31,6 +31,7 @@ import { balanceDueVnd } from "@/lib/booking-payment";
 import { FREE_KIT_LABEL } from "@/lib/lens-step";
 import { slotLabelVi } from "@/lib/booking-status";
 
+import { AdminShipOrders } from "./admin-ship-orders";
 import { BookingCccdAction } from "./booking-cccd-action";
 import {
   BookingPaymentMenuCell,
@@ -212,6 +213,14 @@ function BookingListCardInner({
               {b.pickupAt ? formatPickupAtMobileCard(b.pickupAt) : "—"}
             </Text>
           </HStack>
+          {b.shippingAddress?.trim() ? (
+            <Text fontSize="sm" color="fg.muted">
+              Giao: {b.shippingAddress.trim()}
+            </Text>
+          ) : null}
+          {b.shippingAddress?.trim() || b.shipOrders?.length ? (
+            <AdminShipOrders orders={b.shipOrders} />
+          ) : null}
         </Stack>
       </Stack>
 

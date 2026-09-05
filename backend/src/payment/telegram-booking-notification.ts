@@ -1,11 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import https from 'node:https';
+import type { ShipLeg } from '../ship-order/ship-order.types';
 
 type NewBookingNotification = {
   customer: { name: string; phone: string };
   camera: { name: string };
   pickupAt: Date;
   note?: string | null;
+  shippingAddress?: string | null;
+};
+
+export type ShipOrderTelegramEvent = {
+  bookingCode: string;
+  leg: ShipLeg;
+  customerName: string;
+  customerPhone: string;
+  address: string;
 };
 
 function formatPickupAt(date: Date): string {
@@ -30,27 +40,51 @@ export function formatNewBookingNotification(booking: NewBookingNotification): s
     `Máy: ${booking.camera.name}`,
     `Nhận lúc: ${formatPickupAt(booking.pickupAt)}`,
   ];
+  if (booking.shippingAddress?.trim()) {
+    lines.push(`Giao tới: ${booking.shippingAddress.trim()}`);
+  }
   if (booking.note?.trim()) {
     lines.push(`Note: ${booking.note.trim()}`);
   }
   return lines.join('\n');
 }
 
+function legLabel(leg: ShipLeg): string {
+  return leg === 'OUTBOUND' ? 'Giao máy' : 'Trả máy';
+}
+
+export function formatShipOrderNotification(event: ShipOrderTelegramEvent): string {
+  return [
+    `Đơn ship ${legLabel(event.leg)} — ${event.bookingCode}`,
+    '',
+    `${event.customerName} - ${event.customerPhone}`,
+    event.address,
+  ].join('\n');
+}
+
 @Injectable()
 export class TelegramBookingNotificationService {
   async notifyNewDeposit(booking: NewBookingNotification): Promise<boolean> {
+    return this.sendText(formatNewBookingNotification(booking));
+  }
+
+  async notifyShipOrderCreated(event: ShipOrderTelegramEvent): Promise<boolean> {
+    return this.sendText(formatShipOrderNotification(event));
+  }
+
+  private async sendText(text: string): Promise<boolean> {
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
     const chatId = process.env.TELEGRAM_NEW_BOOKING_CHAT_ID?.trim();
     if (!token || !chatId) {
       console.warn(
-        '[telegram] New-booking notification disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_NEW_BOOKING_CHAT_ID is missing',
+        '[telegram] Notification disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_NEW_BOOKING_CHAT_ID is missing',
       );
       return false;
     }
 
     const payload = JSON.stringify({
       chat_id: chatId,
-      text: formatNewBookingNotification(booking),
+      text,
     });
     const result = await new Promise<{ ok?: boolean; description?: string }>(
       (resolve, reject) => {
