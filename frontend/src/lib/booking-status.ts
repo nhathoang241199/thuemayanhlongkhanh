@@ -97,7 +97,7 @@ export function bookingStatusColor(
 
 /** Đồng bộ với backend SLOT_TIME_WINDOWS (booking-schedule.ts). */
 /** Phụ phí giao & trả máy tận nơi — đồng bộ backend booking-schedule.ts */
-export const DELIVERY_FEE_VND = 40_000;
+export const DELIVERY_FEE_VND = 0;
 
 export const SLOT_TIME_WINDOWS = {
   FULL_DAY: { startHour: 7, endHour: 23 },

@@ -17,7 +17,7 @@ Shipper **không** nhấn hoàn thành. Admin chuyển trạng thái booking (**
 
 | Bước | Ai | Việc |
 |------|-----|------|
-| 1 | Khách | Đặt lịch + nhập địa chỉ giao (+ phí 40k) |
+| 1 | Khách | Đặt lịch + nhập địa chỉ giao (tạm miễn phí ship) |
 | 2 | Hệ thống | Sau cọc SePay → tạo đơn ship OUTBOUND `PENDING` |
 | 3 | Shipper | Vào `/ship/login` → xem đơn chờ → **Nhận đơn** |
 | 4 | Shipper | Giao máy + chụp CCCD — chờ shop xác nhận |

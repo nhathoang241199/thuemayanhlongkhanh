@@ -492,15 +492,10 @@ export class BookingService {
   }
 
   private assertDeliveryAllowed(
-    customer: { isVerified: boolean },
-    shippingAddress?: string | null,
+    _customer: { isVerified: boolean },
+    _shippingAddress?: string | null,
   ) {
-    if (!shippingAddress?.trim()) return;
-    if (!customer.isVerified) {
-      throw new BadRequestException(
-        'Chỉ tài khoản đã xác minh mới được chọn giao máy tận nơi',
-      );
-    }
+    // Tạm cho mọi khách chọn giao tận nơi (không yêu cầu xác minh).
   }
 
   async requestChangeCustomerBooking(

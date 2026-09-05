@@ -90,7 +90,6 @@ import {
 } from "@/lib/lens-step";
 import { balanceDueVnd } from "@/lib/booking-payment";
 import {
-  fetchCustomerVerification,
   fetchMyBookings,
   requestCustomerBookingChange,
   updatePendingCustomerBooking,
@@ -111,7 +110,7 @@ import {
   rentalAmountWithOptionsVnd,
   returnNextMorningSurchargeVnd,
 } from "@/lib/rental-pricing";
-import { getSession, setSession } from "@/lib/customer-session";
+import { getSession } from "@/lib/customer-session";
 import { fetchPublicShopFeatures } from "@/lib/shop-features";
 import { toaster } from "@/lib/toaster";
 import {
@@ -277,17 +276,8 @@ function BookPageContent() {
   }, [changeBookingId, editBookingId, preselectCameraId]);
 
   useEffect(() => {
-    const s = getSession();
-    if (!s) return;
-    setCanRequestDelivery(s.isVerified === true);
-    void fetchCustomerVerification(s.phone)
-      .then((r) => {
-        setCanRequestDelivery(r.isVerified);
-        if (s.isVerified !== r.isVerified) {
-          setSession({ ...s, isVerified: r.isVerified });
-        }
-      })
-      .catch(() => setCanRequestDelivery(false));
+    // Luôn cho chọn giao tận nơi (không phụ thuộc xác minh CCCD).
+    setCanRequestDelivery(true);
   }, []);
 
   useEffect(() => {
@@ -1319,7 +1309,7 @@ function BookPageContent() {
                   discountPercent={discountPercent}
                 />
               ) : null}
-              {deliverySelected ? (
+              {deliverySelected && DELIVERY_FEE_VND > 0 ? (
                 <Text fontSize="sm">
                   <strong>Giao & trả tận nơi:</strong>{" "}
                   {vnd.format(DELIVERY_FEE_VND)}
@@ -1377,8 +1367,10 @@ function BookPageContent() {
                   }}
                 />
                 <CheckboxLabel fontSize="sm" color="fg.muted">
-                  {getDeliveryAreaLabel()} (+
-                  {vnd.format(DELIVERY_FEE_VND)})
+                  {getDeliveryAreaLabel()}
+                  {DELIVERY_FEE_VND > 0
+                    ? ` (+${vnd.format(DELIVERY_FEE_VND)})`
+                    : ""}
                 </CheckboxLabel>
               </CheckboxRoot>
             </Stack>
