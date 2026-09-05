@@ -7,11 +7,11 @@ Khách nhập địa chỉ giao khi đặt lịch. Sau cọc, hệ thống tự 
 | Hiển thị | Ý nghĩa |
 |----------|---------|
 | **Chờ nhận** | Chưa có shipper nhận — bấm nút ▶ (chevron phải) để nhận |
-| **Chờ giao** | Đã nhận — giao máy, chụp CCCD; **không** tự hoàn thành |
-| **Chờ trả** | Đã giao cho khách — khách đang thuê, chờ gọi trả máy |
+| **Chờ giao** | Đã nhận — giao máy, chụp CCCD; bấm ▶ để **hoàn thành giao** (+ tiền) |
+| **Chờ trả** | Đã giao / đang thuê — nhận đơn trả; **không** tự hoàn thành trả |
 | **Hoàn thành** | Admin đã xác nhận trả máy (đơn RETURN hoàn tất) |
 
-Shipper **không** nhấn hoàn thành. Admin chuyển trạng thái booking (**Đã lấy máy** / **Đã trả máy**) thì chặng ship tương ứng mới hoàn tất.
+Shipper **chỉ** nhấn hoàn thành **đơn giao**. Đơn **trả** do admin xác nhận trên booking (**Đã trả máy**).
 
 ## Luồng
 
@@ -20,11 +20,10 @@ Shipper **không** nhấn hoàn thành. Admin chuyển trạng thái booking (**
 | 1 | Khách | Đặt lịch + nhập địa chỉ giao (tạm miễn phí ship) |
 | 2 | Hệ thống | Sau cọc SePay → tạo đơn ship OUTBOUND `PENDING` |
 | 3 | Shipper | Vào `/ship/login` → xem đơn chờ → **Nhận đơn** |
-| 4 | Shipper | Giao máy + chụp CCCD — chờ shop xác nhận |
-| 5 | Admin | Trên đơn booking: **Đã lấy máy** (CONFIRMED → RENTING). Nếu shipper đã nhận chặng giao → cộng tiền |
-| 6 | Khách | Khi đang thuê, bấm **Trả máy** trên `/home` |
-| 7 | Shipper | Nhận đơn RETURN |
-| 8 | Admin | **Đã trả máy** (RENTING → COMPLETED). Nếu shipper đã nhận chặng trả → cộng tiền |
+| 4 | Shipper | Giao máy + chụp CCCD → **Hoàn thành giao** (▶). Cộng tiền; booking → đang thuê |
+| 5 | Khách | Khi đang thuê, bấm **Trả máy** trên `/home` |
+| 6 | Shipper | Nhận đơn RETURN — chờ shop xác nhận |
+| 7 | Admin | **Đã trả máy** (RENTING → COMPLETED). Nếu shipper đã nhận chặng trả → cộng tiền |
 
 **Nhận đơn atomic:** chỉ một shipper nhận được — nếu đơn đã có người nhận, API trả lỗi.
 
@@ -49,6 +48,7 @@ Shipper **không** nhấn hoàn thành. Admin chuyển trạng thái booking (**
 | `GET /api/ship-orders/pending` | Shipper | Đơn chờ |
 | `GET /api/ship-orders/mine` | Shipper | Đơn đã nhận |
 | `POST /api/ship-orders/:id/claim` | Shipper | Nhận đơn |
+| `POST /api/ship-orders/:id/complete` | Shipper | Hoàn thành đơn **giao** (OUTBOUND) |
 | `POST /api/auth/shipper/request-payout` | Shipper | Gửi yêu cầu rút tiền |
 | `PATCH /api/bookings/:id` | Admin | Đổi trạng thái — hoàn thành chặng ship + cộng tiền nếu có người nhận |
 | `POST /api/bookings/customer/:id/request-return` | Public + SĐT | Khách gọi trả máy |

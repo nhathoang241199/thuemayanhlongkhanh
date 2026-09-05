@@ -32,6 +32,7 @@ import { formatVnd } from "@/lib/format-vnd";
 import { shopPhoneTelHref } from "@/lib/shop-info";
 import {
   claimShipOrder,
+  completeShipOrder,
   fetchMyShipOrders,
   fetchPendingShipOrders,
   fetchShipperSession,
@@ -50,6 +51,15 @@ function canClaimOrder(order: ShipOrder): boolean {
   return order.displayStatus === "WAIT_CLAIM";
 }
 
+/** Hoàn thành đơn giao (OUTBOUND) — không áp dụng đơn trả. */
+function canCompleteDeliver(order: ShipOrder): boolean {
+  return (
+    order.leg === "OUTBOUND" &&
+    order.status === "CLAIMED" &&
+    order.displayStatus === "WAIT_DELIVER"
+  );
+}
+
 function canBackOrder(order: ShipOrder): boolean {
   return (
     order.status === "CLAIMED" &&
@@ -60,10 +70,9 @@ function canBackOrder(order: ShipOrder): boolean {
 
 function waitingForAdminComplete(order: ShipOrder): boolean {
   return (
-    (order.displayStatus === "WAIT_DELIVER" && order.status === "CLAIMED") ||
-    (order.displayStatus === "WAIT_RETURN" &&
-      order.leg === "RETURN" &&
-      order.status === "CLAIMED")
+    order.displayStatus === "WAIT_RETURN" &&
+    order.leg === "RETURN" &&
+    order.status === "CLAIMED"
   );
 }
 
@@ -118,9 +127,10 @@ function ShipOrderCard({
 }) {
   const phoneHref = shopPhoneTelHref(order.customerPhone);
   const showClaim = canClaimOrder(order);
+  const showComplete = canCompleteDeliver(order);
   const showBack = canBackOrder(order);
   const showCamera = showCccdCapture(order);
-  const showActions = showClaim || showBack || showCamera;
+  const showActions = showClaim || showComplete || showBack || showCamera;
 
   return (
     <CardRoot {...userBookingCardProps}>
@@ -196,14 +206,14 @@ function ShipOrderCard({
                     onUploaded={onRefresh}
                   />
                 ) : null}
-                {showClaim ? (
+                {showClaim || showComplete ? (
                   <IconButton
                     type="button"
                     size="lg"
                     variant="subtle"
                     colorPalette="green"
                     flexShrink={0}
-                    aria-label="Nhận đơn"
+                    aria-label={showComplete ? "Hoàn thành giao máy" : "Nhận đơn"}
                     loading={loadingId === order.id}
                     onClick={() => onAdvance(order)}
                   >
@@ -289,6 +299,9 @@ export default function ShipBoardPage() {
         setActiveTab(
           order.leg === "RETURN" ? "WAIT_RETURN" : "WAIT_DELIVER",
         );
+      } else if (canCompleteDeliver(order)) {
+        await completeShipOrder(order.id);
+        setActiveTab("WAIT_RETURN");
       }
       await refreshBoard();
     } catch (e) {

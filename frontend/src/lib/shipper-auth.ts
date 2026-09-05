@@ -188,6 +188,29 @@ export async function unclaimShipOrder(id: string): Promise<ShipOrder> {
   return (await res.json()) as ShipOrder;
 }
 
+export async function completeShipOrder(id: string): Promise<ShipOrder> {
+  const res = await fetch(`${apiBase()}/api/ship-orders/${id}/complete`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text.trim() || res.statusText;
+    try {
+      const json = JSON.parse(text) as { message?: string | string[] };
+      if (typeof json.message === "string" && json.message.trim()) {
+        message = json.message.trim();
+      } else if (Array.isArray(json.message) && json.message.length > 0) {
+        message = json.message.map(String).join(", ");
+      }
+    } catch {
+      /* keep text */
+    }
+    throw new Error(message);
+  }
+  return (await res.json()) as ShipOrder;
+}
+
 export async function uploadShipOrderCustomerVerification(
   orderId: string,
   file: File,

@@ -75,6 +75,22 @@ export class ShipOrderController {
   }
 
   @ShipperAccess()
+  @Post(':id/complete')
+  @ApiOperation({
+    summary: 'Hoàn thành đơn giao máy (OUTBOUND) — không dùng cho đơn trả',
+  })
+  @ApiOkResponse()
+  complete(
+    @Param('id') id: string,
+    @Req() req: Request & { shipper?: ShipperJwtPayload },
+  ) {
+    return this.shipOrderService.completeOutboundByShipper(
+      id,
+      req.shipper!.shipperId,
+    );
+  }
+
+  @ShipperAccess()
   @Post(':id/customer-verification-image')
   @ApiOperation({ summary: 'Chụp CCCD khách khi giao máy' })
   @ApiConsumes('multipart/form-data')

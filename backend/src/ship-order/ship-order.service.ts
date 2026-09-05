@@ -477,6 +477,56 @@ export class ShipOrderService {
   }
 
   /**
+   * Shipper hoàn thành chặng giao (OUTBOUND). Không cho hoàn thành chặng trả.
+   * Cộng tiền + chuyển booking CONFIRMED → RENTING nếu cần.
+   */
+  async completeOutboundByShipper(
+    orderId: string,
+    shipperId: string,
+  ): Promise<ShipOrderView> {
+    const order = await this.prisma.shipOrder.findUnique({
+      where: { id: orderId },
+      include: { booking: { select: { id: true, status: true } } },
+    });
+    if (!order) {
+      throw new NotFoundException('Không tìm thấy đơn ship');
+    }
+    if (order.leg !== 'OUTBOUND') {
+      throw new BadRequestException(
+        'Chỉ hoàn thành được đơn giao máy. Đơn trả do shop xác nhận.',
+      );
+    }
+    if (order.shipperId !== shipperId || order.status !== 'CLAIMED') {
+      throw new ForbiddenException('Không có quyền hoàn thành đơn này.');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const result = await tx.shipOrder.updateMany({
+        where: { id: order.id, shipperId, status: 'CLAIMED' },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+      });
+      if (result.count === 0) {
+        throw new ConflictException('Đơn đã được hoàn thành hoặc không còn khả dụng.');
+      }
+      await tx.shipper.update({
+        where: { id: shipperId },
+        data: { balanceVnd: { increment: SHIP_EARN_VND_PER_LEG } },
+      });
+      if (order.booking.status === BookingStatus.CONFIRMED) {
+        await tx.booking.update({
+          where: { id: order.bookingId },
+          data: { status: BookingStatus.RENTING },
+        });
+      }
+    });
+
+    return this.loadView(orderId);
+  }
+
+  /**
    * Admin đổi trạng thái booking: hoàn thành chặng ship đã nhận (+ tiền),
    * hoặc hoàn tác khi admin lùi bước.
    */
