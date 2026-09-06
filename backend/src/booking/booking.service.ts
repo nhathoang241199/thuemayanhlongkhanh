@@ -85,7 +85,7 @@ const bookingInclude = {
       customerPhone: true,
       address: true,
       shipperId: true,
-      shipper: { select: { name: true } },
+      shipper: { select: { name: true, phone: true } },
       requestedAt: true,
       claimedAt: true,
       completedAt: true,

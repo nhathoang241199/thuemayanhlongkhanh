@@ -14,8 +14,10 @@ import {
   DialogRoot,
   DialogTitle,
   HStack,
+  Link,
   Stack,
   Text,
+  Textarea,
 } from "@chakra-ui/react";
 import { useCallback, useState } from "react";
 
@@ -83,6 +85,8 @@ export function BookingDeliveryBlock({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [returnAddress, setReturnAddress] = useState("");
+  const [success, setSuccess] = useState<string | null>(null);
 
   const outbound = legOrder(booking.shipOrders, "OUTBOUND");
   const ret = legOrder(booking.shipOrders, "RETURN");
@@ -95,16 +99,20 @@ export function BookingDeliveryBlock({
   const submitReturn = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSuccess(null);
     try {
-      await requestCustomerReturn(booking.id, phone);
+      await requestCustomerReturn(booking.id, phone, returnAddress.trim());
       setConfirmOpen(false);
+      setSuccess(
+        "Đã yêu cầu trả máy, Bạn vui lòng đợi 1 lát để shipper có thể liên hệ.",
+      );
       onUpdated();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không gọi được trả máy");
     } finally {
       setLoading(false);
     }
-  }, [booking.id, onUpdated, phone]);
+  }, [booking.id, onUpdated, phone, returnAddress]);
 
   if (!address) return null;
 
@@ -117,6 +125,26 @@ export function BookingDeliveryBlock({
             {address}
           </Text>
         </Text>
+
+        {outbound?.shipper?.name ? (
+          <Text fontSize="sm" color="fg.muted">
+            Shipper: {" "}
+            <Text as="span" fontWeight="medium" color={titleColor}>
+              {outbound.shipper.name}
+            </Text>
+            {outbound.shipper.phone ? (
+              <Link
+                href={`tel:${outbound.shipper.phone}`}
+                color={titleColor}
+                fontWeight="medium"
+                textDecoration="underline"
+                ms={1}
+              >
+                {outbound.shipper.phone}
+              </Link>
+            ) : null}
+          </Text>
+        ) : null}
 
         {outbound ? (
           <HStack justify="space-between" gap={2}>
@@ -148,12 +176,23 @@ export function BookingDeliveryBlock({
           </Text>
         ) : null}
 
+        {success ? (
+          <Text fontSize="sm" color="green.fg">
+            {success}
+          </Text>
+        ) : null}
+
         {canRequestReturn ? (
           <Button
             size="sm"
             {...userOutlineButtonProps}
             loading={loading}
-            onClick={() => setConfirmOpen(true)}
+            onClick={() => {
+              setReturnAddress(booking.returnAddress?.trim() || address);
+              setError(null);
+              setSuccess(null);
+              setConfirmOpen(true);
+            }}
           >
             Trả máy
           </Button>
@@ -176,9 +215,15 @@ export function BookingDeliveryBlock({
               <Text fontSize="sm">
                 Shipper sẽ tới địa chỉ của bạn để lấy máy trả về shop.
               </Text>
-              <Text fontSize="sm" mt={2} color="fg.muted">
-                {address}
+              <Text fontSize="sm" mt={3} mb={1} fontWeight="medium">
+                Địa chỉ trả máy
               </Text>
+              <Textarea
+                value={returnAddress}
+                onChange={(e) => setReturnAddress(e.target.value)}
+                placeholder="Nhập địa chỉ shipper tới lấy máy"
+                rows={3}
+              />
             </DialogBody>
             <DialogFooter gap={2}>
               <Button variant="outline" onClick={() => setConfirmOpen(false)}>
@@ -187,6 +232,7 @@ export function BookingDeliveryBlock({
               <Button
                 colorPalette={APP_COLOR_PALETTE}
                 loading={loading}
+                disabled={!returnAddress.trim()}
                 onClick={() => void submitReturn()}
               >
                 Xác nhận

@@ -52,8 +52,10 @@ export type ShipOrder = {
   customerName: string;
   customerPhone: string;
   address: string;
+  deliveryAddress?: string | null;
+  returnAddress?: string | null;
   shipperId: string | null;
-  shipper?: { name: string } | null;
+  shipper?: { name: string; phone: string } | null;
   scheduleAt?: string;
   requestedAt: string;
   claimedAt: string | null;
@@ -74,6 +76,7 @@ export type MyBooking = {
   paymentStatus: string;
   note: string | null;
   shippingAddress?: string | null;
+  returnAddress?: string | null;
   shipOrders?: ShipOrder[];
   pendingChange?: unknown;
   /** CONFIRMED: máy vật lý sẵn sàng nhận; null: không hiện badge */
@@ -187,13 +190,14 @@ export async function cancelCustomerBooking(
 export async function requestCustomerReturn(
   bookingId: string,
   phone: string,
+  returnAddress: string,
 ): Promise<ShipOrder> {
   const res = await fetch(
     `${apiBase()}/api/bookings/customer/${bookingId}/request-return`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ phone, returnAddress }),
     },
   );
   if (!res.ok) {

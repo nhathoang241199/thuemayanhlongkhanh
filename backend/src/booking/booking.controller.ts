@@ -129,7 +129,11 @@ export class BookingController {
     @Param('id') id: string,
     @Body() dto: CustomerReturnPhoneDto,
   ) {
-    return this.shipOrderService.ensureReturn(id, dto.phone);
+    return this.shipOrderService.ensureReturn(
+      id,
+      dto.phone,
+      dto.returnAddress,
+    );
   }
 
   @Get(':id')

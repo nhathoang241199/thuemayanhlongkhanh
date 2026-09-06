@@ -193,9 +193,18 @@ function ShipOrderCard({
               {shipDisplayStatusLabel(order.displayStatus)}
             </Badge>
           </HStack>
-          <Text fontSize="sm" color="fg.muted">
-            {order.address}
-          </Text>
+          {order.displayStatus === "DONE" ? (
+            <Stack gap={1} fontSize="sm" color="fg.muted">
+              <Text>Giao: {order.deliveryAddress ?? order.address}</Text>
+              <Text>Trả: {order.returnAddress ?? order.address}</Text>
+            </Stack>
+          ) : (
+            <Text fontSize="sm" color="fg.muted">
+              {order.displayStatus === "WAIT_RETURN"
+                ? order.returnAddress ?? order.address
+                : order.deliveryAddress ?? order.address}
+            </Text>
+          )}
           <HStack justify="space-between" align="center" gap={2}>
             <Text
               fontSize="sm"

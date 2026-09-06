@@ -122,6 +122,8 @@ export type ShipOrder = {
   customerId: string;
   customerHasVerificationImages: boolean;
   address: string;
+  deliveryAddress: string | null;
+  returnAddress: string | null;
   shipperId: string | null;
   shipperName: string | null;
   claimedAt: string | null;

@@ -99,6 +99,7 @@ model Booking {
   discountPercent Int           @default(0)
   note          String?
   shippingAddress String?
+  returnAddress  String?
   pendingChange Json?
   contractCccd       String?
   collateralMethod   CollateralMethod?

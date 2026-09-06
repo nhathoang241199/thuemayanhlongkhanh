@@ -89,7 +89,9 @@ export function AdminBookingShipCell({ orders }: AdminBookingShipCellProps) {
         fontSize="sm"
         color={currentOrder.shipper?.name ? undefined : "fg.muted"}
       >
-        {currentOrder.shipper?.name ?? "Chưa có shipper"}
+        {currentOrder.shipper?.name
+          ? `${currentOrder.shipper.name} - ${currentOrder.shipper.phone}`
+          : "Chưa có shipper"}
       </Text>
     </Stack>
   );

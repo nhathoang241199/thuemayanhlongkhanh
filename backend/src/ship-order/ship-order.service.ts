@@ -50,6 +50,8 @@ const shipOrderInclude = {
       pickupAt: true,
       startBookingDate: true,
       endBookingDate: true,
+      shippingAddress: true,
+      returnAddress: true,
       returnNextMorning: true,
       slot: true,
       customer: { select: { id: true, verificationImageUrls: true } },
@@ -124,6 +126,8 @@ export class ShipOrderService {
       pickupAt: Date | null;
       startBookingDate: Date;
       endBookingDate: Date;
+      shippingAddress: string | null;
+      returnAddress: string | null;
       slot?: string | null;
       returnNextMorning?: boolean | null;
       customer: { id: string; verificationImageUrls: string[] };
@@ -154,6 +158,8 @@ export class ShipOrderService {
         (url) => url.trim().length > 0,
       ),
       address: row.address,
+      deliveryAddress: row.booking?.shippingAddress ?? null,
+      returnAddress: row.booking?.returnAddress ?? row.booking?.shippingAddress ?? null,
       shipperId: row.shipperId,
       shipperName: row.shipper?.name ?? null,
       claimedAt: row.claimedAt?.toISOString() ?? null,
@@ -425,11 +431,20 @@ export class ShipOrderService {
     }
   }
 
-  async ensureReturn(bookingId: string, phone: string): Promise<ShipOrderView> {
+  async ensureReturn(
+    bookingId: string,
+    phone: string,
+    returnAddressInput?: string,
+  ): Promise<ShipOrderView> {
     const booking = await this.loadCustomerBooking(bookingId, phone);
-    const address = booking.shippingAddress?.trim();
+    const address = (
+      returnAddressInput?.trim() ||
+      booking.returnAddress?.trim() ||
+      booking.shippingAddress?.trim() ||
+      ''
+    );
     if (!address) {
-      throw new BadRequestException('Đơn không có địa chỉ giao hàng.');
+      throw new BadRequestException('Đơn không có địa chỉ trả máy.');
     }
     if (booking.status !== BookingStatus.RENTING) {
       throw new BadRequestException('Chỉ gọi trả máy khi đang thuê.');
@@ -439,6 +454,7 @@ export class ShipOrderService {
       where: {
         bookingId_leg: { bookingId, leg: 'OUTBOUND' },
       },
+      include: { shipper: { select: { id: true } } },
     });
     if (!outbound || outbound.status !== 'COMPLETED') {
       throw new BadRequestException(
@@ -460,6 +476,11 @@ export class ShipOrderService {
     ) {
       throw new BadRequestException('Đã có đơn trả máy đang xử lý.');
     }
+
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { returnAddress: address },
+    });
 
     const row = await this.prisma.shipOrder.upsert({
       where: {
@@ -486,14 +507,14 @@ export class ShipOrderService {
       include: { shipper: { select: { name: true } } },
     });
 
-    await this.notifyNewShipOrder({
-      bookingCode: booking.bookingCode,
-      leg: 'RETURN',
-      customerName: booking.customer.name,
-      customerPhone: booking.customer.phone,
-      address,
-      pickupAt: booking.endBookingDate,
-    });
+    if (outbound.shipperId) {
+      await this.shipperMessenger.notifyReturnRequest({
+        shipperId: outbound.shipperId,
+        customerName: booking.customer.name,
+        customerPhone: booking.customer.phone,
+        address,
+      });
+    }
 
     return this.toView(row);
   }
