@@ -46,7 +46,6 @@ type BookingForShip = {
 
 const shipOrderInclude = {
   shipper: { select: { name: true } },
-  scheduleAt: true,
   booking: {
     select: {
       pickupAt: true,
