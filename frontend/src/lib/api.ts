@@ -161,8 +161,8 @@ export async function updateAdminShipOrder(
 }
 
 export async function deleteAdminShipOrder(id: string): Promise<void> {
-  const res = await fetch(`${apiBase()}/api/ship-orders/admin/${id}`, {
-    method: "DELETE",
+  const res = await fetch(`${apiBase()}/api/ship-orders/admin/${id}/delete`, {
+    method: "POST",
     credentials: "include",
   });
   if (!res.ok) {
