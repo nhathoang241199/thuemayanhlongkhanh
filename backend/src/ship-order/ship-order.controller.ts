@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   MaxFileSizeValidator,
@@ -22,11 +23,26 @@ import { memoryStorage } from 'multer';
 import { MAX_VERIFICATION_IMAGE_BYTES } from '../common/upload-config';
 import { ShipperAccess, type ShipperJwtPayload } from '../auth/shipper-access.decorator';
 import { ShipOrderService } from './ship-order.service';
+import { CreateAdminShipOrderDto } from './dto/create-admin-ship-order.dto';
 
 @ApiTags('ship-orders')
 @Controller('ship-orders')
 export class ShipOrderController {
   constructor(private readonly shipOrderService: ShipOrderService) {}
+
+  @Get('admin')
+  @ApiOperation({ summary: 'Danh sách đơn giao (admin)' })
+  @ApiOkResponse()
+  listAdmin() {
+    return this.shipOrderService.listAdmin();
+  }
+
+  @Post('admin')
+  @ApiOperation({ summary: 'Tạo đơn giao thủ công (admin)' })
+  @ApiOkResponse()
+  createAdmin(@Body() dto: CreateAdminShipOrderDto) {
+    return this.shipOrderService.createAdmin(dto);
+  }
 
   @ShipperAccess()
   @Get('pending')

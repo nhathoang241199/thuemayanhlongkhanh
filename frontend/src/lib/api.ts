@@ -48,6 +48,7 @@ export type ShipOrder = {
   id: string;
   leg: "OUTBOUND" | "RETURN";
   status: string;
+  displayStatus: "WAIT_CLAIM" | "WAIT_DELIVER" | "WAIT_RETURN" | "DONE";
   bookingCode: string;
   customerName: string;
   customerPhone: string;
@@ -55,6 +56,7 @@ export type ShipOrder = {
   deliveryAddress?: string | null;
   returnAddress?: string | null;
   shipperId: string | null;
+  shipperName: string | null;
   shipper?: { name: string; phone: string } | null;
   scheduleAt?: string;
   requestedAt: string;
@@ -62,6 +64,42 @@ export type ShipOrder = {
   completedAt: string | null;
   updatedAt: string;
 };
+
+export type AdminShipOrderInput = {
+  bookingCode: string;
+  leg: "OUTBOUND" | "RETURN";
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  notify?: boolean;
+};
+
+export async function fetchAdminShipOrders(): Promise<ShipOrder[]> {
+  const res = await fetch(`${apiBase()}/api/ship-orders/admin`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+  return (await res.json()) as ShipOrder[];
+}
+
+export async function createAdminShipOrder(
+  input: AdminShipOrderInput,
+): Promise<ShipOrder> {
+  const res = await fetch(`${apiBase()}/api/ship-orders/admin`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+  return (await res.json()) as ShipOrder;
+}
 
 export type MyBooking = {
   id: string;

@@ -16,6 +16,7 @@ import { ShipperMessengerNotifyService } from '../messenger/shipper-messenger-no
 import { vnDateTimeToUtc, shipReturnScheduleAt } from '../common/booking-schedule';
 import { shipEarnActionsForBookingStatusChange } from './ship-order-booking-status';
 import { SHIP_EARN_VND_PER_LEG } from './ship-order.config';
+import type { CreateAdminShipOrderDto } from './dto/create-admin-ship-order.dto';
 import type { ShipLeg, ShipOrderStatus, ShipOrderView } from './ship-order.types';
 import { resolveShipDisplayStatus } from './ship-order.types';
 
@@ -176,6 +177,74 @@ export class ShipOrderService {
       include: shipOrderInclude,
     });
     if (!row) throw new NotFoundException('Không tìm thấy đơn ship');
+    return this.toView(row);
+  }
+
+  async listAdmin(): Promise<ShipOrderView[]> {
+    const rows = await this.prisma.shipOrder.findMany({
+      orderBy: { requestedAt: 'desc' },
+      include: shipOrderInclude,
+    });
+    return rows.map((row) => this.toView(row));
+  }
+
+  async createAdmin(dto: CreateAdminShipOrderDto): Promise<ShipOrderView> {
+    const bookingCode = dto.bookingCode.trim();
+    const booking = await this.prisma.booking.findUnique({
+      where: { bookingCode },
+      include: { customer: { select: { name: true, phone: true } } },
+    });
+    if (!booking) {
+      throw new NotFoundException(`Không tìm thấy booking ${bookingCode}`);
+    }
+
+    const existing = await this.prisma.shipOrder.findUnique({
+      where: { bookingId_leg: { bookingId: booking.id, leg: dto.leg } },
+    });
+    if (existing && existing.status !== 'CANCELLED') {
+      throw new ConflictException(
+        `Booking ${bookingCode} đã có đơn ${dto.leg === 'OUTBOUND' ? 'giao' : 'trả'} máy.`,
+      );
+    }
+
+    const customerName = dto.customerName.trim();
+    const customerPhone = normalizePhone(dto.customerPhone);
+    const address = dto.address.trim();
+    const row = await this.prisma.shipOrder.upsert({
+      where: { bookingId_leg: { bookingId: booking.id, leg: dto.leg } },
+      create: {
+        bookingId: booking.id,
+        bookingCode,
+        leg: dto.leg,
+        status: 'PENDING',
+        customerName,
+        customerPhone,
+        address,
+      },
+      update: {
+        bookingCode,
+        status: 'PENDING',
+        customerName,
+        customerPhone,
+        address,
+        shipperId: null,
+        claimedAt: null,
+        completedAt: null,
+      },
+      include: shipOrderInclude,
+    });
+
+    if (dto.notify !== false) {
+      await this.notifyNewShipOrder({
+        bookingCode,
+        leg: dto.leg,
+        customerName,
+        customerPhone,
+        address,
+        pickupAt: booking.pickupAt ?? booking.startBookingDate,
+      });
+    }
+
     return this.toView(row);
   }
 

@@ -43,6 +43,9 @@ function adminBreadcrumbs(pathname: string): Crumb[] {
   if (pathname === "/admin/bookings") {
     return [home, admin, { href: null, label: "Đơn thuê" }];
   }
+  if (pathname === "/admin/ship-orders") {
+    return [home, admin, { href: null, label: "Đơn giao" }];
+  }
   if (pathname === "/admin/expenses") {
     return [home, admin, { href: null, label: "Chi tiêu" }];
   }
@@ -117,7 +120,9 @@ export default function AdminLayout({
     >
       <Container
         maxW={
-          pathname === "/admin/bookings" ? "container.2xl" : "container.lg"
+          pathname === "/admin/bookings" || pathname === "/admin/ship-orders"
+            ? "container.2xl"
+            : "container.lg"
         }
         px={{ base: 3, md: 4 }}
       >

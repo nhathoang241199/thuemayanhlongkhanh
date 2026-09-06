@@ -200,6 +200,16 @@ export function AdminMobileNavDrawer({
             </Button>
             <Button
               asChild
+              variant={navVariant(pathname === "/admin/ship-orders")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+              justifyContent="flex-start"
+              onClick={close}
+            >
+              <NextLink href="/admin/ship-orders">Đơn giao</NextLink>
+            </Button>
+            <Button
+              asChild
               variant={navVariant(pathname === "/admin/expenses")}
               colorPalette={ADMIN_COLOR_PALETTE}
               size="sm"
@@ -368,6 +378,14 @@ export function AdminDesktopNav({
               size="sm"
             >
               <NextLink href="/admin/bookings">Đơn thuê</NextLink>
+            </Button>
+            <Button
+              asChild
+              variant={navVariant(pathname === "/admin/ship-orders")}
+              colorPalette={ADMIN_COLOR_PALETTE}
+              size="sm"
+            >
+              <NextLink href="/admin/ship-orders">Đơn giao</NextLink>
             </Button>
             <Button
               asChild
