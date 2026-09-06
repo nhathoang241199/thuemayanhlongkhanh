@@ -54,8 +54,8 @@ const shipOrderInclude = {
   },
 } as const;
 
-function scheduleAtForLeg(
-  leg: ShipLeg,
+function scheduleAtForDisplayStatus(
+  displayStatus: ReturnType<typeof resolveShipDisplayStatus>,
   booking:
     | {
         pickupAt: Date | null;
@@ -69,10 +69,12 @@ function scheduleAtForLeg(
   fallback: Date,
 ): Date {
   if (!booking) return fallback;
-  if (leg === 'OUTBOUND') {
-    return booking.pickupAt ?? booking.startBookingDate ?? fallback;
+  // Cần trả / hoàn thành → end time (ngày) hoặc nhận + 6h (buổi).
+  if (displayStatus === 'WAIT_RETURN' || displayStatus === 'DONE') {
+    return shipReturnScheduleAt(booking, fallback);
   }
-  return shipReturnScheduleAt(booking, fallback);
+  // Cần nhận / cần giao → giờ nhận máy.
+  return booking.pickupAt ?? booking.startBookingDate ?? fallback;
 }
 
 @Injectable()
@@ -126,17 +128,22 @@ export class ShipOrderService {
   }): ShipOrderView {
     const verificationUrls = row.booking?.customer?.verificationImageUrls ?? [];
     const leg = row.leg as ShipLeg;
-    const scheduleAt = scheduleAtForLeg(leg, row.booking, row.requestedAt);
+    const displayStatus = resolveShipDisplayStatus(
+      leg,
+      row.status as ShipOrderStatus,
+    );
+    const scheduleAt = scheduleAtForDisplayStatus(
+      displayStatus,
+      row.booking,
+      row.requestedAt,
+    );
     return {
       id: row.id,
       bookingId: row.bookingId,
       bookingCode: row.bookingCode,
       leg,
       status: row.status as ShipOrderStatus,
-      displayStatus: resolveShipDisplayStatus(
-        leg,
-        row.status as ShipOrderStatus,
-      ),
+      displayStatus,
       customerName: row.customerName,
       customerPhone: row.customerPhone,
       customerId: row.booking?.customer?.id ?? '',
@@ -236,21 +243,20 @@ export class ShipOrderService {
       })
       .map((row) => {
         const view = this.toView(row);
-        // Tab cần trả: luôn hiện giờ trả (ngày = end; buổi = nhận + 6h).
-        const returnAt = scheduleAtForLeg(
-          'RETURN',
-          row.booking,
-          row.requestedAt,
-        );
-        const withReturnSchedule = {
-          ...view,
-          scheduleAt: returnAt.toISOString(),
-        };
         const ret = row.booking.shipOrders[0];
+        // DONE vẫn dùng giờ trả (cùng rule WAIT_RETURN).
         if (ret?.status === 'COMPLETED') {
-          return { ...withReturnSchedule, displayStatus: 'DONE' as const };
+          return {
+            ...view,
+            displayStatus: 'DONE' as const,
+            scheduleAt: scheduleAtForDisplayStatus(
+              'DONE',
+              row.booking,
+              row.requestedAt,
+            ).toISOString(),
+          };
         }
-        return withReturnSchedule;
+        return view;
       });
   }
 
