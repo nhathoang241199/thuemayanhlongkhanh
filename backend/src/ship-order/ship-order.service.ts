@@ -13,7 +13,7 @@ import { CustomerService } from '../customer/customer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBookingNotificationService } from '../payment/telegram-booking-notification';
 import { ShipperMessengerNotifyService } from '../messenger/shipper-messenger-notify.service';
-import { vnDateTimeToUtc } from '../common/booking-schedule';
+import { vnDateTimeToUtc, shipReturnScheduleAt } from '../common/booking-schedule';
 import { shipEarnActionsForBookingStatusChange } from './ship-order-booking-status';
 import { SHIP_EARN_VND_PER_LEG } from './ship-order.config';
 import type { ShipLeg, ShipOrderStatus, ShipOrderView } from './ship-order.types';
@@ -61,6 +61,8 @@ function scheduleAtForLeg(
         pickupAt: Date | null;
         startBookingDate: Date;
         endBookingDate: Date;
+        slot?: string | null;
+        returnNextMorning?: boolean | null;
       }
     | null
     | undefined,
@@ -70,7 +72,7 @@ function scheduleAtForLeg(
   if (leg === 'OUTBOUND') {
     return booking.pickupAt ?? booking.startBookingDate ?? fallback;
   }
-  return booking.endBookingDate ?? fallback;
+  return shipReturnScheduleAt(booking, fallback);
 }
 
 @Injectable()
@@ -117,6 +119,8 @@ export class ShipOrderService {
       pickupAt: Date | null;
       startBookingDate: Date;
       endBookingDate: Date;
+      slot?: string | null;
+      returnNextMorning?: boolean | null;
       customer: { id: string; verificationImageUrls: string[] };
     } | null;
   }): ShipOrderView {
@@ -232,19 +236,21 @@ export class ShipOrderService {
       })
       .map((row) => {
         const view = this.toView(row);
-        // Tab cần trả: hiện giờ trả máy (end), không dùng giờ nhận/giao.
-        const endAt =
-          row.booking.endBookingDate ??
-          scheduleAtForLeg('RETURN', row.booking, row.requestedAt);
-        const withEndSchedule = {
+        // Tab cần trả: luôn hiện giờ trả (ngày = end; buổi = nhận + 6h).
+        const returnAt = scheduleAtForLeg(
+          'RETURN',
+          row.booking,
+          row.requestedAt,
+        );
+        const withReturnSchedule = {
           ...view,
-          scheduleAt: endAt.toISOString(),
+          scheduleAt: returnAt.toISOString(),
         };
         const ret = row.booking.shipOrders[0];
         if (ret?.status === 'COMPLETED') {
-          return { ...withEndSchedule, displayStatus: 'DONE' as const };
+          return { ...withReturnSchedule, displayStatus: 'DONE' as const };
         }
-        return withEndSchedule;
+        return withReturnSchedule;
       });
   }
 
@@ -489,9 +495,8 @@ export class ShipOrderService {
   }
 
   /**
-   * Shipper hoàn thành chặng đã nhận (giao hoặc trả).
-   * OUTBOUND → cộng tiền, booking → RENTING nếu cần.
-   * RETURN → cộng tiền, booking RENTING → COMPLETED.
+   * Shipper hoàn thành chặng đã nhận (giao hoặc trả),
+   * hoặc hoàn thành trả từ đơn giao đã xong trên tab cần trả.
    */
   async completeByShipper(
     orderId: string,
@@ -499,11 +504,31 @@ export class ShipOrderService {
   ): Promise<ShipOrderView> {
     const order = await this.prisma.shipOrder.findUnique({
       where: { id: orderId },
-      include: { booking: { select: { id: true, status: true } } },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            status: true,
+            shippingAddress: true,
+            customer: { select: { name: true, phone: true } },
+            shipOrders: { where: { leg: 'RETURN' } },
+          },
+        },
+      },
     });
     if (!order) {
       throw new NotFoundException('Không tìm thấy đơn ship');
     }
+
+    // Đơn giao đã xong trên tab cần trả → tạo/hoàn thành chặng trả.
+    if (
+      order.leg === 'OUTBOUND' &&
+      order.status === 'COMPLETED' &&
+      order.shipperId === shipperId
+    ) {
+      return this.completeReturnAfterOutbound(order, shipperId);
+    }
+
     if (order.leg !== 'OUTBOUND' && order.leg !== 'RETURN') {
       throw new BadRequestException('Không hỗ trợ hoàn thành loại đơn này.');
     }
@@ -527,7 +552,6 @@ export class ShipOrderService {
         data: { balanceVnd: { increment: SHIP_EARN_VND_PER_LEG } },
       });
       if (order.leg === 'OUTBOUND') {
-        // Đã giao máy → đang thuê (kể cả khi cọc chưa kịp chuyển CONFIRMED).
         if (
           order.booking.status === BookingStatus.CONFIRMED ||
           order.booking.status === BookingStatus.PENDING_PAYMENT
@@ -546,6 +570,107 @@ export class ShipOrderService {
     });
 
     return this.loadView(orderId);
+  }
+
+  /**
+   * Từ đơn OUTBOUND đã COMPLETED: upsert RETURN COMPLETED + cộng tiền trả,
+   * booking RENTING → COMPLETED.
+   */
+  private async completeReturnAfterOutbound(
+    outbound: {
+      id: string;
+      bookingId: string;
+      bookingCode: string;
+      customerName: string;
+      customerPhone: string;
+      address: string;
+      booking: {
+        id: string;
+        status: BookingStatus;
+        shippingAddress: string | null;
+        customer: { name: string; phone: string };
+        shipOrders: Array<{
+          id: string;
+          status: string;
+          shipperId: string | null;
+        }>;
+      };
+    },
+    shipperId: string,
+  ): Promise<ShipOrderView> {
+    const existing = outbound.booking.shipOrders[0];
+    if (existing?.status === 'COMPLETED') {
+      return this.loadView(existing.id);
+    }
+    if (
+      existing?.status === 'CLAIMED' &&
+      existing.shipperId &&
+      existing.shipperId !== shipperId
+    ) {
+      throw new ForbiddenException('Đơn trả đã có shipper khác nhận.');
+    }
+
+    const address =
+      outbound.address.trim() ||
+      outbound.booking.shippingAddress?.trim() ||
+      '';
+    if (!address) {
+      throw new BadRequestException('Đơn không có địa chỉ giao hàng.');
+    }
+
+    const now = new Date();
+    const returnId = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.shipOrder.upsert({
+        where: {
+          bookingId_leg: { bookingId: outbound.bookingId, leg: 'RETURN' },
+        },
+        create: {
+          bookingId: outbound.bookingId,
+          bookingCode: outbound.bookingCode,
+          leg: 'RETURN',
+          status: 'COMPLETED',
+          customerName: outbound.booking.customer.name || outbound.customerName,
+          customerPhone:
+            outbound.booking.customer.phone || outbound.customerPhone,
+          address,
+          shipperId,
+          claimedAt: now,
+          completedAt: now,
+        },
+        update: {
+          status: 'COMPLETED',
+          customerName: outbound.booking.customer.name || outbound.customerName,
+          customerPhone:
+            outbound.booking.customer.phone || outbound.customerPhone,
+          address,
+          shipperId,
+          claimedAt: existing?.status === 'CLAIMED' ? undefined : now,
+          completedAt: now,
+        },
+      });
+
+      // Cộng tiền chặng trả nếu chưa COMPLETED trước đó.
+      if (!existing || existing.status !== 'COMPLETED') {
+        await tx.shipper.update({
+          where: { id: shipperId },
+          data: { balanceVnd: { increment: SHIP_EARN_VND_PER_LEG } },
+        });
+      }
+
+      if (
+        outbound.booking.status === BookingStatus.RENTING ||
+        outbound.booking.status === BookingStatus.CONFIRMED
+      ) {
+        await tx.booking.update({
+          where: { id: outbound.bookingId },
+          data: { status: BookingStatus.COMPLETED },
+        });
+      }
+
+      return row.id;
+    });
+
+    return this.loadView(returnId);
   }
 
   /** @deprecated alias — dùng completeByShipper */

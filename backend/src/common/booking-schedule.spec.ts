@@ -6,6 +6,7 @@ import {
   returnNextMorningDate,
   returnNextMorningOccupancyDate,
   returnNextMorningSurchargeVnd,
+  shipReturnScheduleAt,
   vnDateTimeToUtc,
 } from './booking-schedule';
 
@@ -99,5 +100,32 @@ describe('return next morning', () => {
     expect(
       effectiveReturnDeadline(endBookingDate, 'FULL_DAY', false).getTime(),
     ).toBe(endBookingDate.getTime());
+  });
+
+  it('ship return: full day uses end; shift uses pickup + 6h', () => {
+    const pickup = vnDateTimeToUtc('2026-09-06', 8, 0);
+    const end = vnDateTimeToUtc('2026-09-06', 23, 0);
+    expect(
+      shipReturnScheduleAt(
+        {
+          pickupAt: pickup,
+          startBookingDate: vnDateTimeToUtc('2026-09-06', 7, 0),
+          endBookingDate: end,
+          slot: 'FULL_DAY',
+        },
+        end,
+      ).getTime(),
+    ).toBe(end.getTime());
+    expect(
+      shipReturnScheduleAt(
+        {
+          pickupAt: pickup,
+          startBookingDate: vnDateTimeToUtc('2026-09-06', 7, 0),
+          endBookingDate: vnDateTimeToUtc('2026-09-06', 12, 0),
+          slot: 'MORNING',
+        },
+        end,
+      ).getTime(),
+    ).toBe(vnDateTimeToUtc('2026-09-06', 14, 0).getTime());
   });
 });

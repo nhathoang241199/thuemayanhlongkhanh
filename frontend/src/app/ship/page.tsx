@@ -61,11 +61,18 @@ function canCompleteDeliver(order: ShipOrder): boolean {
   );
 }
 
-/** Hoàn thành đơn trả (RETURN) trên tab cần trả. */
+/** Hoàn thành đơn trả: RETURN đã nhận, hoặc đơn giao xong đang ở tab cần trả. */
 function canCompleteReturn(order: ShipOrder): boolean {
-  return (
+  if (
     order.leg === "RETURN" &&
     order.status === "CLAIMED" &&
+    order.displayStatus === "WAIT_RETURN"
+  ) {
+    return true;
+  }
+  return (
+    order.leg === "OUTBOUND" &&
+    order.status === "COMPLETED" &&
     order.displayStatus === "WAIT_RETURN"
   );
 }
@@ -191,12 +198,7 @@ function ShipOrderCard({
           <Text fontSize="sm" color="fg.muted">
             {order.address}
           </Text>
-          {deliveredWaitingReturn(order) ? (
-            <Text fontSize="xs" color="fg.muted">
-              Đã giao — chờ khách gọi trả. Bấm ◀ nếu hoàn thành nhầm.
-            </Text>
-          ) : null}
-          <HStack justify="space-between" align="center" gap={2}>
+          {order.displayStatus === "DONE" ? (          <HStack justify="space-between" align="center" gap={2}>
             <Text
               fontSize="sm"
               fontWeight="medium"

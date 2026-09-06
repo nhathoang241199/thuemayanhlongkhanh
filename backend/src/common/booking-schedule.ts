@@ -315,6 +315,40 @@ export function effectiveReturnDeadline(
   return vnDateTimeToUtc(returnNextMorningDate(endDay), 12, 0);
 }
 
+/** Thuê buổi: thời lượng mặc định từ giờ nhận đến hạn trả (giờ). */
+export const SHIFT_RETURN_HOURS_AFTER_PICKUP = 6;
+
+/**
+ * Giờ shipper cần tới để trả máy:
+ * - FULL_DAY (thuê ngày): endBookingDate (hoặc hạn trả sáng hôm sau)
+ * - Buổi (MORNING/AFTERNOON/EVENING): pickupAt + 6 giờ
+ */
+export function shipReturnScheduleAt(
+  booking: {
+    pickupAt: Date | null;
+    startBookingDate: Date;
+    endBookingDate: Date;
+    slot?: BookingSlotValue | BookingSlot | string | null;
+    returnNextMorning?: boolean | null;
+  },
+  fallback: Date,
+): Date {
+  const slot = (booking.slot ?? 'FULL_DAY') as BookingSlotValue;
+  if (slot !== 'FULL_DAY') {
+    const start = booking.pickupAt ?? booking.startBookingDate;
+    if (start) {
+      return new Date(
+        start.getTime() + SHIFT_RETURN_HOURS_AFTER_PICKUP * 60 * 60 * 1000,
+      );
+    }
+  }
+  return effectiveReturnDeadline(
+    booking.endBookingDate ?? fallback,
+    slot,
+    booking.returnNextMorning ?? false,
+  );
+}
+
 export function dayCountInclusive(startDate: string, endDate: string): number {
   return eachCalendarDayVN(startDate, endDate).length;
 }
