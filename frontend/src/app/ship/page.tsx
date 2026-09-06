@@ -198,7 +198,12 @@ function ShipOrderCard({
           <Text fontSize="sm" color="fg.muted">
             {order.address}
           </Text>
-          {order.displayStatus === "DONE" ? (          <HStack justify="space-between" align="center" gap={2}>
+          {deliveredWaitingReturn(order) ? (
+            <Text fontSize="xs" color="fg.muted">
+              Đã giao — bấm ▶ khi đã trả máy. Bấm ◀ nếu hoàn thành giao nhầm.
+            </Text>
+          ) : null}
+          <HStack justify="space-between" align="center" gap={2}>
             <Text
               fontSize="sm"
               fontWeight="medium"
