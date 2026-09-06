@@ -191,7 +191,7 @@ export class ShipOrderService {
 
   async listMine(shipperId: string): Promise<ShipOrderView[]> {
     const rows = await this.prisma.shipOrder.findMany({
-      where: { shipperId, status: 'CLAIMED' },
+      where: { shipperId, status: { in: ['CLAIMED', 'READY'] } },
       orderBy: { claimedAt: 'asc' },
       include: shipOrderInclude,
     });
@@ -228,7 +228,9 @@ export class ShipOrderService {
         const ret = row.booking.shipOrders[0];
         const outboundDoneToday = isOnOrAfterTodayVn(row.completedAt);
         const returnActive =
-          ret?.status === 'PENDING' || ret?.status === 'CLAIMED';
+          ret?.status === 'PENDING' ||
+          ret?.status === 'CLAIMED' ||
+          ret?.status === 'READY';
         const returnDoneToday =
           ret?.status === 'COMPLETED' && isOnOrAfterTodayVn(ret.completedAt);
 
@@ -428,7 +430,8 @@ export class ShipOrderService {
     if (
       existingReturn &&
       (existingReturn.status === 'PENDING' ||
-        existingReturn.status === 'CLAIMED')
+        existingReturn.status === 'CLAIMED' ||
+        existingReturn.status === 'READY')
     ) {
       throw new BadRequestException('Đã có đơn trả máy đang xử lý.');
     }
@@ -501,8 +504,10 @@ export class ShipOrderService {
   }
 
   /**
-   * Shipper hoàn thành chặng đã nhận (giao hoặc trả),
-   * hoặc hoàn thành trả từ đơn giao đã xong trên tab cần trả.
+   * Bước tiếp theo trên bảng ship:
+   * - OUTBOUND CLAIMED (cần giao) → đánh dấu đã giao → cần trả (chưa hoàn thành đơn)
+   * - RETURN CLAIMED (cần giao) → READY → cần trả (chưa hoàn thành)
+   * - OUTBOUND COMPLETED / RETURN READY (cần trả) → hoàn thành trả
    */
   async completeByShipper(
     orderId: string,
@@ -525,26 +530,75 @@ export class ShipOrderService {
     if (!order) {
       throw new NotFoundException('Không tìm thấy đơn ship');
     }
+    if (order.shipperId !== shipperId) {
+      throw new ForbiddenException('Không có quyền cập nhật đơn này.');
+    }
 
-    // Đơn giao đã xong trên tab cần trả → tạo/hoàn thành chặng trả.
-    if (
-      order.leg === 'OUTBOUND' &&
-      order.status === 'COMPLETED' &&
-      order.shipperId === shipperId
-    ) {
+    // Tab cần trả → hoàn thành trả.
+    if (order.leg === 'OUTBOUND' && order.status === 'COMPLETED') {
       return this.completeReturnAfterOutbound(order, shipperId);
     }
-
-    if (order.leg !== 'OUTBOUND' && order.leg !== 'RETURN') {
-      throw new BadRequestException('Không hỗ trợ hoàn thành loại đơn này.');
+    if (order.leg === 'RETURN' && order.status === 'READY') {
+      return this.finishReturnReady(order, shipperId);
     }
-    if (order.shipperId !== shipperId || order.status !== 'CLAIMED') {
-      throw new ForbiddenException('Không có quyền hoàn thành đơn này.');
+
+    // Tab cần giao → chỉ chuyển sang cần trả, không hoàn thành đơn.
+    if (order.status !== 'CLAIMED') {
+      throw new BadRequestException('Đơn không ở trạng thái cần giao.');
+    }
+
+    if (order.leg === 'RETURN') {
+      await this.prisma.shipOrder.updateMany({
+        where: { id: order.id, shipperId, status: 'CLAIMED' },
+        data: { status: 'READY' },
+      });
+      return this.loadView(orderId);
+    }
+
+    if (order.leg !== 'OUTBOUND') {
+      throw new BadRequestException('Không hỗ trợ loại đơn này.');
     }
 
     await this.prisma.$transaction(async (tx) => {
       const result = await tx.shipOrder.updateMany({
         where: { id: order.id, shipperId, status: 'CLAIMED' },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+      });
+      if (result.count === 0) {
+        throw new ConflictException('Đơn đã được cập nhật hoặc không còn khả dụng.');
+      }
+      await tx.shipper.update({
+        where: { id: shipperId },
+        data: { balanceVnd: { increment: SHIP_EARN_VND_PER_LEG } },
+      });
+      if (
+        order.booking.status === BookingStatus.CONFIRMED ||
+        order.booking.status === BookingStatus.PENDING_PAYMENT
+      ) {
+        await tx.booking.update({
+          where: { id: order.bookingId },
+          data: { status: BookingStatus.RENTING },
+        });
+      }
+    });
+
+    return this.loadView(orderId);
+  }
+
+  private async finishReturnReady(
+    order: {
+      id: string;
+      bookingId: string;
+      booking: { status: BookingStatus };
+    },
+    shipperId: string,
+  ): Promise<ShipOrderView> {
+    await this.prisma.$transaction(async (tx) => {
+      const result = await tx.shipOrder.updateMany({
+        where: { id: order.id, shipperId, status: 'READY' },
         data: {
           status: 'COMPLETED',
           completedAt: new Date(),
@@ -557,25 +611,14 @@ export class ShipOrderService {
         where: { id: shipperId },
         data: { balanceVnd: { increment: SHIP_EARN_VND_PER_LEG } },
       });
-      if (order.leg === 'OUTBOUND') {
-        if (
-          order.booking.status === BookingStatus.CONFIRMED ||
-          order.booking.status === BookingStatus.PENDING_PAYMENT
-        ) {
-          await tx.booking.update({
-            where: { id: order.bookingId },
-            data: { status: BookingStatus.RENTING },
-          });
-        }
-      } else if (order.booking.status === BookingStatus.RENTING) {
+      if (order.booking.status === BookingStatus.RENTING) {
         await tx.booking.update({
           where: { id: order.bookingId },
           data: { status: BookingStatus.COMPLETED },
         });
       }
     });
-
-    return this.loadView(orderId);
+    return this.loadView(order.id);
   }
 
   /**
@@ -718,7 +761,14 @@ export class ShipOrderService {
       throw new NotFoundException('Không tìm thấy đơn ship');
     }
 
-    if (order.leg === 'RETURN' && order.status === 'COMPLETED') {
+    if (order.leg === 'RETURN' && (order.status === 'COMPLETED' || order.status === 'READY')) {
+      if (order.status === 'READY') {
+        await this.prisma.shipOrder.updateMany({
+          where: { id: order.id, shipperId, status: 'READY' },
+          data: { status: 'CLAIMED' },
+        });
+        return this.loadView(order.id);
+      }
       return this.reopenReturnLeg(
         order,
         shipperId,
@@ -736,6 +786,13 @@ export class ShipOrderService {
           order.bookingId,
           order.booking.status,
         );
+      }
+      if (ret?.status === 'READY') {
+        await this.prisma.shipOrder.updateMany({
+          where: { id: ret.id, shipperId, status: 'READY' },
+          data: { status: 'CLAIMED' },
+        });
+        return this.loadView(ret.id);
       }
       return this.reopenOutboundLeg(order, shipperId, ret?.status ?? null);
     }
@@ -808,7 +865,7 @@ export class ShipOrderService {
         'Chỉ hoàn tác được đơn giao hoàn thành trong ngày.',
       );
     }
-    if (returnStatus === 'PENDING' || returnStatus === 'CLAIMED') {
+    if (returnStatus === 'PENDING' || returnStatus === 'CLAIMED' || returnStatus === 'READY') {
       throw new BadRequestException(
         'Đã có đơn trả máy — không thể hoàn tác giao.',
       );
@@ -922,13 +979,15 @@ export class ShipOrderService {
     }
 
     const shipperId =
-      order.status === 'CLAIMED' && order.shipperId ? order.shipperId : null;
+      (order.status === 'CLAIMED' || order.status === 'READY') && order.shipperId
+        ? order.shipperId
+        : null;
 
     await this.prisma.$transaction(async (tx) => {
       const result = await tx.shipOrder.updateMany({
         where: {
           id: order.id,
-          status: { in: ['PENDING', 'CLAIMED'] },
+          status: { in: ['PENDING', 'CLAIMED', 'READY'] },
         },
         data: {
           status: 'COMPLETED',
@@ -976,7 +1035,7 @@ export class ShipOrderService {
     await this.prisma.shipOrder.updateMany({
       where: {
         bookingId,
-        status: { in: ['PENDING', 'CLAIMED'] },
+        status: { in: ['PENDING', 'CLAIMED', 'READY'] },
       },
       data: { status: 'CANCELLED', completedAt: new Date() },
     });
