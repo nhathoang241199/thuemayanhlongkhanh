@@ -477,9 +477,13 @@ export class ShipOrderService {
       throw new BadRequestException('Đã có đơn trả máy đang xử lý.');
     }
 
+    const returnDeadline = new Date(Date.now() + 10 * 60 * 1000);
     await this.prisma.booking.update({
       where: { id: bookingId },
-      data: { returnAddress: address },
+      data: {
+        returnAddress: address,
+        endBookingDate: returnDeadline,
+      },
     });
 
     const row = await this.prisma.shipOrder.upsert({
