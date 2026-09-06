@@ -195,13 +195,8 @@ export class ShipOrderService {
         leg: 'OUTBOUND',
         status: 'COMPLETED',
         booking: {
-          status: {
-            in: [
-              BookingStatus.RENTING,
-              BookingStatus.CONFIRMED,
-              BookingStatus.COMPLETED,
-            ],
-          },
+          // Giữ cả PENDING_PAYMENT: shipper có thể giao trước khi cọc kịp confirm.
+          status: { not: BookingStatus.CANCELLED },
           shippingAddress: { not: null },
         },
       },
@@ -515,7 +510,11 @@ export class ShipOrderService {
         where: { id: shipperId },
         data: { balanceVnd: { increment: SHIP_EARN_VND_PER_LEG } },
       });
-      if (order.booking.status === BookingStatus.CONFIRMED) {
+      // Đã giao máy → đang thuê (kể cả khi cọc chưa kịp chuyển CONFIRMED).
+      if (
+        order.booking.status === BookingStatus.CONFIRMED ||
+        order.booking.status === BookingStatus.PENDING_PAYMENT
+      ) {
         await tx.booking.update({
           where: { id: order.bookingId },
           data: { status: BookingStatus.RENTING },
