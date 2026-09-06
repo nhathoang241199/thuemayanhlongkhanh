@@ -17,6 +17,7 @@ import { vnDateTimeToUtc, shipReturnScheduleAt } from '../common/booking-schedul
 import { shipEarnActionsForBookingStatusChange } from './ship-order-booking-status';
 import { SHIP_EARN_VND_PER_LEG } from './ship-order.config';
 import type { CreateAdminShipOrderDto } from './dto/create-admin-ship-order.dto';
+import type { UpdateAdminShipOrderDto } from './dto/update-admin-ship-order.dto';
 import type { ShipLeg, ShipOrderStatus, ShipOrderView } from './ship-order.types';
 import { resolveShipDisplayStatus } from './ship-order.types';
 
@@ -262,6 +263,49 @@ export class ShipOrderService {
       pickupAt: scheduleAt,
     });
 
+    return this.toView(row);
+  }
+
+  async updateAdmin(id: string, dto: UpdateAdminShipOrderDto): Promise<ShipOrderView> {
+    const existing = await this.prisma.shipOrder.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Không tìm thấy đơn giao');
+    if (existing.status === 'COMPLETED') {
+      throw new BadRequestException('Không thể sửa đơn giao đã hoàn thành');
+    }
+
+    const leg = (dto.leg ?? existing.leg) as ShipLeg;
+    const address = dto.address?.trim() ?? existing.address;
+    if (!address) throw new BadRequestException('Địa chỉ giao/trả là bắt buộc');
+    const scheduleAt = dto.scheduleAt ? new Date(dto.scheduleAt) : existing.scheduleAt;
+    const shipperId = dto.shipperId?.trim() ?? existing.shipperId;
+    if (!shipperId) throw new BadRequestException('Đơn giao phải có shipper');
+
+    const shipper = await this.prisma.shipper.findFirst({
+      where: { id: shipperId, active: true },
+      select: { id: true },
+    });
+    if (!shipper) throw new NotFoundException('Không tìm thấy shipper đang hoạt động');
+
+    const conflict = await this.prisma.shipOrder.findUnique({
+      where: { bookingId_leg: { bookingId: existing.bookingId, leg } },
+    });
+    if (conflict && conflict.id !== id) {
+      throw new ConflictException('Booking đã có đơn cùng loại đang xử lý');
+    }
+
+    const row = await this.prisma.shipOrder.update({
+      where: { id },
+      data: {
+        leg,
+        address,
+        scheduleAt,
+        shipperId: shipper.id,
+        status: 'CLAIMED',
+        claimedAt: new Date(),
+        completedAt: null,
+      },
+      include: shipOrderInclude,
+    });
     return this.toView(row);
   }
 

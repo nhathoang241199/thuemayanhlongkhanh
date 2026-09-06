@@ -38,6 +38,7 @@ import {
   fetchAdminBookingOptions,
   fetchAdminShipperOptions,
   fetchAdminShipOrders,
+  updateAdminShipOrder,
   type AdminBookingOption,
   type AdminShipperOption,
   type AdminShipOrderInput,
@@ -97,7 +98,7 @@ function formatDate(value: string | null): string {
   return Number.isNaN(date.getTime()) ? value : dateFmt.format(date);
 }
 
-function OrderTable({ orders }: { orders: ShipOrder[] }) {
+function OrderTable({ orders, onEdit }: { orders: ShipOrder[]; onEdit: (order: ShipOrder) => void }) {
   if (orders.length === 0) return <Text color="fg.muted">Chưa có đơn giao nào.</Text>;
   return (
     <TableScrollArea borderWidth="1px" borderRadius="md">
@@ -110,6 +111,7 @@ function OrderTable({ orders }: { orders: ShipOrder[] }) {
           <TableColumnHeader>Trạng thái</TableColumnHeader>
           <TableColumnHeader>Shipper</TableColumnHeader>
           <TableColumnHeader>Thời gian</TableColumnHeader>
+          <TableColumnHeader>Thao tác</TableColumnHeader>
         </TableRow></TableHeader>
         <TableBody>
           {orders.map((order) => (
@@ -121,6 +123,7 @@ function OrderTable({ orders }: { orders: ShipOrder[] }) {
               <TableCell><Badge colorPalette={statusColor(order)} variant="subtle">{statusLabel(order)}</Badge></TableCell>
               <TableCell>{order.shipperName ?? "Chưa có shipper"}</TableCell>
               <TableCell whiteSpace="nowrap">{formatDate(order.scheduleAt ?? order.requestedAt)}</TableCell>
+              <TableCell><Button size="xs" variant="outline" onClick={() => onEdit(order)} disabled={order.status === "COMPLETED"}>Sửa</Button></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -239,12 +242,110 @@ function CreateOrderDialog({
   );
 }
 
+function toDateTimeInput(value: string | null | undefined): string {
+  const date = value ? new Date(value) : new Date(Date.now() + 30 * 60 * 1000);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function EditOrderDialog({
+  order,
+  shippers,
+  onOpenChange,
+  onUpdated,
+}: {
+  order: ShipOrder | null;
+  shippers: AdminShipperOption[];
+  onOpenChange: (open: boolean) => void;
+  onUpdated: (order: ShipOrder) => void;
+}) {
+  const [leg, setLeg] = useState<"OUTBOUND" | "RETURN">("OUTBOUND");
+  const [shipperId, setShipperId] = useState("");
+  const [address, setAddress] = useState("");
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!order) return;
+    setLeg(order.leg);
+    setShipperId(order.shipperId ?? "");
+    setAddress(order.address);
+    setScheduleAt(toDateTimeInput(order.scheduleAt ?? order.requestedAt));
+    setError(null);
+  }, [order]);
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!order) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateAdminShipOrder(order.id, {
+        leg,
+        shipperId,
+        address,
+        scheduleAt: new Date(scheduleAt).toISOString(),
+      });
+      onUpdated(updated);
+      onOpenChange(false);
+      toaster.success({ title: "Đã cập nhật đơn giao" });
+    } catch (e) {
+      const message = getApiErrorMessage(e, "Không thể cập nhật đơn giao");
+      setError(message);
+      toastApiError(e, "Không thể cập nhật đơn giao");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <DialogRoot open={order !== null} onOpenChange={(event) => onOpenChange(event.open)}>
+      <DialogBackdrop />
+      <DialogPositioner>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Sửa đơn giao</DialogTitle></DialogHeader>
+          <Box as="form" onSubmit={(event) => void submit(event as unknown as React.FormEvent<HTMLFormElement>)}>
+            <DialogBody>
+              <Stack gap={3}>
+                <Text fontSize="sm" color="fg.muted">{order?.bookingCode} · {order?.customerName} - {order?.customerPhone}</Text>
+                <Box>
+                  <Text fontSize="sm" mb={1}>Loại đơn</Text>
+                  <NativeSelectRoot {...fieldInputProps}><NativeSelectField value={leg} onChange={(event) => setLeg(event.target.value as "OUTBOUND" | "RETURN")}>
+                    <option value="OUTBOUND">Cần giao</option><option value="RETURN">Cần trả</option>
+                  </NativeSelectField></NativeSelectRoot>
+                </Box>
+                <Box>
+                  <Text fontSize="sm" mb={1}>Shipper</Text>
+                  <NativeSelectRoot {...fieldInputProps}><NativeSelectField value={shipperId} onChange={(event) => setShipperId(event.target.value)}>
+                    <option value="">Chọn shipper</option>
+                    {shippers.filter((shipper) => shipper.active).map((shipper) => <option key={shipper.id} value={shipper.id}>{shipper.name} - {shipper.phone}</option>)}
+                  </NativeSelectField></NativeSelectRoot>
+                </Box>
+                <Box><Text fontSize="sm" mb={1}>Địa chỉ giao/trả</Text><Textarea {...fieldInputProps} value={address} onChange={(event) => setAddress(event.target.value)} rows={3} required /></Box>
+                <Box><Text fontSize="sm" mb={1}>Thời gian shipper cần tới</Text><Input {...fieldInputProps} type="datetime-local" value={scheduleAt} onChange={(event) => setScheduleAt(event.target.value)} required /></Box>
+                {error ? <Text color="red.fg" fontSize="sm">{error}</Text> : null}
+              </Stack>
+            </DialogBody>
+            <DialogFooter gap={2}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
+              <Button type="submit" colorPalette={ADMIN_COLOR_PALETTE} loading={saving} disabled={!shipperId || !address.trim()}>Lưu thay đổi</Button>
+            </DialogFooter>
+          </Box>
+          <DialogCloseTrigger />
+        </DialogContent>
+      </DialogPositioner>
+    </DialogRoot>
+  );
+}
+
 export default function AdminShipOrdersPage() {
   const [orders, setOrders] = useState<ShipOrder[] | null>(null);
   const [bookings, setBookings] = useState<AdminBookingOption[]>([]);
   const [shippers, setShippers] = useState<AdminShipperOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<ShipOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -278,7 +379,7 @@ export default function AdminShipOrdersPage() {
               </HStack>
             </HStack>
             {error ? <Text color="red.fg">{error}</Text> : null}
-            {loading && !orders ? <Text color="fg.muted">Đang tải…</Text> : <OrderTable orders={orders ?? []} />}
+            {loading && !orders ? <Text color="fg.muted">Đang tải…</Text> : <OrderTable orders={orders ?? []} onEdit={setEditTarget} />}
           </Stack>
         </CardBody>
       </CardRoot>
@@ -288,6 +389,12 @@ export default function AdminShipOrdersPage() {
         shippers={shippers}
         onOpenChange={setDialogOpen}
         onCreated={(order) => setOrders((current) => (current ? [order, ...current] : [order]))}
+      />
+      <EditOrderDialog
+        order={editTarget}
+        shippers={shippers}
+        onOpenChange={(open) => { if (!open) setEditTarget(null); }}
+        onUpdated={(updated) => setOrders((current) => current ? current.map((item) => item.id === updated.id ? updated : item) : [updated])}
       />
     </Stack>
   );

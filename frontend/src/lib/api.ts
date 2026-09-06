@@ -73,6 +73,13 @@ export type AdminShipOrderInput = {
   scheduleAt: string;
 };
 
+export type AdminShipOrderUpdate = {
+  leg: "OUTBOUND" | "RETURN";
+  shipperId: string;
+  address: string;
+  scheduleAt: string;
+};
+
 export type AdminShipperOption = {
   id: string;
   name: string;
@@ -125,6 +132,23 @@ export async function createAdminShipOrder(
 ): Promise<ShipOrder> {
   const res = await fetch(`${apiBase()}/api/ship-orders/admin`, {
     method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+  return (await res.json()) as ShipOrder;
+}
+
+export async function updateAdminShipOrder(
+  id: string,
+  input: AdminShipOrderUpdate,
+): Promise<ShipOrder> {
+  const res = await fetch(`${apiBase()}/api/ship-orders/admin/${id}`, {
+    method: "PATCH",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),

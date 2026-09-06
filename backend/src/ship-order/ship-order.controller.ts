@@ -4,6 +4,7 @@ import {
   Get,
   MaxFileSizeValidator,
   Param,
+  Patch,
   ParseFilePipe,
   Post,
   Req,
@@ -24,6 +25,7 @@ import { MAX_VERIFICATION_IMAGE_BYTES } from '../common/upload-config';
 import { ShipperAccess, type ShipperJwtPayload } from '../auth/shipper-access.decorator';
 import { ShipOrderService } from './ship-order.service';
 import { CreateAdminShipOrderDto } from './dto/create-admin-ship-order.dto';
+import { UpdateAdminShipOrderDto } from './dto/update-admin-ship-order.dto';
 
 @ApiTags('ship-orders')
 @Controller('ship-orders')
@@ -42,6 +44,13 @@ export class ShipOrderController {
   @ApiOkResponse()
   createAdmin(@Body() dto: CreateAdminShipOrderDto) {
     return this.shipOrderService.createAdmin(dto);
+  }
+
+  @Patch('admin/:id')
+  @ApiOperation({ summary: 'Cập nhật đơn giao (admin)' })
+  @ApiOkResponse()
+  updateAdmin(@Param('id') id: string, @Body() dto: UpdateAdminShipOrderDto) {
+    return this.shipOrderService.updateAdmin(id, dto);
   }
 
   @ShipperAccess()
