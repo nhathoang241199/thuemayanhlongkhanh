@@ -574,9 +574,18 @@ export class ShipOrderService {
     }
 
     if (order.leg === 'RETURN') {
-      await this.prisma.shipOrder.updateMany({
-        where: { id: order.id, shipperId, status: 'CLAIMED' },
-        data: { status: 'READY' },
+      await this.prisma.$transaction(async (tx) => {
+        const result = await tx.shipOrder.updateMany({
+          where: { id: order.id, shipperId, status: 'CLAIMED' },
+          data: { status: 'READY' },
+        });
+        if (result.count === 0) {
+          throw new ConflictException('Đơn đã được cập nhật hoặc không còn khả dụng.');
+        }
+        await tx.shipper.update({
+          where: { id: shipperId },
+          data: { balanceVnd: { increment: SHIP_EARN_VND_PER_LEG } },
+        });
       });
       return this.loadView(orderId);
     }
@@ -789,9 +798,18 @@ export class ShipOrderService {
 
     if (order.leg === 'RETURN' && (order.status === 'COMPLETED' || order.status === 'READY')) {
       if (order.status === 'READY') {
-        await this.prisma.shipOrder.updateMany({
-          where: { id: order.id, shipperId, status: 'READY' },
-          data: { status: 'CLAIMED' },
+        await this.prisma.$transaction(async (tx) => {
+          const result = await tx.shipOrder.updateMany({
+            where: { id: order.id, shipperId, status: 'READY' },
+            data: { status: 'CLAIMED' },
+          });
+          if (result.count === 0) {
+            throw new ConflictException('Không thể hoàn tác đơn này.');
+          }
+          await tx.shipper.update({
+            where: { id: shipperId },
+            data: { balanceVnd: { decrement: SHIP_EARN_VND_PER_LEG } },
+          });
         });
         return this.loadView(order.id);
       }
