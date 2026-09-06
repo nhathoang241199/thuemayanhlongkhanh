@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Badge,
   Box,
   Button,
   DialogBackdrop,
@@ -13,7 +12,6 @@ import {
   DialogPositioner,
   DialogRoot,
   DialogTitle,
-  HStack,
   Link,
   Stack,
   Text,
@@ -30,6 +28,8 @@ import {
   APP_COLOR_PALETTE,
   mutedAccentColor,
   titleColor,
+  userWarningNoteProps,
+  userWarningNoteTextProps,
   userOutlineButtonProps,
 } from "@/lib/user-theme";
 
@@ -42,33 +42,6 @@ function legOrder(
   return orders?.find((s) => s.leg === leg);
 }
 
-function statusLabel(status: string): string {
-  switch (status) {
-    case "PENDING":
-      return "Chờ shipper nhận";
-    case "CLAIMED":
-      return "Shipper đang giao";
-    case "COMPLETED":
-      return "Đã giao";
-    case "CANCELLED":
-      return "Đã hủy";
-    default:
-      return status;
-  }
-}
-
-function statusColor(status: string): string {
-  switch (status) {
-    case "COMPLETED":
-      return "green";
-    case "CANCELLED":
-      return "red";
-    case "CLAIMED":
-      return "blue";
-    default:
-      return "gray";
-  }
-}
 
 type BookingDeliveryBlockProps = {
   booking: MyBooking;
@@ -126,35 +99,24 @@ export function BookingDeliveryBlock({
           </Text>
         </Text>
 
-        {outbound ? (
-          <HStack justify="space-between" gap={2} align="center">
-            {outbound.shipper?.name ? (
-              <Text fontSize="sm" color="fg.muted" minW={0} flex="1">
-                Shipper: {" "}
-                <Text as="span" fontWeight="medium" color={titleColor}>
-                  {outbound.shipper.name}
-                </Text>
-                {outbound.shipper.phone ? (
-                  <Link
-                    href={`tel:${outbound.shipper.phone}`}
-                    color={titleColor}
-                    fontWeight="medium"
-                    textDecoration="underline"
-                    ms={1}
-                  >
-                    {outbound.shipper.phone}
-                  </Link>
-                ) : null}
-              </Text>
-            ) : (
-              <Text fontSize="sm" color="fg.muted">
-                Chưa có shipper
-              </Text>
-            )}
-            <Badge colorPalette={statusColor(outbound.status)} variant="subtle">
-              {statusLabel(outbound.status)}
-            </Badge>
-          </HStack>
+        {outbound?.shipper?.name ? (
+          <Text fontSize="sm" color="fg.muted">
+            Shipper: {" "}
+            <Text as="span" fontWeight="medium" color={titleColor}>
+              {outbound.shipper.name}
+            </Text>
+            {outbound.shipper.phone ? (
+              <Link
+                href={`tel:${outbound.shipper.phone}`}
+                color={titleColor}
+                fontWeight="medium"
+                textDecoration="underline"
+                ms={1}
+              >
+                {outbound.shipper.phone}
+              </Link>
+            ) : null}
+          </Text>
         ) : booking.status === "CONFIRMED" &&
           booking.paymentStatus === "DEPOSITED" ? (
           <Text fontSize="sm" color="fg.muted">
@@ -162,14 +124,6 @@ export function BookingDeliveryBlock({
           </Text>
         ) : null}
 
-        {ret ? (
-          <HStack justify="space-between" gap={2}>
-            <Text fontSize="sm">Trả máy</Text>
-            <Badge colorPalette={statusColor(ret.status)} variant="subtle">
-              {statusLabel(ret.status)}
-            </Badge>
-          </HStack>
-        ) : null}
 
         {error ? (
           <Text fontSize="sm" color="red.fg">
@@ -178,9 +132,15 @@ export function BookingDeliveryBlock({
         ) : null}
 
         {success ? (
-          <Text fontSize="sm" color="green.fg">
-            {success}
-          </Text>
+          <Box
+            {...userWarningNoteProps}
+            bg="green.50"
+            borderColor="green.200"
+          >
+            <Text {...userWarningNoteTextProps} color="green.900">
+              {success}
+            </Text>
+          </Box>
         ) : null}
 
         {canRequestReturn ? (
