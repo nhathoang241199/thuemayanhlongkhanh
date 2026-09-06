@@ -682,10 +682,9 @@ export class ShipOrderService {
   }
 
   /**
-   * Hoàn tác hoàn thành giao trong ngày (bấm ▶ nhầm).
-   * Chỉ khi chưa có đơn trả đang xử lý.
+   * Hoàn tác trong ngày: undo hoàn thành trả (DONE), hoặc undo hoàn thành giao.
    */
-  async reopenOutboundByShipper(
+  async reopenByShipper(
     orderId: string,
     shipperId: string,
   ): Promise<ShipOrderView> {
@@ -696,7 +695,15 @@ export class ShipOrderService {
           select: {
             id: true,
             status: true,
-            shipOrders: { where: { leg: 'RETURN' }, select: { status: true } },
+            shipOrders: {
+              where: { leg: 'RETURN' },
+              select: {
+                id: true,
+                status: true,
+                shipperId: true,
+                completedAt: true,
+              },
+            },
           },
         },
       },
@@ -704,10 +711,90 @@ export class ShipOrderService {
     if (!order) {
       throw new NotFoundException('Không tìm thấy đơn ship');
     }
-    if (order.leg !== 'OUTBOUND') {
-      throw new BadRequestException('Chỉ hoàn tác được đơn giao máy.');
+
+    if (order.leg === 'RETURN' && order.status === 'COMPLETED') {
+      return this.reopenReturnLeg(
+        order,
+        shipperId,
+        order.bookingId,
+        order.booking.status,
+      );
     }
-    if (order.shipperId !== shipperId || order.status !== 'COMPLETED') {
+
+    if (order.leg === 'OUTBOUND' && order.status === 'COMPLETED') {
+      const ret = order.booking.shipOrders[0];
+      if (ret?.status === 'COMPLETED') {
+        return this.reopenReturnLeg(
+          ret,
+          shipperId,
+          order.bookingId,
+          order.booking.status,
+        );
+      }
+      return this.reopenOutboundLeg(order, shipperId, ret?.status ?? null);
+    }
+
+    throw new BadRequestException('Không thể hoàn tác đơn này.');
+  }
+
+  private async reopenReturnLeg(
+    ret: {
+      id: string;
+      status: string;
+      shipperId: string | null;
+      completedAt: Date | null;
+    },
+    shipperId: string,
+    bookingId: string,
+    bookingStatus: BookingStatus,
+  ): Promise<ShipOrderView> {
+    if (ret.shipperId !== shipperId || ret.status !== 'COMPLETED') {
+      throw new ForbiddenException('Không có quyền hoàn tác đơn trả này.');
+    }
+    if (!isOnOrAfterTodayVn(ret.completedAt)) {
+      throw new BadRequestException(
+        'Chỉ hoàn tác được đơn trả hoàn thành trong ngày.',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const result = await tx.shipOrder.updateMany({
+        where: { id: ret.id, shipperId, status: 'COMPLETED' },
+        data: {
+          status: 'CLAIMED',
+          completedAt: null,
+        },
+      });
+      if (result.count === 0) {
+        throw new ConflictException('Không thể hoàn tác đơn trả này.');
+      }
+      await tx.shipper.update({
+        where: { id: shipperId },
+        data: { balanceVnd: { decrement: SHIP_EARN_VND_PER_LEG } },
+      });
+      if (bookingStatus === BookingStatus.COMPLETED) {
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: BookingStatus.RENTING },
+        });
+      }
+    });
+
+    return this.loadView(ret.id);
+  }
+
+  private async reopenOutboundLeg(
+    order: {
+      id: string;
+      bookingId: string;
+      shipperId: string | null;
+      completedAt: Date | null;
+      booking: { status: BookingStatus };
+    },
+    shipperId: string,
+    returnStatus: string | null,
+  ): Promise<ShipOrderView> {
+    if (order.shipperId !== shipperId) {
       throw new ForbiddenException('Không có quyền hoàn tác đơn này.');
     }
     if (!isOnOrAfterTodayVn(order.completedAt)) {
@@ -715,8 +802,7 @@ export class ShipOrderService {
         'Chỉ hoàn tác được đơn giao hoàn thành trong ngày.',
       );
     }
-    const ret = order.booking.shipOrders[0];
-    if (ret && (ret.status === 'PENDING' || ret.status === 'CLAIMED')) {
+    if (returnStatus === 'PENDING' || returnStatus === 'CLAIMED') {
       throw new BadRequestException(
         'Đã có đơn trả máy — không thể hoàn tác giao.',
       );
@@ -745,7 +831,15 @@ export class ShipOrderService {
       }
     });
 
-    return this.loadView(orderId);
+    return this.loadView(order.id);
+  }
+
+  /** @deprecated alias */
+  async reopenOutboundByShipper(
+    orderId: string,
+    shipperId: string,
+  ): Promise<ShipOrderView> {
+    return this.reopenByShipper(orderId, shipperId);
   }
 
   /**

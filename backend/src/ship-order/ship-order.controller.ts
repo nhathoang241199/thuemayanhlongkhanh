@@ -100,7 +100,7 @@ export class ShipOrderController {
     @Param('id') id: string,
     @Req() req: Request & { shipper?: ShipperJwtPayload },
   ) {
-    return this.shipOrderService.reopenOutboundByShipper(
+    return this.shipOrderService.reopenByShipper(
       id,
       req.shipper!.shipperId,
     );

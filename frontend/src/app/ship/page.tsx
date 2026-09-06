@@ -90,20 +90,17 @@ function canUndoDeliverComplete(order: ShipOrder): boolean {
   );
 }
 
+/** Hoàn tác đơn đã hoàn thành trả (DONE) trong ngày. */
+function canUndoReturnComplete(order: ShipOrder): boolean {
+  return order.displayStatus === "DONE";
+}
+
 function canBackOrder(order: ShipOrder): boolean {
-  if (canUndoDeliverComplete(order)) return true;
+  if (canUndoDeliverComplete(order) || canUndoReturnComplete(order)) return true;
   return (
     order.status === "CLAIMED" &&
     (order.displayStatus === "WAIT_DELIVER" ||
       (order.displayStatus === "WAIT_RETURN" && order.leg === "RETURN"))
-  );
-}
-
-function deliveredWaitingReturn(order: ShipOrder): boolean {
-  return (
-    order.leg === "OUTBOUND" &&
-    order.status === "COMPLETED" &&
-    order.displayStatus === "WAIT_RETURN"
   );
 }
 
@@ -198,11 +195,6 @@ function ShipOrderCard({
           <Text fontSize="sm" color="fg.muted">
             {order.address}
           </Text>
-          {deliveredWaitingReturn(order) ? (
-            <Text fontSize="xs" color="fg.muted">
-              Đã giao — bấm ▶ khi đã trả máy. Bấm ◀ nếu hoàn thành giao nhầm.
-            </Text>
-          ) : null}
           <HStack justify="space-between" align="center" gap={2}>
             <Text
               fontSize="sm"
@@ -223,9 +215,11 @@ function ShipOrderCard({
                     colorPalette="orange"
                     flexShrink={0}
                     aria-label={
-                      canUndoDeliverComplete(order)
-                        ? "Hoàn tác hoàn thành giao"
-                        : "Trả lại đơn"
+                      canUndoReturnComplete(order)
+                        ? "Hoàn tác hoàn thành trả"
+                        : canUndoDeliverComplete(order)
+                          ? "Hoàn tác hoàn thành giao"
+                          : "Trả lại đơn"
                     }
                     loading={loadingId === order.id}
                     onClick={() => onBack(order)}
@@ -356,9 +350,11 @@ export default function ShipBoardPage() {
     setLoadingId(order.id);
     setError(null);
     try {
-      if (canUndoDeliverComplete(order)) {
+      if (canUndoDeliverComplete(order) || canUndoReturnComplete(order)) {
         await reopenShipOrder(order.id);
-        setActiveTab("WAIT_DELIVER");
+        setActiveTab(
+          canUndoReturnComplete(order) ? "WAIT_RETURN" : "WAIT_DELIVER",
+        );
       } else {
         await unclaimShipOrder(order.id);
         setActiveTab("WAIT_CLAIM");
