@@ -309,6 +309,16 @@ export class ShipOrderService {
     return this.toView(row);
   }
 
+  async deleteAdmin(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.shipOrder.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Không tìm thấy đơn giao');
+    if (existing.status === 'COMPLETED') {
+      throw new BadRequestException('Không thể xoá đơn giao đã hoàn thành');
+    }
+    await this.prisma.shipOrder.delete({ where: { id } });
+    return { ok: true };
+  }
+
   async listPending(): Promise<ShipOrderView[]> {
     await this.syncMissingOutboundOrders();
 

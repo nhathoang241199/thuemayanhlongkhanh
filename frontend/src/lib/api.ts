@@ -160,6 +160,17 @@ export async function updateAdminShipOrder(
   return (await res.json()) as ShipOrder;
 }
 
+export async function deleteAdminShipOrder(id: string): Promise<void> {
+  const res = await fetch(`${apiBase()}/api/ship-orders/admin/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+}
+
 export type MyBooking = {
   id: string;
   bookingCode: string;

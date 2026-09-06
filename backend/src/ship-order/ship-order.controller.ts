@@ -1,5 +1,6 @@
 import {
   Body,
+  Delete,
   Controller,
   Get,
   MaxFileSizeValidator,
@@ -51,6 +52,13 @@ export class ShipOrderController {
   @ApiOkResponse()
   updateAdmin(@Param('id') id: string, @Body() dto: UpdateAdminShipOrderDto) {
     return this.shipOrderService.updateAdmin(id, dto);
+  }
+
+  @Delete('admin/:id')
+  @ApiOperation({ summary: 'Xoá đơn giao (admin)' })
+  @ApiOkResponse()
+  deleteAdmin(@Param('id') id: string) {
+    return this.shipOrderService.deleteAdmin(id);
   }
 
   @ShipperAccess()

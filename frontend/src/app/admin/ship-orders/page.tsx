@@ -35,6 +35,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   createAdminShipOrder,
+  deleteAdminShipOrder,
   fetchAdminBookingOptions,
   fetchAdminShipperOptions,
   fetchAdminShipOrders,
@@ -98,7 +99,7 @@ function formatDate(value: string | null): string {
   return Number.isNaN(date.getTime()) ? value : dateFmt.format(date);
 }
 
-function OrderTable({ orders, onEdit }: { orders: ShipOrder[]; onEdit: (order: ShipOrder) => void }) {
+function OrderTable({ orders, onEdit, onDelete }: { orders: ShipOrder[]; onEdit: (order: ShipOrder) => void; onDelete: (order: ShipOrder) => void }) {
   if (orders.length === 0) return <Text color="fg.muted">Chưa có đơn giao nào.</Text>;
   return (
     <TableScrollArea borderWidth="1px" borderRadius="md">
@@ -123,7 +124,7 @@ function OrderTable({ orders, onEdit }: { orders: ShipOrder[]; onEdit: (order: S
               <TableCell><Badge colorPalette={statusColor(order)} variant="subtle">{statusLabel(order)}</Badge></TableCell>
               <TableCell>{order.shipperName ?? "Chưa có shipper"}</TableCell>
               <TableCell whiteSpace="nowrap">{formatDate(order.scheduleAt ?? order.requestedAt)}</TableCell>
-              <TableCell><Button size="xs" variant="outline" onClick={() => onEdit(order)} disabled={order.status === "COMPLETED"}>Sửa</Button></TableCell>
+              <TableCell><HStack gap={2}><Button size="xs" variant="outline" onClick={() => onEdit(order)} disabled={order.status === "COMPLETED"}>Sửa</Button><Button size="xs" variant="outline" colorPalette="red" onClick={() => onDelete(order)} disabled={order.status === "COMPLETED"}>Xoá</Button></HStack></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -366,6 +367,17 @@ export default function AdminShipOrdersPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const removeOrder = async (order: ShipOrder) => {
+    if (!window.confirm(`Xoá đơn ${order.bookingCode} của ${order.customerName}?`)) return;
+    try {
+      await deleteAdminShipOrder(order.id);
+      setOrders((current) => current ? current.filter((item) => item.id !== order.id) : current);
+      toaster.success({ title: "Đã xoá đơn giao" });
+    } catch (e) {
+      toastApiError(e, "Không thể xoá đơn giao");
+    }
+  };
+
   return (
     <Stack gap={5}>
       <CardRoot {...cardSurfaceProps}>
@@ -379,7 +391,7 @@ export default function AdminShipOrdersPage() {
               </HStack>
             </HStack>
             {error ? <Text color="red.fg">{error}</Text> : null}
-            {loading && !orders ? <Text color="fg.muted">Đang tải…</Text> : <OrderTable orders={orders ?? []} onEdit={setEditTarget} />}
+            {loading && !orders ? <Text color="fg.muted">Đang tải…</Text> : <OrderTable orders={orders ?? []} onEdit={setEditTarget} onDelete={(order) => void removeOrder(order)} />}
           </Stack>
         </CardBody>
       </CardRoot>
