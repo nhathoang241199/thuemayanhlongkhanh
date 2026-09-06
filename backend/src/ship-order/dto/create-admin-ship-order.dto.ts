@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class CreateAdminShipOrderDto {
   @ApiProperty({ description: 'ID booking được chọn' })
@@ -7,6 +13,16 @@ export class CreateAdminShipOrderDto {
   @MinLength(1)
   @MaxLength(64)
   bookingId: string;
+
+  @ApiProperty({ enum: ['OUTBOUND', 'RETURN'] })
+  @IsIn(['OUTBOUND', 'RETURN'])
+  leg: 'OUTBOUND' | 'RETURN';
+
+  @ApiProperty({ description: 'ID shipper được gán' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  shipperId: string;
 
   @ApiProperty({ example: '123 đường Nguyễn Ái Quốc, Long Khánh' })
   @IsString()

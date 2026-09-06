@@ -67,9 +67,29 @@ export type ShipOrder = {
 
 export type AdminShipOrderInput = {
   bookingId: string;
+  leg: "OUTBOUND" | "RETURN";
+  shipperId: string;
   address: string;
   scheduleAt: string;
 };
+
+export type AdminShipperOption = {
+  id: string;
+  name: string;
+  phone: string;
+  active: boolean;
+};
+
+export async function fetchAdminShipperOptions(): Promise<AdminShipperOption[]> {
+  const res = await fetch(`${apiBase()}/api/shippers`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+  return (await res.json()) as AdminShipperOption[];
+}
 
 export type AdminBookingOption = {
   id: string;

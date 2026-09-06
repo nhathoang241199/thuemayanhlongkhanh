@@ -36,8 +36,10 @@ import { useCallback, useEffect, useState } from "react";
 import {
   createAdminShipOrder,
   fetchAdminBookingOptions,
+  fetchAdminShipperOptions,
   fetchAdminShipOrders,
   type AdminBookingOption,
+  type AdminShipperOption,
   type AdminShipOrderInput,
   type ShipOrder,
 } from "@/lib/api";
@@ -64,7 +66,13 @@ function defaultScheduleInput(): string {
 }
 
 function emptyForm(): AdminShipOrderInput {
-  return { bookingId: "", address: "", scheduleAt: defaultScheduleInput() };
+  return {
+    bookingId: "",
+    leg: "OUTBOUND",
+    shipperId: "",
+    address: "",
+    scheduleAt: defaultScheduleInput(),
+  };
 }
 
 function statusLabel(order: ShipOrder): string {
@@ -124,11 +132,13 @@ function OrderTable({ orders }: { orders: ShipOrder[] }) {
 function CreateOrderDialog({
   open,
   bookings,
+  shippers,
   onOpenChange,
   onCreated,
 }: {
   open: boolean;
   bookings: AdminBookingOption[];
+  shippers: AdminShipperOption[];
   onOpenChange: (open: boolean) => void;
   onCreated: (order: ShipOrder) => void;
 }) {
@@ -136,7 +146,6 @@ function CreateOrderDialog({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const selected = bookings.find((booking) => booking.id === form.bookingId);
-  const inferredLeg = selected?.status === "RENTING" ? "Trả máy" : "Giao máy";
 
   useEffect(() => {
     if (open) {
@@ -152,6 +161,8 @@ function CreateOrderDialog({
     try {
       const order = await createAdminShipOrder({
         bookingId: form.bookingId,
+        leg: form.leg,
+        shipperId: form.shipperId,
         address: form.address,
         scheduleAt: new Date(form.scheduleAt).toISOString(),
       });
@@ -184,7 +195,25 @@ function CreateOrderDialog({
                       {bookings.map((booking) => <option key={booking.id} value={booking.id}>{booking.customer.name} - {booking.customer.phone}</option>)}
                     </NativeSelectField>
                   </NativeSelectRoot>
-                  {selected ? <Text mt={1} fontSize="xs" color="fg.muted">{selected.bookingCode} · {inferredLeg}</Text> : null}
+                  {selected ? <Text mt={1} fontSize="xs" color="fg.muted">{selected.bookingCode}</Text> : null}
+                </Box>
+                <Box>
+                  <Text fontSize="sm" mb={1}>Loại đơn</Text>
+                  <NativeSelectRoot {...fieldInputProps}>
+                    <NativeSelectField value={form.leg} onChange={(event) => setForm((current) => ({ ...current, leg: event.target.value as AdminShipOrderInput["leg"] }))}>
+                      <option value="OUTBOUND">Cần giao</option>
+                      <option value="RETURN">Cần trả</option>
+                    </NativeSelectField>
+                  </NativeSelectRoot>
+                </Box>
+                <Box>
+                  <Text fontSize="sm" mb={1}>Shipper</Text>
+                  <NativeSelectRoot {...fieldInputProps}>
+                    <NativeSelectField value={form.shipperId} onChange={(event) => setForm((current) => ({ ...current, shipperId: event.target.value }))}>
+                      <option value="">Chọn shipper</option>
+                      {shippers.filter((shipper) => shipper.active).map((shipper) => <option key={shipper.id} value={shipper.id}>{shipper.name} - {shipper.phone}</option>)}
+                    </NativeSelectField>
+                  </NativeSelectRoot>
                 </Box>
                 <Box>
                   <Text fontSize="sm" mb={1}>Địa chỉ giao/trả</Text>
@@ -200,7 +229,7 @@ function CreateOrderDialog({
             </DialogBody>
             <DialogFooter gap={2}>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-              <Button type="submit" colorPalette={ADMIN_COLOR_PALETTE} loading={saving} disabled={!form.bookingId}>Tạo đơn giao</Button>
+              <Button type="submit" colorPalette={ADMIN_COLOR_PALETTE} loading={saving} disabled={!form.bookingId || !form.shipperId}>Tạo đơn giao</Button>
             </DialogFooter>
           </Box>
           <DialogCloseTrigger />
@@ -213,6 +242,7 @@ function CreateOrderDialog({
 export default function AdminShipOrdersPage() {
   const [orders, setOrders] = useState<ShipOrder[] | null>(null);
   const [bookings, setBookings] = useState<AdminBookingOption[]>([]);
+  const [shippers, setShippers] = useState<AdminShipperOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,9 +251,10 @@ export default function AdminShipOrdersPage() {
     setLoading(true);
     setError(null);
     try {
-      const [shipOrders, bookingOptions] = await Promise.all([fetchAdminShipOrders(), fetchAdminBookingOptions()]);
+      const [shipOrders, bookingOptions, shipperOptions] = await Promise.all([fetchAdminShipOrders(), fetchAdminBookingOptions(), fetchAdminShipperOptions()]);
       setOrders(shipOrders);
       setBookings(bookingOptions.filter((booking) => RETURN_ELIGIBLE_STATUSES.has(booking.status)));
+      setShippers(shipperOptions);
     } catch (e) {
       setError(getApiErrorMessage(e, "Không thể tải dữ liệu đơn giao"));
       toastApiError(e, "Không thể tải dữ liệu đơn giao");
@@ -254,6 +285,7 @@ export default function AdminShipOrdersPage() {
       <CreateOrderDialog
         open={dialogOpen}
         bookings={bookings}
+        shippers={shippers}
         onOpenChange={setDialogOpen}
         onCreated={(order) => setOrders((current) => (current ? [order, ...current] : [order]))}
       />

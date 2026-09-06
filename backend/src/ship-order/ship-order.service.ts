@@ -205,8 +205,15 @@ export class ShipOrderService {
     }
 
     const leg: ShipLeg =
-      booking.status === BookingStatus.RENTING ? 'RETURN' : 'OUTBOUND';
+      dto.leg;
     const bookingCode = booking.bookingCode;
+    const shipper = await this.prisma.shipper.findFirst({
+      where: { id: dto.shipperId.trim(), active: true },
+      select: { id: true },
+    });
+    if (!shipper) {
+      throw new NotFoundException('Không tìm thấy shipper đang hoạt động');
+    }
     const existing = await this.prisma.shipOrder.findUnique({
       where: { bookingId_leg: { bookingId: booking.id, leg } },
     });
@@ -224,21 +231,23 @@ export class ShipOrderService {
         bookingId: booking.id,
         bookingCode,
         leg,
-        status: 'PENDING',
+        status: 'CLAIMED',
         customerName: booking.customer.name,
         customerPhone: booking.customer.phone,
         address,
         scheduleAt,
+        shipperId: shipper.id,
+        claimedAt: new Date(),
       },
       update: {
         bookingCode,
-        status: 'PENDING',
+        status: 'CLAIMED',
         customerName: booking.customer.name,
         customerPhone: booking.customer.phone,
         address,
         scheduleAt,
-        shipperId: null,
-        claimedAt: null,
+        shipperId: shipper.id,
+        claimedAt: new Date(),
         completedAt: null,
       },
       include: shipOrderInclude,
