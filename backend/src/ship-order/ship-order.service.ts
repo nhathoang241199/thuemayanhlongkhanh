@@ -232,11 +232,19 @@ export class ShipOrderService {
       })
       .map((row) => {
         const view = this.toView(row);
+        // Tab cần trả: hiện giờ trả máy (end), không dùng giờ nhận/giao.
+        const endAt =
+          row.booking.endBookingDate ??
+          scheduleAtForLeg('RETURN', row.booking, row.requestedAt);
+        const withEndSchedule = {
+          ...view,
+          scheduleAt: endAt.toISOString(),
+        };
         const ret = row.booking.shipOrders[0];
         if (ret?.status === 'COMPLETED') {
-          return { ...view, displayStatus: 'DONE' as const };
+          return { ...withEndSchedule, displayStatus: 'DONE' as const };
         }
-        return view;
+        return withEndSchedule;
       });
   }
 
@@ -481,10 +489,11 @@ export class ShipOrderService {
   }
 
   /**
-   * Shipper hoàn thành chặng giao (OUTBOUND). Không cho hoàn thành chặng trả.
-   * Cộng tiền + chuyển booking CONFIRMED → RENTING nếu cần.
+   * Shipper hoàn thành chặng đã nhận (giao hoặc trả).
+   * OUTBOUND → cộng tiền, booking → RENTING nếu cần.
+   * RETURN → cộng tiền, booking RENTING → COMPLETED.
    */
-  async completeOutboundByShipper(
+  async completeByShipper(
     orderId: string,
     shipperId: string,
   ): Promise<ShipOrderView> {
@@ -495,10 +504,8 @@ export class ShipOrderService {
     if (!order) {
       throw new NotFoundException('Không tìm thấy đơn ship');
     }
-    if (order.leg !== 'OUTBOUND') {
-      throw new BadRequestException(
-        'Chỉ hoàn thành được đơn giao máy. Đơn trả do shop xác nhận.',
-      );
+    if (order.leg !== 'OUTBOUND' && order.leg !== 'RETURN') {
+      throw new BadRequestException('Không hỗ trợ hoàn thành loại đơn này.');
     }
     if (order.shipperId !== shipperId || order.status !== 'CLAIMED') {
       throw new ForbiddenException('Không có quyền hoàn thành đơn này.');
@@ -519,19 +526,34 @@ export class ShipOrderService {
         where: { id: shipperId },
         data: { balanceVnd: { increment: SHIP_EARN_VND_PER_LEG } },
       });
-      // Đã giao máy → đang thuê (kể cả khi cọc chưa kịp chuyển CONFIRMED).
-      if (
-        order.booking.status === BookingStatus.CONFIRMED ||
-        order.booking.status === BookingStatus.PENDING_PAYMENT
-      ) {
+      if (order.leg === 'OUTBOUND') {
+        // Đã giao máy → đang thuê (kể cả khi cọc chưa kịp chuyển CONFIRMED).
+        if (
+          order.booking.status === BookingStatus.CONFIRMED ||
+          order.booking.status === BookingStatus.PENDING_PAYMENT
+        ) {
+          await tx.booking.update({
+            where: { id: order.bookingId },
+            data: { status: BookingStatus.RENTING },
+          });
+        }
+      } else if (order.booking.status === BookingStatus.RENTING) {
         await tx.booking.update({
           where: { id: order.bookingId },
-          data: { status: BookingStatus.RENTING },
+          data: { status: BookingStatus.COMPLETED },
         });
       }
     });
 
     return this.loadView(orderId);
+  }
+
+  /** @deprecated alias — dùng completeByShipper */
+  async completeOutboundByShipper(
+    orderId: string,
+    shipperId: string,
+  ): Promise<ShipOrderView> {
+    return this.completeByShipper(orderId, shipperId);
   }
 
   /**

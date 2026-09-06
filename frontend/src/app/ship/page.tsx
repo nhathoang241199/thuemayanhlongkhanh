@@ -52,13 +52,26 @@ function canClaimOrder(order: ShipOrder): boolean {
   return order.displayStatus === "WAIT_CLAIM";
 }
 
-/** Hoàn thành đơn giao (OUTBOUND) — không áp dụng đơn trả. */
+/** Hoàn thành đơn giao (OUTBOUND). */
 function canCompleteDeliver(order: ShipOrder): boolean {
   return (
     order.leg === "OUTBOUND" &&
     order.status === "CLAIMED" &&
     order.displayStatus === "WAIT_DELIVER"
   );
+}
+
+/** Hoàn thành đơn trả (RETURN) trên tab cần trả. */
+function canCompleteReturn(order: ShipOrder): boolean {
+  return (
+    order.leg === "RETURN" &&
+    order.status === "CLAIMED" &&
+    order.displayStatus === "WAIT_RETURN"
+  );
+}
+
+function canCompleteOrder(order: ShipOrder): boolean {
+  return canCompleteDeliver(order) || canCompleteReturn(order);
 }
 
 /** Hoàn tác giao xong trong ngày (bấm ▶ nhầm). Backend cũng kiểm tra ngày. */
@@ -76,14 +89,6 @@ function canBackOrder(order: ShipOrder): boolean {
     order.status === "CLAIMED" &&
     (order.displayStatus === "WAIT_DELIVER" ||
       (order.displayStatus === "WAIT_RETURN" && order.leg === "RETURN"))
-  );
-}
-
-function waitingForAdminComplete(order: ShipOrder): boolean {
-  return (
-    order.displayStatus === "WAIT_RETURN" &&
-    order.leg === "RETURN" &&
-    order.status === "CLAIMED"
   );
 }
 
@@ -146,7 +151,7 @@ function ShipOrderCard({
 }) {
   const phoneHref = shopPhoneTelHref(order.customerPhone);
   const showClaim = canClaimOrder(order);
-  const showComplete = canCompleteDeliver(order);
+  const showComplete = canCompleteOrder(order);
   const showBack = canBackOrder(order);
   const showCamera = showCccdCapture(order);
   const showActions = showClaim || showComplete || showBack || showCamera;
@@ -186,11 +191,6 @@ function ShipOrderCard({
           <Text fontSize="sm" color="fg.muted">
             {order.address}
           </Text>
-          {waitingForAdminComplete(order) ? (
-            <Text fontSize="xs" color="fg.muted">
-              Shop sẽ xác nhận khi đơn hoàn thành.
-            </Text>
-          ) : null}
           {deliveredWaitingReturn(order) ? (
             <Text fontSize="xs" color="fg.muted">
               Đã giao — chờ khách gọi trả. Bấm ◀ nếu hoàn thành nhầm.
@@ -241,7 +241,13 @@ function ShipOrderCard({
                     variant="subtle"
                     colorPalette="green"
                     flexShrink={0}
-                    aria-label={showComplete ? "Hoàn thành giao máy" : "Nhận đơn"}
+                    aria-label={
+                      canCompleteReturn(order)
+                        ? "Hoàn thành trả máy"
+                        : showComplete
+                          ? "Hoàn thành giao máy"
+                          : "Nhận đơn"
+                    }
                     loading={loadingId === order.id}
                     onClick={() => onAdvance(order)}
                   >
@@ -327,7 +333,7 @@ export default function ShipBoardPage() {
         setActiveTab(
           order.leg === "RETURN" ? "WAIT_RETURN" : "WAIT_DELIVER",
         );
-      } else if (canCompleteDeliver(order)) {
+      } else if (canCompleteOrder(order)) {
         await completeShipOrder(order.id);
         setActiveTab("WAIT_RETURN");
       }

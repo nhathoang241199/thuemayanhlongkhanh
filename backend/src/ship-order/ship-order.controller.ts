@@ -77,14 +77,14 @@ export class ShipOrderController {
   @ShipperAccess()
   @Post(':id/complete')
   @ApiOperation({
-    summary: 'Hoàn thành đơn giao máy (OUTBOUND) — không dùng cho đơn trả',
+    summary: 'Hoàn thành đơn giao (OUTBOUND) hoặc đơn trả (RETURN) đã nhận',
   })
   @ApiOkResponse()
   complete(
     @Param('id') id: string,
     @Req() req: Request & { shipper?: ShipperJwtPayload },
   ) {
-    return this.shipOrderService.completeOutboundByShipper(
+    return this.shipOrderService.completeByShipper(
       id,
       req.shipper!.shipperId,
     );

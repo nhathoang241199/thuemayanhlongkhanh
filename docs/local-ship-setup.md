@@ -8,10 +8,10 @@ Khách nhập địa chỉ giao khi đặt lịch. Sau cọc, hệ thống tự 
 |----------|---------|
 | **Chờ nhận** | Chưa có shipper nhận — bấm nút ▶ (chevron phải) để nhận |
 | **Chờ giao** | Đã nhận — giao máy, chụp CCCD; bấm ▶ để **hoàn thành giao** (+ tiền) |
-| **Chờ trả** | Đã giao / đang thuê — nhận đơn trả; **không** tự hoàn thành trả |
-| **Hoàn thành** | Admin đã xác nhận trả máy (đơn RETURN hoàn tất) |
+| **Chờ trả** | Đã giao / đơn trả đã nhận — hiện **giờ trả máy**; bấm ▶ để **hoàn thành trả** (+ tiền) |
+| **Hoàn thành** | Đơn RETURN đã hoàn tất trong ngày |
 
-Shipper **chỉ** nhấn hoàn thành **đơn giao**. Đơn **trả** do admin xác nhận trên booking (**Đã trả máy**).
+Shipper nhấn ▶ để hoàn thành **giao** và **trả**. Đơn vừa giao xong trong ngày vẫn nằm tab chờ trả (có ◀ hoàn tác nếu bấm nhầm).
 
 ## Luồng
 
@@ -22,8 +22,7 @@ Shipper **chỉ** nhấn hoàn thành **đơn giao**. Đơn **trả** do admin x
 | 3 | Shipper | Vào `/ship/login` → xem đơn chờ → **Nhận đơn** |
 | 4 | Shipper | Giao máy + chụp CCCD → **Hoàn thành giao** (▶). Cộng tiền; booking → đang thuê |
 | 5 | Khách | Khi đang thuê, bấm **Trả máy** trên `/home` |
-| 6 | Shipper | Nhận đơn RETURN — chờ shop xác nhận |
-| 7 | Admin | **Đã trả máy** (RENTING → COMPLETED). Nếu shipper đã nhận chặng trả → cộng tiền |
+| 6 | Shipper | Nhận đơn RETURN → **Hoàn thành trả** (▶). Cộng tiền; booking → hoàn thành |
 
 **Nhận đơn atomic:** chỉ một shipper nhận được — nếu đơn đã có người nhận, API trả lỗi.
 
@@ -48,7 +47,7 @@ Shipper **chỉ** nhấn hoàn thành **đơn giao**. Đơn **trả** do admin x
 | `GET /api/ship-orders/pending` | Shipper | Đơn chờ |
 | `GET /api/ship-orders/mine` | Shipper | Đơn đã nhận |
 | `POST /api/ship-orders/:id/claim` | Shipper | Nhận đơn |
-| `POST /api/ship-orders/:id/complete` | Shipper | Hoàn thành đơn **giao** (OUTBOUND) |
+| `POST /api/ship-orders/:id/complete` | Shipper | Hoàn thành đơn **giao** hoặc **trả** đã nhận |
 | `POST /api/auth/shipper/request-payout` | Shipper | Gửi yêu cầu rút tiền |
 | `PATCH /api/bookings/:id` | Admin | Đổi trạng thái — hoàn thành chặng ship + cộng tiền nếu có người nhận |
 | `POST /api/bookings/customer/:id/request-return` | Public + SĐT | Khách gọi trả máy |
