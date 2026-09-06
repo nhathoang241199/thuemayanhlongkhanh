@@ -36,6 +36,9 @@ type BookingForShip = {
   id: string;
   bookingCode: string;
   shippingAddress: string | null;
+  pickupAt: Date | null;
+  startBookingDate: Date;
+  endBookingDate: Date;
   status: BookingStatus;
   customer: { name: string; phone: string };
 };
@@ -92,6 +95,7 @@ export class ShipOrderService {
     customerName: string;
     customerPhone: string;
     address: string;
+    pickupAt: Date;
   }): Promise<void> {
     await this.telegram.notifyShipOrderCreated(event);
     await this.shipperMessenger.notifyShipOrderCreated(event).catch((err) => {
@@ -339,6 +343,7 @@ export class ShipOrderService {
         customerName: booking.customer.name,
         customerPhone: booking.customer.phone,
         address,
+        pickupAt: booking.pickupAt ?? booking.startBookingDate,
       });
     }
 
@@ -364,6 +369,9 @@ export class ShipOrderService {
           id: booking.id,
           bookingCode: booking.bookingCode,
           shippingAddress: booking.shippingAddress,
+          pickupAt: booking.pickupAt,
+          startBookingDate: booking.startBookingDate,
+          endBookingDate: booking.endBookingDate,
           status: booking.status,
           customer: booking.customer,
         },
@@ -392,6 +400,9 @@ export class ShipOrderService {
         id: booking.id,
         bookingCode: booking.bookingCode,
         shippingAddress: booking.shippingAddress,
+        pickupAt: booking.pickupAt,
+        startBookingDate: booking.startBookingDate,
+        endBookingDate: booking.endBookingDate,
         status: booking.status,
         customer: booking.customer,
       });
@@ -467,6 +478,7 @@ export class ShipOrderService {
       customerName: booking.customer.name,
       customerPhone: booking.customer.phone,
       address,
+      pickupAt: booking.endBookingDate,
     });
 
     return this.toView(row);

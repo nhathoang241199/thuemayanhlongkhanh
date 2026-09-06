@@ -1,4 +1,7 @@
-import { formatNewBookingNotification } from './telegram-booking-notification';
+import {
+  formatNewBookingNotification,
+  formatShipOrderNotification,
+} from './telegram-booking-notification';
 
 describe('formatNewBookingNotification', () => {
   it('formats pickup date, time, and optional note', () => {
@@ -23,5 +26,22 @@ describe('formatNewBookingNotification', () => {
         note: null,
       }),
     ).toBe('Đơn thuê mới:\n\n1. A - 0900000000\nMáy: X-T5\nNhận lúc: 28/08 10h30');
+  });
+});
+
+describe('formatShipOrderNotification', () => {
+  it('uses the requested concise shipper format', () => {
+    expect(
+      formatShipOrderNotification({
+        bookingCode: 'BOOK-1',
+        leg: 'OUTBOUND',
+        customerName: 'Tên khách',
+        customerPhone: '0900000000',
+        address: '12 Địa chỉ, Long Khánh',
+        pickupAt: new Date('2026-09-06T03:00:00.000Z'),
+      }),
+    ).toBe(
+      'Đơn giao máy mới !\n\nKhách: Tên khách - 0900000000\nĐịa chỉ: 12 Địa chỉ, Long Khánh\nNhận lúc: 10h sáng, 06/09\n\nBấm vào /ship để nhận đơn.',
+    );
   });
 });

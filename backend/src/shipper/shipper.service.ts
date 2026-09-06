@@ -191,7 +191,7 @@ export class ShipperService {
 
     return {
       ok: true,
-      message: `Đã gắn Messenger cho ${shipper.name} (${shipper.phone}). Bạn sẽ nhận tin khi có đơn ship mới. Vào /ship để nhận đơn.`,
+      message: 'Liên kết thông báo đơn thành công!',
     };
   }
 

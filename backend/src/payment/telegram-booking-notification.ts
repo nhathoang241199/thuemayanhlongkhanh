@@ -16,6 +16,7 @@ export type ShipOrderTelegramEvent = {
   customerName: string;
   customerPhone: string;
   address: string;
+  pickupAt: Date;
 };
 
 function formatPickupAt(date: Date): string {
@@ -49,16 +50,39 @@ export function formatNewBookingNotification(booking: NewBookingNotification): s
   return lines.join('\n');
 }
 
-function legLabel(leg: ShipLeg): string {
-  return leg === 'OUTBOUND' ? 'Giao máy' : 'Trả máy';
+function formatShipperPickupAt(date: Date): string {
+  const parts = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const hour24 = Number(values.hour);
+  const hour12 = hour24 % 12 || 12;
+  const period =
+    hour24 === 0
+      ? 'đêm'
+      : hour24 < 12
+        ? 'sáng'
+        : hour24 === 12
+          ? 'trưa'
+          : 'chiều';
+  const minute = values.minute === '00' ? '' : values.minute;
+  return `${hour12}h${minute} ${period}, ${values.day}/${values.month}`;
 }
 
 export function formatShipOrderNotification(event: ShipOrderTelegramEvent): string {
   return [
-    `Đơn ship ${legLabel(event.leg)} — ${event.bookingCode}`,
+    'Đơn giao máy mới !',
     '',
-    `${event.customerName} - ${event.customerPhone}`,
-    event.address,
+    `Khách: ${event.customerName} - ${event.customerPhone}`,
+    `Địa chỉ: ${event.address}`,
+    `Nhận lúc: ${formatShipperPickupAt(event.pickupAt)}`,
+    '',
+    'Bấm vào /ship để nhận đơn.',
   ].join('\n');
 }
 

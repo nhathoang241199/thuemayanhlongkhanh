@@ -34,11 +34,7 @@ export class ShipperMessengerNotifyService {
     });
     if (shippers.length === 0) return;
 
-    const text = [
-      formatShipOrderNotification(event),
-      '',
-      'Vào /ship để nhận đơn.',
-    ].join('\n');
+    const text = formatShipOrderNotification(event);
 
     for (const shipper of shippers) {
       const psid = shipper.messengerPsid.trim();
