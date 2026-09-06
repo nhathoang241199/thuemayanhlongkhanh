@@ -126,36 +126,37 @@ export function BookingDeliveryBlock({
           </Text>
         </Text>
 
-        {outbound?.shipper?.name ? (
-          <Text fontSize="sm" color="fg.muted">
-            Shipper: {" "}
-            <Text as="span" fontWeight="medium" color={titleColor}>
-              {outbound.shipper.name}
-            </Text>
-            {outbound.shipper.phone ? (
-              <Link
-                href={`tel:${outbound.shipper.phone}`}
-                color={titleColor}
-                fontWeight="medium"
-                textDecoration="underline"
-                ms={1}
-              >
-                {outbound.shipper.phone}
-              </Link>
-            ) : null}
-          </Text>
-        ) : null}
-
         {outbound ? (
-          <HStack justify="space-between" gap={2}>
-            <Text fontSize="sm">Giao máy</Text>
+          <HStack justify="space-between" gap={2} align="center">
+            {outbound.shipper?.name ? (
+              <Text fontSize="sm" color="fg.muted" minW={0} flex="1">
+                Shipper: {" "}
+                <Text as="span" fontWeight="medium" color={titleColor}>
+                  {outbound.shipper.name}
+                </Text>
+                {outbound.shipper.phone ? (
+                  <Link
+                    href={`tel:${outbound.shipper.phone}`}
+                    color={titleColor}
+                    fontWeight="medium"
+                    textDecoration="underline"
+                    ms={1}
+                  >
+                    {outbound.shipper.phone}
+                  </Link>
+                ) : null}
+              </Text>
+            ) : (
+              <Text fontSize="sm" color="fg.muted">
+                Chưa có shipper
+              </Text>
+            )}
             <Badge colorPalette={statusColor(outbound.status)} variant="subtle">
               {statusLabel(outbound.status)}
             </Badge>
           </HStack>
         ) : booking.status === "CONFIRMED" &&
-          booking.paymentStatus === "DEPOSITED" &&
-          !outbound ? (
+          booking.paymentStatus === "DEPOSITED" ? (
           <Text fontSize="sm" color="fg.muted">
             Đang chờ tạo đơn giao cho shipper.
           </Text>
