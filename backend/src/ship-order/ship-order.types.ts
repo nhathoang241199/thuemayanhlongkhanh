@@ -23,11 +23,13 @@ export function resolveShipDisplayStatus(
   if (leg === 'OUTBOUND') {
     if (status === 'PENDING') return 'WAIT_CLAIM';
     if (status === 'CLAIMED') return 'WAIT_DELIVER';
+    // Giao xong → tab cần trả (chờ trả máy / hoàn thành trả).
     return 'WAIT_RETURN';
   }
   if (leg === 'RETURN') {
     if (status === 'PENDING') return 'WAIT_CLAIM';
-    if (status === 'CLAIMED') return 'WAIT_RETURN';
+    // Đã nhận đơn trả → cùng tab cần giao (đi lấy máy), không nhảy cần trả.
+    if (status === 'CLAIMED') return 'WAIT_DELIVER';
     return 'DONE';
   }
   return 'WAIT_CLAIM';

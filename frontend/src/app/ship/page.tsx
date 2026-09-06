@@ -61,12 +61,12 @@ function canCompleteDeliver(order: ShipOrder): boolean {
   );
 }
 
-/** Hoàn thành đơn trả: RETURN đã nhận, hoặc đơn giao xong đang ở tab cần trả. */
+/** Hoàn thành đơn trả: RETURN đã nhận (cần giao), hoặc đơn giao xong trên tab cần trả. */
 function canCompleteReturn(order: ShipOrder): boolean {
   if (
     order.leg === "RETURN" &&
     order.status === "CLAIMED" &&
-    order.displayStatus === "WAIT_RETURN"
+    order.displayStatus === "WAIT_DELIVER"
   ) {
     return true;
   }
@@ -97,11 +97,7 @@ function canUndoReturnComplete(order: ShipOrder): boolean {
 
 function canBackOrder(order: ShipOrder): boolean {
   if (canUndoDeliverComplete(order) || canUndoReturnComplete(order)) return true;
-  return (
-    order.status === "CLAIMED" &&
-    (order.displayStatus === "WAIT_DELIVER" ||
-      (order.displayStatus === "WAIT_RETURN" && order.leg === "RETURN"))
-  );
+  return order.status === "CLAIMED" && order.displayStatus === "WAIT_DELIVER";
 }
 
 function belongsToShipTab(
@@ -331,9 +327,7 @@ export default function ShipBoardPage() {
     try {
       if (order.displayStatus === "WAIT_CLAIM") {
         await claimShipOrder(order.id);
-        setActiveTab(
-          order.leg === "RETURN" ? "WAIT_RETURN" : "WAIT_DELIVER",
-        );
+        setActiveTab("WAIT_DELIVER");
       } else if (canCompleteOrder(order)) {
         await completeShipOrder(order.id);
         setActiveTab("WAIT_RETURN");
