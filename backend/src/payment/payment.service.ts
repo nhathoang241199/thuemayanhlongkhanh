@@ -71,7 +71,10 @@ export class PaymentService {
 
     if (booking.shippingAddress?.trim()) {
       this.shipOrderService
-        .ensureOutboundForBookingId(bookingId)
+        .ensureOutboundForBookingId(bookingId, {
+          notify: true,
+          forceNotify: true,
+        })
         .catch((err) => {
           console.warn('[ship-order] ensureOutbound failed', err);
         });

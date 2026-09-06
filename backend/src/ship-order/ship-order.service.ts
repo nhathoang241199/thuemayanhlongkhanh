@@ -345,7 +345,7 @@ export class ShipOrderService {
       include: { shipper: { select: { name: true } } },
     });
 
-    if (options?.notify !== false) {
+    if (options?.notify === true) {
       await this.notifyNewShipOrder({
         bookingCode: booking.bookingCode,
         leg: 'OUTBOUND',
@@ -389,7 +389,10 @@ export class ShipOrderService {
     }
   }
 
-  async ensureOutboundForBookingId(bookingId: string): Promise<void> {
+  async ensureOutboundForBookingId(
+    bookingId: string,
+    options?: { notify?: boolean; forceNotify?: boolean },
+  ): Promise<void> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { customer: { select: { name: true, phone: true } } },
@@ -415,7 +418,7 @@ export class ShipOrderService {
         status: booking.status,
         customer: booking.customer,
       },
-      { forceNotify: true },
+      options,
     );
     } else {
       await this.cancelActiveForBooking(bookingId);
