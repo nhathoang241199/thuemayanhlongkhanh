@@ -97,7 +97,6 @@ export class ShipOrderService {
     address: string;
     pickupAt: Date;
   }): Promise<void> {
-    await this.telegram.notifyShipOrderCreated(event);
     await this.shipperMessenger.notifyShipOrderCreated(event).catch((err) => {
       console.warn(
         '[ship-order] Messenger notify shippers failed',
@@ -277,7 +276,7 @@ export class ShipOrderService {
 
   async ensureOutbound(
     booking: BookingForShip,
-    options?: { notify?: boolean },
+    options?: { notify?: boolean; forceNotify?: boolean },
   ): Promise<ShipOrderView | null> {
     const address = booking.shippingAddress?.trim();
     if (!address) return null;
@@ -319,6 +318,16 @@ export class ShipOrderService {
           include: { shipper: { select: { name: true } } },
         });
         return this.toView(row);
+      }
+      if (options?.forceNotify && existing.status === 'PENDING') {
+        await this.notifyNewShipOrder({
+          bookingCode: booking.bookingCode,
+          leg: 'OUTBOUND',
+          customerName: booking.customer.name,
+          customerPhone: booking.customer.phone,
+          address,
+          pickupAt: booking.pickupAt ?? booking.startBookingDate,
+        });
       }
       return this.toView(existing);
     }
@@ -405,7 +414,9 @@ export class ShipOrderService {
         endBookingDate: booking.endBookingDate,
         status: booking.status,
         customer: booking.customer,
-      });
+      },
+      { forceNotify: true },
+    );
     } else {
       await this.cancelActiveForBooking(bookingId);
     }

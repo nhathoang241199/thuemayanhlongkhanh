@@ -41,7 +41,7 @@ describe('formatShipOrderNotification', () => {
         pickupAt: new Date('2026-09-06T03:00:00.000Z'),
       }),
     ).toBe(
-      'Đơn giao máy mới !\n\nKhách: Tên khách - 0900000000\nĐịa chỉ: 12 Địa chỉ, Long Khánh\nNhận lúc: 10h sáng, 06/09\n\nBấm vào /ship để nhận đơn.',
+      'Đơn giao máy mới !\n\nKhách: Tên khách - 0900000000\nĐịa chỉ: 12 Địa chỉ, Long Khánh\nNhận lúc: 10h sáng, 06/09\n\nBấm vào /ship để nhận đơn: https://thuemayanhlongkhanh.com/ship',
     );
   });
 });

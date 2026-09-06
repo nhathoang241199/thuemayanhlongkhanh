@@ -82,7 +82,7 @@ export function formatShipOrderNotification(event: ShipOrderTelegramEvent): stri
     `Địa chỉ: ${event.address}`,
     `Nhận lúc: ${formatShipperPickupAt(event.pickupAt)}`,
     '',
-    'Bấm vào /ship để nhận đơn.',
+    'Bấm vào /ship để nhận đơn: https://thuemayanhlongkhanh.com/ship',
   ].join('\n');
 }
 
