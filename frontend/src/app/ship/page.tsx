@@ -80,17 +80,14 @@ function canAdvanceOrder(order: ShipOrder): boolean {
 }
 
 /** Hoàn tác giao xong trong ngày (từ cần trả về cần giao). */
-function canUndoDeliverComplete(order: ShipOrder): boolean {
-  return (
+function canUndoToDeliver(order: ShipOrder): boolean {
+  if (
     order.leg === "OUTBOUND" &&
     order.status === "COMPLETED" &&
     order.displayStatus === "WAIT_RETURN"
-  );
-}
-
-/** Hoàn tác từ cần trả (READY) về cần giao, hoặc undo DONE. */
-function canUndoReturnStep(order: ShipOrder): boolean {
-  if (order.displayStatus === "DONE") return true;
+  ) {
+    return true;
+  }
   return (
     order.leg === "RETURN" &&
     order.status === "READY" &&
@@ -98,8 +95,13 @@ function canUndoReturnStep(order: ShipOrder): boolean {
   );
 }
 
+/** Hoàn tác đơn đã hoàn thành → về cần trả. */
+function canUndoDone(order: ShipOrder): boolean {
+  return order.displayStatus === "DONE";
+}
+
 function canBackOrder(order: ShipOrder): boolean {
-  if (canUndoDeliverComplete(order) || canUndoReturnStep(order)) return true;
+  if (canUndoDone(order) || canUndoToDeliver(order)) return true;
   return order.status === "CLAIMED" && order.displayStatus === "WAIT_DELIVER";
 }
 
@@ -214,11 +216,9 @@ function ShipOrderCard({
                     colorPalette="orange"
                     flexShrink={0}
                     aria-label={
-                      canUndoReturnStep(order)
-                        ? order.displayStatus === "DONE"
-                          ? "Hoàn tác hoàn thành trả"
-                          : "Quay lại cần giao"
-                        : canUndoDeliverComplete(order)
+                      canUndoDone(order)
+                        ? "Hoàn tác về cần trả"
+                        : canUndoToDeliver(order)
                           ? "Hoàn tác về cần giao"
                           : "Trả lại đơn"
                     }
@@ -352,7 +352,10 @@ export default function ShipBoardPage() {
     setLoadingId(order.id);
     setError(null);
     try {
-      if (canUndoDeliverComplete(order) || canUndoReturnStep(order)) {
+      if (canUndoDone(order)) {
+        await reopenShipOrder(order.id);
+        setActiveTab("WAIT_RETURN");
+      } else if (canUndoToDeliver(order)) {
         await reopenShipOrder(order.id);
         setActiveTab("WAIT_DELIVER");
       } else {

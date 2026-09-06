@@ -824,7 +824,8 @@ export class ShipOrderService {
       const result = await tx.shipOrder.updateMany({
         where: { id: ret.id, shipperId, status: 'COMPLETED' },
         data: {
-          status: 'CLAIMED',
+          // Undo hoàn thành → về cần trả (READY), không về cần giao.
+          status: 'READY',
           completedAt: null,
         },
       });
