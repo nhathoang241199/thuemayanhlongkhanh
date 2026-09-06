@@ -113,6 +113,7 @@ export default function AdminShippersPage() {
   const [editName, setEditName] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editActive, setEditActive] = useState(true);
+  const [editBalanceVnd, setEditBalanceVnd] = useState(0);
   const [editClearMessenger, setEditClearMessenger] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -185,6 +186,7 @@ export default function AdminShippersPage() {
     setEditName(s.name);
     setEditPassword("");
     setEditActive(s.active);
+    setEditBalanceVnd(s.balanceVnd);
     setEditClearMessenger(false);
     setEditError(null);
   };
@@ -198,11 +200,13 @@ export default function AdminShippersPage() {
         const body: {
           name: string;
           active: boolean;
+          balanceVnd: number;
           password?: string;
           clearMessengerPsid?: boolean;
         } = {
           name: editName,
           active: editActive,
+          balanceVnd: Math.max(0, Math.round(Number(editBalanceVnd) || 0)),
         };
         if (editPassword.trim()) body.password = editPassword;
         if (editClearMessenger) body.clearMessengerPsid = true;
@@ -681,6 +685,22 @@ export default function AdminShippersPage() {
                     {...fieldInputProps}
                     onChange={(e) => setEditPassword(e.target.value)}
                   />
+                </Box>
+                <Box>
+                  <Text fontSize="sm" mb={1}>
+                    Số dư shipper (VND)
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={editBalanceVnd}
+                    {...fieldInputProps}
+                    onChange={(e) => setEditBalanceVnd(Number(e.target.value))}
+                  />
+                  <Text mt={1} fontSize="xs" color="fg.muted">
+                    Nhập số dư mới. Thao tác này thay thế số dư hiện tại.
+                  </Text>
                 </Box>
                 <CheckboxRoot
                   checked={editActive}

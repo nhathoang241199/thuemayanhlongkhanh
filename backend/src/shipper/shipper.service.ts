@@ -326,6 +326,7 @@ export class ShipperService {
       name?: string;
       password?: string;
       active?: boolean;
+      balanceVnd?: number;
       clearMessengerPsid?: boolean;
     },
   ): Promise<ShipperView> {
@@ -336,6 +337,7 @@ export class ShipperService {
       name?: string;
       passwordHash?: string;
       active?: boolean;
+      balanceVnd?: number;
       messengerPsid?: string;
     } = {};
     if (input.name !== undefined) {
@@ -351,6 +353,9 @@ export class ShipperService {
     }
     if (input.active !== undefined) {
       data.active = input.active;
+    }
+    if (input.balanceVnd !== undefined) {
+      data.balanceVnd = input.balanceVnd;
     }
     if (input.clearMessengerPsid) {
       data.messengerPsid = '';

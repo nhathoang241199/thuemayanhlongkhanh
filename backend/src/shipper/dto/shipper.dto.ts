@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateShipperDto {
   @ApiProperty({ example: '0901234567' })
@@ -37,6 +37,13 @@ export class UpdateShipperDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiPropertyOptional({ description: 'Số dư mới bằng VND' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(2_000_000_000)
+  balanceVnd?: number;
 
   @ApiPropertyOptional({
     description: 'true = huỷ gắn Messenger PSID của shipper',
