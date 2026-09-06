@@ -55,6 +55,7 @@ const shipOrderInclude = {
       returnAddress: true,
       returnNextMorning: true,
       slot: true,
+      scheduleAt: true,
       customer: { select: { id: true, verificationImageUrls: true } },
     },
   },
@@ -121,6 +122,7 @@ export class ShipOrderService {
     shipper?: { name: string } | null;
     claimedAt: Date | null;
     completedAt: Date | null;
+    scheduleAt?: Date | null;
     requestedAt: Date;
     updatedAt: Date;
     booking?: {
@@ -140,11 +142,9 @@ export class ShipOrderService {
       leg,
       row.status as ShipOrderStatus,
     );
-    const scheduleAt = scheduleAtForDisplayStatus(
-      displayStatus,
-      row.booking,
-      row.requestedAt,
-    );
+    const scheduleAt =
+      row.scheduleAt ??
+      scheduleAtForDisplayStatus(displayStatus, row.booking, row.requestedAt);
     return {
       id: row.id,
       bookingId: row.bookingId,
@@ -189,44 +189,55 @@ export class ShipOrderService {
   }
 
   async createAdmin(dto: CreateAdminShipOrderDto): Promise<ShipOrderView> {
-    const bookingCode = dto.bookingCode.trim();
     const booking = await this.prisma.booking.findUnique({
-      where: { bookingCode },
+      where: { id: dto.bookingId.trim() },
       include: { customer: { select: { name: true, phone: true } } },
     });
     if (!booking) {
-      throw new NotFoundException(`Không tìm thấy booking ${bookingCode}`);
+      throw new NotFoundException('Không tìm thấy đơn thuê được chọn');
+    }
+    const eligibleStatuses: BookingStatus[] = [
+      BookingStatus.PENDING_PAYMENT,
+      BookingStatus.CONFIRMED,
+      BookingStatus.RENTING,
+    ];
+    if (!eligibleStatuses.includes(booking.status)) {
+      throw new BadRequestException('Đơn thuê không còn cần giao hoặc trả máy.');
     }
 
+    const leg: ShipLeg =
+      booking.status === BookingStatus.RENTING ? 'RETURN' : 'OUTBOUND';
+    const bookingCode = booking.bookingCode;
     const existing = await this.prisma.shipOrder.findUnique({
-      where: { bookingId_leg: { bookingId: booking.id, leg: dto.leg } },
+      where: { bookingId_leg: { bookingId: booking.id, leg } },
     });
     if (existing && existing.status !== 'CANCELLED') {
       throw new ConflictException(
-        `Booking ${bookingCode} đã có đơn ${dto.leg === 'OUTBOUND' ? 'giao' : 'trả'} máy.`,
+        `Booking ${bookingCode} đã có đơn ${leg === 'OUTBOUND' ? 'giao' : 'trả'} máy.`,
       );
     }
 
-    const customerName = dto.customerName.trim();
-    const customerPhone = normalizePhone(dto.customerPhone);
     const address = dto.address.trim();
+    const scheduleAt = new Date(dto.scheduleAt);
     const row = await this.prisma.shipOrder.upsert({
-      where: { bookingId_leg: { bookingId: booking.id, leg: dto.leg } },
+      where: { bookingId_leg: { bookingId: booking.id, leg } },
       create: {
         bookingId: booking.id,
         bookingCode,
-        leg: dto.leg,
+        leg,
         status: 'PENDING',
-        customerName,
-        customerPhone,
+        customerName: booking.customer.name,
+        customerPhone: booking.customer.phone,
         address,
+        scheduleAt,
       },
       update: {
         bookingCode,
         status: 'PENDING',
-        customerName,
-        customerPhone,
+        customerName: booking.customer.name,
+        customerPhone: booking.customer.phone,
         address,
+        scheduleAt,
         shipperId: null,
         claimedAt: null,
         completedAt: null,
@@ -234,16 +245,14 @@ export class ShipOrderService {
       include: shipOrderInclude,
     });
 
-    if (dto.notify !== false) {
-      await this.notifyNewShipOrder({
-        bookingCode,
-        leg: dto.leg,
-        customerName,
-        customerPhone,
-        address,
-        pickupAt: booking.pickupAt ?? booking.startBookingDate,
-      });
-    }
+    await this.notifyNewShipOrder({
+      bookingCode,
+      leg,
+      customerName: booking.customer.name,
+      customerPhone: booking.customer.phone,
+      address,
+      pickupAt: scheduleAt,
+    });
 
     return this.toView(row);
   }

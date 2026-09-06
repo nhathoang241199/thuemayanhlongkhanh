@@ -1,0 +1,1 @@
+ALTER TABLE "ShipOrder" ADD COLUMN "scheduleAt" TIMESTAMP(3);

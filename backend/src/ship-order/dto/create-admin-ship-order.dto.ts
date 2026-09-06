@@ -1,36 +1,12 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsIn,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
-import type { ShipLeg } from '../ship-order.types';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsDateString, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateAdminShipOrderDto {
-  @ApiProperty({ example: 'DH-20260906-ABCD' })
+  @ApiProperty({ description: 'ID booking được chọn' })
   @IsString()
   @MinLength(1)
-  @MaxLength(50)
-  bookingCode: string;
-
-  @ApiProperty({ enum: ['OUTBOUND', 'RETURN'] })
-  @IsIn(['OUTBOUND', 'RETURN'])
-  leg: ShipLeg;
-
-  @ApiProperty({ example: 'Nguyễn Văn A' })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(255)
-  customerName: string;
-
-  @ApiProperty({ example: '0901234567' })
-  @IsString()
-  @MinLength(9)
-  @MaxLength(30)
-  customerPhone: string;
+  @MaxLength(64)
+  bookingId: string;
 
   @ApiProperty({ example: '123 đường Nguyễn Ái Quốc, Long Khánh' })
   @IsString()
@@ -38,8 +14,7 @@ export class CreateAdminShipOrderDto {
   @MaxLength(500)
   address: string;
 
-  @ApiPropertyOptional({ description: 'Không gửi Messenger nếu true' })
-  @IsOptional()
-  @IsBoolean()
-  notify?: boolean;
+  @ApiProperty({ example: '2026-09-06T10:30:00.000Z' })
+  @IsDateString()
+  scheduleAt: string;
 }

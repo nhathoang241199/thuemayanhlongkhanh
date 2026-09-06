@@ -334,7 +334,8 @@ model ShipOrder {
   claimedAt     DateTime?
   completedAt   DateTime?
   requestedAt   DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  scheduleAt    DateTime?
+  updatedAt     DateTime    @updatedAt
 
   @@unique([bookingId, leg])
   @@index([status, requestedAt])

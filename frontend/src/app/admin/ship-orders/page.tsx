@@ -7,6 +7,15 @@ import {
   CardBody,
   CardRoot,
   CardTitle,
+  DialogBackdrop,
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogPositioner,
+  DialogRoot,
+  DialogTitle,
   HStack,
   Input,
   NativeSelectField,
@@ -26,7 +35,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   createAdminShipOrder,
+  fetchAdminBookingOptions,
   fetchAdminShipOrders,
+  type AdminBookingOption,
   type AdminShipOrderInput,
   type ShipOrder,
 } from "@/lib/api";
@@ -44,35 +55,31 @@ const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   timeStyle: "short",
 });
 
-const emptyForm: AdminShipOrderInput = {
-  bookingCode: "",
-  leg: "OUTBOUND",
-  customerName: "",
-  customerPhone: "",
-  address: "",
-  notify: true,
-};
+const RETURN_ELIGIBLE_STATUSES = new Set(["PENDING_PAYMENT", "CONFIRMED", "RENTING"]);
+
+function defaultScheduleInput(): string {
+  const date = new Date(Date.now() + 30 * 60 * 1000);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function emptyForm(): AdminShipOrderInput {
+  return { bookingId: "", address: "", scheduleAt: defaultScheduleInput() };
+}
 
 function statusLabel(order: ShipOrder): string {
   switch (order.displayStatus) {
-    case "WAIT_CLAIM":
-      return "Chưa nhận";
-    case "WAIT_DELIVER":
-      return "Đang giao";
-    case "WAIT_RETURN":
-      return order.leg === "RETURN" ? "Đang trả" : "Chờ trả";
-    case "DONE":
-      return "Hoàn thành";
-    default:
-      return order.status;
+    case "WAIT_CLAIM": return "Chưa nhận";
+    case "WAIT_DELIVER": return "Đang giao";
+    case "WAIT_RETURN": return order.leg === "RETURN" ? "Đang trả" : "Chờ trả";
+    case "DONE": return "Hoàn thành";
+    default: return order.status;
   }
 }
 
 function statusColor(order: ShipOrder): string {
   if (order.displayStatus === "DONE") return "green";
-  if (order.displayStatus === "WAIT_DELIVER" || order.displayStatus === "WAIT_RETURN") {
-    return "orange";
-  }
+  if (order.displayStatus === "WAIT_DELIVER" || order.displayStatus === "WAIT_RETURN") return "orange";
   return "blue";
 }
 
@@ -83,41 +90,29 @@ function formatDate(value: string | null): string {
 }
 
 function OrderTable({ orders }: { orders: ShipOrder[] }) {
-  if (orders.length === 0) {
-    return <Text color="fg.muted">Chưa có đơn giao nào.</Text>;
-  }
-
+  if (orders.length === 0) return <Text color="fg.muted">Chưa có đơn giao nào.</Text>;
   return (
     <TableScrollArea borderWidth="1px" borderRadius="md">
       <TableRoot size="sm" variant="outline" minW="900px">
-        <TableHeader>
-          <TableRow>
-            <TableColumnHeader>Booking</TableColumnHeader>
-            <TableColumnHeader>Loại</TableColumnHeader>
-            <TableColumnHeader>Khách hàng</TableColumnHeader>
-            <TableColumnHeader>Địa chỉ</TableColumnHeader>
-            <TableColumnHeader>Trạng thái</TableColumnHeader>
-            <TableColumnHeader>Shipper</TableColumnHeader>
-            <TableColumnHeader>Thời gian tạo</TableColumnHeader>
-          </TableRow>
-        </TableHeader>
+        <TableHeader><TableRow>
+          <TableColumnHeader>Booking</TableColumnHeader>
+          <TableColumnHeader>Loại</TableColumnHeader>
+          <TableColumnHeader>Khách hàng</TableColumnHeader>
+          <TableColumnHeader>Địa chỉ</TableColumnHeader>
+          <TableColumnHeader>Trạng thái</TableColumnHeader>
+          <TableColumnHeader>Shipper</TableColumnHeader>
+          <TableColumnHeader>Thời gian</TableColumnHeader>
+        </TableRow></TableHeader>
         <TableBody>
           {orders.map((order) => (
             <TableRow key={order.id}>
               <TableCell fontWeight="semibold">{order.bookingCode}</TableCell>
               <TableCell>{order.leg === "OUTBOUND" ? "Giao máy" : "Trả máy"}</TableCell>
-              <TableCell>
-                <Text>{order.customerName}</Text>
-                <Text fontSize="xs" color="fg.muted">{order.customerPhone}</Text>
-              </TableCell>
+              <TableCell><Text>{order.customerName}</Text><Text fontSize="xs" color="fg.muted">{order.customerPhone}</Text></TableCell>
               <TableCell maxW="280px" whiteSpace="normal">{order.address}</TableCell>
-              <TableCell>
-                <Badge colorPalette={statusColor(order)} variant="subtle">
-                  {statusLabel(order)}
-                </Badge>
-              </TableCell>
+              <TableCell><Badge colorPalette={statusColor(order)} variant="subtle">{statusLabel(order)}</Badge></TableCell>
               <TableCell>{order.shipperName ?? "Chưa có shipper"}</TableCell>
-              <TableCell whiteSpace="nowrap">{formatDate(order.requestedAt)}</TableCell>
+              <TableCell whiteSpace="nowrap">{formatDate(order.scheduleAt ?? order.requestedAt)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -126,29 +121,43 @@ function OrderTable({ orders }: { orders: ShipOrder[] }) {
   );
 }
 
-function CreateOrderForm({
+function CreateOrderDialog({
+  open,
+  bookings,
+  onOpenChange,
   onCreated,
 }: {
+  open: boolean;
+  bookings: AdminBookingOption[];
+  onOpenChange: (open: boolean) => void;
   onCreated: (order: ShipOrder) => void;
 }) {
   const [form, setForm] = useState<AdminShipOrderInput>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const selected = bookings.find((booking) => booking.id === form.bookingId);
+  const inferredLeg = selected?.status === "RENTING" ? "Trả máy" : "Giao máy";
 
-  const set = <K extends keyof AdminShipOrderInput>(
-    key: K,
-    value: AdminShipOrderInput[K],
-  ) => setForm((current) => ({ ...current, [key]: value }));
+  useEffect(() => {
+    if (open) {
+      setForm(emptyForm());
+      setError(null);
+    }
+  }, [open]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setSaving(true);
     try {
-      const order = await createAdminShipOrder(form);
+      const order = await createAdminShipOrder({
+        bookingId: form.bookingId,
+        address: form.address,
+        scheduleAt: new Date(form.scheduleAt).toISOString(),
+      });
       onCreated(order);
-      setForm(emptyForm);
-      toaster.success({ title: "Đã tạo đơn giao" });
+      onOpenChange(false);
+      toaster.success({ title: "Đã tạo đơn giao và thông báo shipper" });
     } catch (e) {
       const message = getApiErrorMessage(e, "Không thể tạo đơn giao");
       setError(message);
@@ -159,100 +168,95 @@ function CreateOrderForm({
   };
 
   return (
-    <Box
-      as="form"
-      onSubmit={(event) => {
-        void submit(event as unknown as React.FormEvent<HTMLFormElement>);
-      }}
-    >
-      <Stack gap={3}>
-        <HStack gap={3} align="flex-start" flexWrap={{ base: "wrap", md: "nowrap" }}>
-          <Box flex="1" minW={{ base: "full", md: "220px" }}>
-            <Text fontSize="sm" mb={1}>Mã đơn thuê</Text>
-            <Input {...fieldInputProps} value={form.bookingCode} onChange={(e) => set("bookingCode", e.target.value)} placeholder="DH-20260906-ABCD" required />
+    <DialogRoot open={open} onOpenChange={(event) => onOpenChange(event.open)}>
+      <DialogBackdrop />
+      <DialogPositioner>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Tạo đơn giao mới</DialogTitle></DialogHeader>
+          <Box as="form" onSubmit={(event) => void submit(event as unknown as React.FormEvent<HTMLFormElement>)}>
+            <DialogBody>
+              <Stack gap={3}>
+                <Box>
+                  <Text fontSize="sm" mb={1}>Đơn thuê</Text>
+                  <NativeSelectRoot {...fieldInputProps}>
+                    <NativeSelectField value={form.bookingId} onChange={(event) => setForm((current) => ({ ...current, bookingId: event.target.value }))}>
+                      <option value="">Chọn khách hàng</option>
+                      {bookings.map((booking) => <option key={booking.id} value={booking.id}>{booking.customer.name} - {booking.customer.phone}</option>)}
+                    </NativeSelectField>
+                  </NativeSelectRoot>
+                  {selected ? <Text mt={1} fontSize="xs" color="fg.muted">{selected.bookingCode} · {inferredLeg}</Text> : null}
+                </Box>
+                <Box>
+                  <Text fontSize="sm" mb={1}>Địa chỉ giao/trả</Text>
+                  <Textarea {...fieldInputProps} value={form.address} onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))} rows={3} required />
+                </Box>
+                <Box>
+                  <Text fontSize="sm" mb={1}>Thời gian shipper cần tới</Text>
+                  <Input {...fieldInputProps} type="datetime-local" value={form.scheduleAt} onChange={(event) => setForm((current) => ({ ...current, scheduleAt: event.target.value }))} required />
+                </Box>
+                <Text fontSize="sm" color="fg.muted">Sau khi tạo, hệ thống sẽ thông báo tới tất cả shipper đã liên kết Messenger.</Text>
+                {error ? <Text color="red.fg" fontSize="sm">{error}</Text> : null}
+              </Stack>
+            </DialogBody>
+            <DialogFooter gap={2}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
+              <Button type="submit" colorPalette={ADMIN_COLOR_PALETTE} loading={saving} disabled={!form.bookingId}>Tạo đơn giao</Button>
+            </DialogFooter>
           </Box>
-          <Box w={{ base: "full", md: "180px" }}>
-            <Text fontSize="sm" mb={1}>Loại đơn</Text>
-            <NativeSelectRoot {...fieldInputProps}>
-              <NativeSelectField value={form.leg} onChange={(e) => set("leg", e.target.value as AdminShipOrderInput["leg"])}>
-                <option value="OUTBOUND">Giao máy</option>
-                <option value="RETURN">Trả máy</option>
-              </NativeSelectField>
-            </NativeSelectRoot>
-          </Box>
-        </HStack>
-        <HStack gap={3} align="flex-start" flexWrap={{ base: "wrap", md: "nowrap" }}>
-          <Box flex="1" minW={{ base: "full", md: "220px" }}>
-            <Text fontSize="sm" mb={1}>Tên khách</Text>
-            <Input {...fieldInputProps} value={form.customerName} onChange={(e) => set("customerName", e.target.value)} required />
-          </Box>
-          <Box flex="1" minW={{ base: "full", md: "220px" }}>
-            <Text fontSize="sm" mb={1}>Số điện thoại</Text>
-            <Input {...fieldInputProps} value={form.customerPhone} onChange={(e) => set("customerPhone", e.target.value)} required />
-          </Box>
-        </HStack>
-        <Box>
-          <Text fontSize="sm" mb={1}>Địa chỉ giao/trả</Text>
-          <Textarea {...fieldInputProps} value={form.address} onChange={(e) => set("address", e.target.value)} rows={3} required />
-        </Box>
-        <HStack justify="space-between" align="center" flexWrap="wrap" gap={3}>
-          <Text fontSize="sm" color="fg.muted">Sau khi tạo, đơn sẽ ở trạng thái Chưa nhận.</Text>
-          <Button type="submit" colorPalette={ADMIN_COLOR_PALETTE} loading={saving}>Tạo đơn giao</Button>
-        </HStack>
-        {error ? <Text color="red.fg" fontSize="sm">{error}</Text> : null}
-      </Stack>
-    </Box>
+          <DialogCloseTrigger />
+        </DialogContent>
+      </DialogPositioner>
+    </DialogRoot>
   );
 }
 
 export default function AdminShipOrdersPage() {
   const [orders, setOrders] = useState<ShipOrder[] | null>(null);
+  const [bookings, setBookings] = useState<AdminBookingOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setOrders(await fetchAdminShipOrders());
+      const [shipOrders, bookingOptions] = await Promise.all([fetchAdminShipOrders(), fetchAdminBookingOptions()]);
+      setOrders(shipOrders);
+      setBookings(bookingOptions.filter((booking) => RETURN_ELIGIBLE_STATUSES.has(booking.status)));
     } catch (e) {
-      setError(getApiErrorMessage(e, "Không thể tải danh sách đơn giao"));
-      toastApiError(e, "Không thể tải danh sách đơn giao");
+      setError(getApiErrorMessage(e, "Không thể tải dữ liệu đơn giao"));
+      toastApiError(e, "Không thể tải dữ liệu đơn giao");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   return (
     <Stack gap={5}>
       <CardRoot {...cardSurfaceProps}>
         <CardBody>
           <Stack gap={4}>
-            <CardTitle color={titleColor}>Tạo đơn giao mới</CardTitle>
-            <CreateOrderForm
-              onCreated={(order) => {
-                setOrders((current) => (current ? [order, ...current] : [order]));
-              }}
-            />
-          </Stack>
-        </CardBody>
-      </CardRoot>
-      <CardRoot {...cardSurfaceProps}>
-        <CardBody>
-          <Stack gap={4}>
-            <HStack justify="space-between" align="center">
+            <HStack justify="space-between" align="center" gap={3}>
               <CardTitle color={titleColor}>Danh sách đơn giao</CardTitle>
-              <Button size="sm" variant="outline" colorPalette={ADMIN_COLOR_PALETTE} onClick={() => void load()} loading={loading}>Làm mới</Button>
+              <HStack gap={2}>
+                <Button size="sm" variant="outline" colorPalette={ADMIN_COLOR_PALETTE} onClick={() => void load()} loading={loading}>Làm mới</Button>
+                <Button size="sm" colorPalette={ADMIN_COLOR_PALETTE} onClick={() => setDialogOpen(true)}>Tạo đơn giao</Button>
+              </HStack>
             </HStack>
             {error ? <Text color="red.fg">{error}</Text> : null}
             {loading && !orders ? <Text color="fg.muted">Đang tải…</Text> : <OrderTable orders={orders ?? []} />}
           </Stack>
         </CardBody>
       </CardRoot>
+      <CreateOrderDialog
+        open={dialogOpen}
+        bookings={bookings}
+        onOpenChange={setDialogOpen}
+        onCreated={(order) => setOrders((current) => (current ? [order, ...current] : [order]))}
+      />
     </Stack>
   );
 }
