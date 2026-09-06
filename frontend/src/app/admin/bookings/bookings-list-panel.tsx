@@ -97,6 +97,7 @@ function BookingsListPanelInner({
                   <TableColumnHeader {...tableCellPad}>Buổi</TableColumnHeader>
                   <TableColumnHeader {...tableCellPad}>Khách</TableColumnHeader>
                   <TableColumnHeader {...tableCellPad}>Máy</TableColumnHeader>
+                  <TableColumnHeader {...tableCellPad}>Ship</TableColumnHeader>
                   <TableColumnHeader {...tableCellPad} textAlign="end">
                     Số tiền
                   </TableColumnHeader>
