@@ -37,6 +37,7 @@ import {
   fetchPendingShipOrders,
   fetchShipperSession,
   fetchWaitingReturnShipOrders,
+  reopenShipOrder,
   requestShipperPayout,
   unclaimShipOrder,
   type ShipOrder,
@@ -60,7 +61,17 @@ function canCompleteDeliver(order: ShipOrder): boolean {
   );
 }
 
+/** Hoàn tác giao xong trong ngày (bấm ▶ nhầm). Backend cũng kiểm tra ngày. */
+function canUndoDeliverComplete(order: ShipOrder): boolean {
+  return (
+    order.leg === "OUTBOUND" &&
+    order.status === "COMPLETED" &&
+    order.displayStatus === "WAIT_RETURN"
+  );
+}
+
 function canBackOrder(order: ShipOrder): boolean {
+  if (canUndoDeliverComplete(order)) return true;
   return (
     order.status === "CLAIMED" &&
     (order.displayStatus === "WAIT_DELIVER" ||
@@ -73,6 +84,14 @@ function waitingForAdminComplete(order: ShipOrder): boolean {
     order.displayStatus === "WAIT_RETURN" &&
     order.leg === "RETURN" &&
     order.status === "CLAIMED"
+  );
+}
+
+function deliveredWaitingReturn(order: ShipOrder): boolean {
+  return (
+    order.leg === "OUTBOUND" &&
+    order.status === "COMPLETED" &&
+    order.displayStatus === "WAIT_RETURN"
   );
 }
 
@@ -172,6 +191,11 @@ function ShipOrderCard({
               Shop sẽ xác nhận khi đơn hoàn thành.
             </Text>
           ) : null}
+          {deliveredWaitingReturn(order) ? (
+            <Text fontSize="xs" color="fg.muted">
+              Đã giao — chờ khách gọi trả. Bấm ◀ nếu hoàn thành nhầm.
+            </Text>
+          ) : null}
           <HStack justify="space-between" align="center" gap={2}>
             <Text
               fontSize="sm"
@@ -191,7 +215,11 @@ function ShipOrderCard({
                     variant="subtle"
                     colorPalette="orange"
                     flexShrink={0}
-                    aria-label="Trả lại đơn"
+                    aria-label={
+                      canUndoDeliverComplete(order)
+                        ? "Hoàn tác hoàn thành giao"
+                        : "Trả lại đơn"
+                    }
                     loading={loadingId === order.id}
                     onClick={() => onBack(order)}
                   >
@@ -315,8 +343,13 @@ export default function ShipBoardPage() {
     setLoadingId(order.id);
     setError(null);
     try {
-      await unclaimShipOrder(order.id);
-      setActiveTab("WAIT_CLAIM");
+      if (canUndoDeliverComplete(order)) {
+        await reopenShipOrder(order.id);
+        setActiveTab("WAIT_DELIVER");
+      } else {
+        await unclaimShipOrder(order.id);
+        setActiveTab("WAIT_CLAIM");
+      }
       await refreshBoard();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không trả lại được đơn");

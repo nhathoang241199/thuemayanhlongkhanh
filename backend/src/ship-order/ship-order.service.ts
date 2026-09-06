@@ -215,9 +215,18 @@ export class ShipOrderService {
     return rows
       .filter((row) => {
         const ret = row.booking.shipOrders[0];
+        const outboundDoneToday = isOnOrAfterTodayVn(row.completedAt);
+        const returnActive =
+          ret?.status === 'PENDING' || ret?.status === 'CLAIMED';
         const returnDoneToday =
           ret?.status === 'COMPLETED' && isOnOrAfterTodayVn(ret.completedAt);
+
+        // Đã trả xong hôm nay → hiện (DONE) trong tab cần trả.
         if (returnDoneToday) return true;
+        // Đã có đơn trả đang xử lý → ưu tiên đơn RETURN trên board, ẩn OUTBOUND.
+        if (returnActive) return false;
+        // Giao xong hôm nay luôn giữ trên tab cần trả (tránh mất ngay sau khi bấm ▶).
+        if (outboundDoneToday) return true;
         if (row.booking.status === BookingStatus.COMPLETED) return false;
         return !ret || ret.status === 'CANCELLED';
       })
@@ -518,6 +527,73 @@ export class ShipOrderService {
         await tx.booking.update({
           where: { id: order.bookingId },
           data: { status: BookingStatus.RENTING },
+        });
+      }
+    });
+
+    return this.loadView(orderId);
+  }
+
+  /**
+   * Hoàn tác hoàn thành giao trong ngày (bấm ▶ nhầm).
+   * Chỉ khi chưa có đơn trả đang xử lý.
+   */
+  async reopenOutboundByShipper(
+    orderId: string,
+    shipperId: string,
+  ): Promise<ShipOrderView> {
+    const order = await this.prisma.shipOrder.findUnique({
+      where: { id: orderId },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            status: true,
+            shipOrders: { where: { leg: 'RETURN' }, select: { status: true } },
+          },
+        },
+      },
+    });
+    if (!order) {
+      throw new NotFoundException('Không tìm thấy đơn ship');
+    }
+    if (order.leg !== 'OUTBOUND') {
+      throw new BadRequestException('Chỉ hoàn tác được đơn giao máy.');
+    }
+    if (order.shipperId !== shipperId || order.status !== 'COMPLETED') {
+      throw new ForbiddenException('Không có quyền hoàn tác đơn này.');
+    }
+    if (!isOnOrAfterTodayVn(order.completedAt)) {
+      throw new BadRequestException(
+        'Chỉ hoàn tác được đơn giao hoàn thành trong ngày.',
+      );
+    }
+    const ret = order.booking.shipOrders[0];
+    if (ret && (ret.status === 'PENDING' || ret.status === 'CLAIMED')) {
+      throw new BadRequestException(
+        'Đã có đơn trả máy — không thể hoàn tác giao.',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const result = await tx.shipOrder.updateMany({
+        where: { id: order.id, shipperId, status: 'COMPLETED' },
+        data: {
+          status: 'CLAIMED',
+          completedAt: null,
+        },
+      });
+      if (result.count === 0) {
+        throw new ConflictException('Không thể hoàn tác đơn này.');
+      }
+      await tx.shipper.update({
+        where: { id: shipperId },
+        data: { balanceVnd: { decrement: SHIP_EARN_VND_PER_LEG } },
+      });
+      if (order.booking.status === BookingStatus.RENTING) {
+        await tx.booking.update({
+          where: { id: order.bookingId },
+          data: { status: BookingStatus.CONFIRMED },
         });
       }
     });

@@ -91,6 +91,22 @@ export class ShipOrderController {
   }
 
   @ShipperAccess()
+  @Post(':id/reopen')
+  @ApiOperation({
+    summary: 'Hoàn tác hoàn thành giao trong ngày (bấm ▶ nhầm)',
+  })
+  @ApiOkResponse()
+  reopen(
+    @Param('id') id: string,
+    @Req() req: Request & { shipper?: ShipperJwtPayload },
+  ) {
+    return this.shipOrderService.reopenOutboundByShipper(
+      id,
+      req.shipper!.shipperId,
+    );
+  }
+
+  @ShipperAccess()
   @Post(':id/customer-verification-image')
   @ApiOperation({ summary: 'Chụp CCCD khách khi giao máy' })
   @ApiConsumes('multipart/form-data')
