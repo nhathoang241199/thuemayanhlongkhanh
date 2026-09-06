@@ -456,7 +456,7 @@ export class ShipOrderService {
       },
       include: { shipper: { select: { id: true } } },
     });
-    if (!outbound || outbound.status !== 'COMPLETED') {
+    if (!outbound) {
       throw new BadRequestException(
         'Máy chưa được giao — không thể gọi trả máy.',
       );

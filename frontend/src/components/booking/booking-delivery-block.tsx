@@ -30,10 +30,11 @@ import {
   titleColor,
   userWarningNoteProps,
   userWarningNoteTextProps,
-  userOutlineButtonProps,
 } from "@/lib/user-theme";
 
-const ACTIVE_STATUSES = new Set(["PENDING", "CLAIMED"]);
+const RETURN_ACTIVE_STATUSES = new Set(["PENDING", "CLAIMED", "READY"]);
+const RETURN_REQUESTED_MESSAGE =
+  "Đã yêu cầu trả máy, Bạn vui lòng đợi 1 lát để shipper có thể liên hệ.";
 
 function legOrder(
   orders: ShipOrder[] | undefined,
@@ -66,8 +67,9 @@ export function BookingDeliveryBlock({
 
   const canRequestReturn =
     booking.status === "RENTING" &&
-    outbound?.status === "COMPLETED" &&
-    (!ret || !ACTIVE_STATUSES.has(ret.status));
+    Boolean(outbound) &&
+    (!ret || !RETURN_ACTIVE_STATUSES.has(ret.status));
+  const returnRequested = Boolean(ret && RETURN_ACTIVE_STATUSES.has(ret.status));
 
   const submitReturn = useCallback(async () => {
     setLoading(true);
@@ -76,9 +78,7 @@ export function BookingDeliveryBlock({
     try {
       await requestCustomerReturn(booking.id, phone, returnAddress.trim());
       setConfirmOpen(false);
-      setSuccess(
-        "Đã yêu cầu trả máy, Bạn vui lòng đợi 1 lát để shipper có thể liên hệ.",
-      );
+      setSuccess(RETURN_REQUESTED_MESSAGE);
       onUpdated();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không gọi được trả máy");
@@ -131,22 +131,23 @@ export function BookingDeliveryBlock({
           </Text>
         ) : null}
 
-        {success ? (
+        {success || returnRequested ? (
           <Box
             {...userWarningNoteProps}
             bg="green.50"
             borderColor="green.200"
           >
             <Text {...userWarningNoteTextProps} color="green.900">
-              {success}
+              {success ?? RETURN_REQUESTED_MESSAGE}
             </Text>
           </Box>
         ) : null}
 
         {canRequestReturn ? (
           <Button
+            flex={1}
             size="sm"
-            {...userOutlineButtonProps}
+            colorPalette={APP_COLOR_PALETTE}
             loading={loading}
             onClick={() => {
               setReturnAddress(booking.returnAddress?.trim() || address);
