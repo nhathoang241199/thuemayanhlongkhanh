@@ -1,5 +1,6 @@
 import {
   assertPickupAtValid,
+  deliveryFeeVnd,
   effectiveReturnDeadline,
   isReturnNextMorningEligible,
   rentalAmountWithOptionsVnd,
@@ -9,6 +10,13 @@ import {
   shipReturnScheduleAt,
   vnDateTimeToUtc,
 } from './booking-schedule';
+
+describe('delivery fee', () => {
+  it('charges 40,000 VND when a delivery or return address is provided', () => {
+    expect(deliveryFeeVnd('12 Nguyễn Trãi')).toBe(40_000);
+    expect(deliveryFeeVnd('')).toBe(0);
+  });
+});
 
 describe('assertPickupAtValid FULL_DAY same-day pickup', () => {
   const startDate = '2026-05-31';

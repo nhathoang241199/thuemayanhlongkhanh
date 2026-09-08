@@ -16,7 +16,7 @@ export const OCCUPYING_STATUSES: BookingStatus[] = [
 export const MAX_BOOKING_RANGE_DAYS = 30;
 
 /** Phụ phí giao & trả máy tận nơi (VNĐ). */
-export const DELIVERY_FEE_VND = 0;
+export const DELIVERY_FEE_VND = 40_000;
 
 export function deliveryFeeVnd(shippingAddress?: string | null): number {
   return shippingAddress?.trim() ? DELIVERY_FEE_VND : 0;
