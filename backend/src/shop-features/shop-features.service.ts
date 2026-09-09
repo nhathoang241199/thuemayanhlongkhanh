@@ -23,6 +23,7 @@ export class ShopFeaturesService {
     return {
       printEnabled: row.printEnabled,
       depositEnabled: row.depositEnabled,
+      shipEnabled: row.shipEnabled,
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -31,6 +32,7 @@ export class ShopFeaturesService {
     const row = await this.findOrDefault();
     return {
       depositEnabled: row.depositEnabled,
+      shipEnabled: row.shipEnabled,
     };
   }
 
@@ -41,15 +43,18 @@ export class ShopFeaturesService {
         id: SINGLETON_ID,
         printEnabled: dto.printEnabled,
         depositEnabled: dto.depositEnabled,
+        shipEnabled: dto.shipEnabled,
       },
       update: {
         printEnabled: dto.printEnabled,
         depositEnabled: dto.depositEnabled,
+        shipEnabled: dto.shipEnabled,
       },
     });
     return {
       printEnabled: row.printEnabled,
       depositEnabled: row.depositEnabled,
+      shipEnabled: row.shipEnabled,
       updatedAt: row.updatedAt.toISOString(),
     };
   }

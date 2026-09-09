@@ -15,4 +15,11 @@ export class UpdateShopFeaturesDto {
   })
   @IsBoolean()
   depositEnabled: boolean;
+
+  @ApiProperty({
+    example: true,
+    description: 'Bật tùy chọn giao hàng khi khách đặt lịch',
+  })
+  @IsBoolean()
+  shipEnabled: boolean;
 }

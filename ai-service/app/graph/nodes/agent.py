@@ -69,7 +69,7 @@ def _conversation_context_section(
     ]
     if day_count:
         lines.append(
-            f"- Số ngày trong tin hiện tại: **{day_count}** — nếu hỏi giá thì nhắc lên web, không báo số tiền."
+            f"- Số ngày trong tin hiện tại: **{day_count}** — nếu hỏi giá thì gọi `quote_camera_price` rồi báo số tiền."
         )
     return "\n".join(lines)
 

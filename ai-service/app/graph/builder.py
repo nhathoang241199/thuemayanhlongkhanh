@@ -18,7 +18,7 @@ from app.graph.nodes.canned import (
     shop_contact_node,
 )
 from app.graph.nodes.handoff import handoff_node
-from app.graph.nodes.price import price_node
+from app.graph.nodes.price import price_decision, price_node
 from app.graph.nodes.route import route_decision, route_node
 from app.graph.state import ChatState
 
@@ -72,11 +72,15 @@ def build_chat_graph():
     "policy_fees_node",
     "shop_contact_node",
     "comparison_node",
-    "price_node",
     "handoff_node",
   ):
     g.add_edge(node, END)
 
+  g.add_conditional_edges(
+    "price_node",
+    price_decision,
+    {"end": END, "agent": "agent_node", "handoff": "handoff_node"},
+  )
   g.add_conditional_edges(
     "availability_node",
     availability_decision,

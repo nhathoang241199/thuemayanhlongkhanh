@@ -27,6 +27,7 @@ import { toaster } from "@/lib/toaster";
 export default function AdminFeaturesPage() {
   const [printEnabled, setPrintEnabled] = useState(true);
   const [depositEnabled, setDepositEnabled] = useState(true);
+  const [shipEnabled, setShipEnabled] = useState(true);
   const [saved, setSaved] = useState<ShopFeatures | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ export default function AdminFeaturesPage() {
       if (signal?.aborted) return;
       setPrintEnabled(json.printEnabled);
       setDepositEnabled(json.depositEnabled);
+      setShipEnabled(json.shipEnabled);
       setSaved(json);
     } catch (e) {
       if (signal?.aborted) return;
@@ -59,16 +61,22 @@ export default function AdminFeaturesPage() {
   const dirty =
     saved !== null &&
     (printEnabled !== saved.printEnabled ||
-      depositEnabled !== saved.depositEnabled);
+      depositEnabled !== saved.depositEnabled ||
+      shipEnabled !== saved.shipEnabled);
 
   const save = () => {
     void (async () => {
       setSaving(true);
       setError(null);
       try {
-        const json = await updateShopFeatures({ printEnabled, depositEnabled });
+        const json = await updateShopFeatures({
+          printEnabled,
+          depositEnabled,
+          shipEnabled,
+        });
         setPrintEnabled(json.printEnabled);
         setDepositEnabled(json.depositEnabled);
+        setShipEnabled(json.shipEnabled);
         setSaved(json);
         toaster.success({ title: "Đã lưu cấu hình chức năng" });
       } catch (e) {
@@ -123,6 +131,21 @@ export default function AdminFeaturesPage() {
               </CheckboxRoot>
               <Text fontSize="xs" color="fg.muted" mt={1} pl={6}>
                 Khi tắt, khách không cần thanh toán cọc online khi đặt lịch.
+              </Text>
+            </Box>
+            <Box>
+              <CheckboxRoot
+                checked={shipEnabled}
+                disabled={loading}
+                colorPalette={APP_COLOR_PALETTE}
+                onCheckedChange={(e) => setShipEnabled(!!e.checked)}
+              >
+                <CheckboxHiddenInput />
+                <CheckboxControl />
+                <CheckboxLabel fontSize="sm">Ship / giao hàng</CheckboxLabel>
+              </CheckboxRoot>
+              <Text fontSize="xs" color="fg.muted" mt={1} pl={6}>
+                Khi tắt, ẩn tùy chọn giao hàng lúc khách đặt lịch.
               </Text>
             </Box>
             <Button
