@@ -13,6 +13,7 @@ import { CustomerService } from '../customer/customer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBookingNotificationService } from '../payment/telegram-booking-notification';
 import { ShipperMessengerNotifyService } from '../messenger/shipper-messenger-notify.service';
+import { ShipperPushService } from '../shipper/shipper-push.service';
 import { vnDateTimeToUtc, shipReturnScheduleAt } from '../common/booking-schedule';
 import { shipEarnActionsForBookingStatusChange } from './ship-order-booking-status';
 import { SHIP_EARN_VND_PER_LEG } from './ship-order.config';
@@ -90,6 +91,7 @@ export class ShipOrderService {
     private readonly prisma: PrismaService,
     private readonly telegram: TelegramBookingNotificationService,
     private readonly shipperMessenger: ShipperMessengerNotifyService,
+    private readonly shipperPush: ShipperPushService,
     private readonly customerService: CustomerService,
   ) {}
 
@@ -101,12 +103,20 @@ export class ShipOrderService {
     address: string;
     pickupAt: Date;
   }): Promise<void> {
-    await this.shipperMessenger.notifyShipOrderCreated(event).catch((err) => {
-      console.warn(
-        '[ship-order] Messenger notify shippers failed',
-        err instanceof Error ? err.message : err,
-      );
-    });
+    await Promise.all([
+      this.shipperMessenger.notifyShipOrderCreated(event).catch((err) => {
+        console.warn(
+          '[ship-order] Messenger notify shippers failed',
+          err instanceof Error ? err.message : err,
+        );
+      }),
+      this.shipperPush.notifyShipOrderCreated(event).catch((err) => {
+        console.warn(
+          '[ship-order] Web Push notify shippers failed',
+          err instanceof Error ? err.message : err,
+        );
+      }),
+    ]);
   }
 
   toView(row: {
@@ -652,12 +662,19 @@ export class ShipOrderService {
     });
 
     if (outbound.shipperId) {
-      await this.shipperMessenger.notifyReturnRequest({
-        shipperId: outbound.shipperId,
-        customerName: booking.customer.name,
-        customerPhone: booking.customer.phone,
-        address,
-      });
+      await Promise.all([
+        this.shipperMessenger.notifyReturnRequest({
+          shipperId: outbound.shipperId,
+          customerName: booking.customer.name,
+          customerPhone: booking.customer.phone,
+          address,
+        }),
+        this.shipperPush.notifyShipper(outbound.shipperId, {
+          title: 'Yêu cầu trả máy',
+          body: `${booking.customer.name} · ${address}`,
+          url: '/ship',
+        }),
+      ]);
     }
 
     return this.toView(row);

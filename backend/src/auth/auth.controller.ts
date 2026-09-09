@@ -18,7 +18,12 @@ import { AuthService } from './auth.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { Public } from './public.decorator';
 import { ShipperService } from '../shipper/shipper.service';
+import { ShipperPushService } from '../shipper/shipper-push.service';
 import { ShipperLoginDto } from '../shipper/dto/shipper.dto';
+import {
+  DeleteShipperPushSubscriptionDto,
+  UpsertShipperPushSubscriptionDto,
+} from '../shipper/dto/shipper-push.dto';
 import {
   SHIPPER_COOKIE_NAME,
   ShipperAccess,
@@ -51,6 +56,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly shipperService: ShipperService,
+    private readonly shipperPush: ShipperPushService,
   ) {}
 
   @Public()
@@ -171,5 +177,43 @@ export class AuthController {
       throw new UnauthorizedException('Phiên shipper không hợp lệ');
     }
     return this.shipperService.requestPayout(shipperId);
+  }
+
+  @ShipperAccess()
+  @Get('shipper/push/vapid-public-key')
+  @ApiOperation({ summary: 'VAPID public key cho Web Push' })
+  shipperPushVapidKey() {
+    return this.shipperPush.getPublicKey();
+  }
+
+  @ShipperAccess()
+  @Post('shipper/push/subscribe')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đăng ký Web Push cho shipper' })
+  async shipperPushSubscribe(
+    @Req() req: Request & { shipper?: ShipperJwtPayload },
+    @Body() dto: UpsertShipperPushSubscriptionDto,
+  ) {
+    const shipperId = req.shipper?.shipperId;
+    if (!shipperId) {
+      throw new UnauthorizedException('Phiên shipper không hợp lệ');
+    }
+    const row = await this.shipperPush.upsertSubscription(shipperId, dto);
+    return { ok: true, id: row.id };
+  }
+
+  @ShipperAccess()
+  @Post('shipper/push/unsubscribe')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Huỷ Web Push subscription' })
+  async shipperPushUnsubscribe(
+    @Req() req: Request & { shipper?: ShipperJwtPayload },
+    @Body() dto: DeleteShipperPushSubscriptionDto,
+  ) {
+    const shipperId = req.shipper?.shipperId;
+    if (!shipperId) {
+      throw new UnauthorizedException('Phiên shipper không hợp lệ');
+    }
+    return this.shipperPush.deleteSubscription(shipperId, dto);
   }
 }

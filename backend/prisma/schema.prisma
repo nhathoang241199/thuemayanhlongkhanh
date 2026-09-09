@@ -292,21 +292,36 @@ model BlogPost {
 }
 
 model Shipper {
-  id                 String              @id @default(cuid())
-  phone              String              @unique
+  id                 String                    @id @default(cuid())
+  phone              String                    @unique
   name               String
   passwordHash       String
-  active             Boolean             @default(true)
-  balanceVnd         Int                 @default(0)
-  payoutQrUrl        String              @default("")
+  active             Boolean                   @default(true)
+  balanceVnd         Int                       @default(0)
+  payoutQrUrl        String                    @default("")
   payoutRequestedAt  DateTime?
-  messengerPsid      String              @default("")
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  messengerPsid      String                    @default("")
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
   shipOrders         ShipOrder[]
   withdrawals        ShipperWithdrawal[]
+  pushSubscriptions  ShipperPushSubscription[]
 
   @@index([messengerPsid])
+}
+
+model ShipperPushSubscription {
+  id        String   @id @default(cuid())
+  shipperId String
+  shipper   Shipper  @relation(fields: [shipperId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shipperId])
 }
 
 model ShipperWithdrawal {

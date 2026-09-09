@@ -22,6 +22,7 @@ import {
 } from "@/components/ship/chevron-icons";
 import { ShipCccdCaptureButton } from "@/components/ship/ship-cccd-capture-button";
 import { ShipWithdrawDialog } from "@/components/ship/ship-withdraw-dialog";
+import { ShipPushEnableButton } from "@/components/ship/ship-push-enable-button";
 import {
   shipDisplayStatusColor,
   shipDisplayStatusLabel,
@@ -464,6 +465,8 @@ export default function ShipBoardPage() {
             </HStack>
           </Stack>
         </HStack>
+
+        <ShipPushEnableButton />
 
         {error ? (
           <Text color="red.fg" fontSize="sm">
