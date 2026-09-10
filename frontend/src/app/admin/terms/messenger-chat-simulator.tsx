@@ -21,8 +21,8 @@ import {
 import { throwIfNotOk, toastApiError } from "@/lib/admin-api";
 import { toaster } from "@/lib/toaster";
 
-/** Giống Nest `conversation.service.ts` — production dùng 30s. */
-const SIMULATOR_INACTIVITY_MS = 10_000;
+/** Giống Nest `conversation.service.ts` (`MESSENGER_INACTIVITY_MS`). */
+const SIMULATOR_INACTIVITY_MS = 0;
 const MESSAGE_JOIN = "\n---\n";
 
 type SimulateStatus = {
@@ -219,16 +219,19 @@ export function MessengerChatSimulator() {
             <Box>
               <CardTitle textStyle="lg">Giả lập chat Messenger</CardTitle>
               <Text fontSize="sm" color="fg.muted" mt={1}>
-                Gộp tin liên tiếp sau {SIMULATOR_INACTIVITY_MS / 1000}s (giống
-                webhook Nest) rồi gọi AI service một lần. Xem graph_trace bên
-                dưới.
+                {SIMULATOR_INACTIVITY_MS === 0
+                  ? "Gửi tin là gọi AI ngay (debounce 0s, giống webhook Nest)."
+                  : `Gộp tin liên tiếp sau ${SIMULATOR_INACTIVITY_MS / 1000}s (giống webhook Nest) rồi gọi AI một lần.`}{" "}
+                Xem graph_trace bên dưới.
               </Text>
               {status ? (
                 <Text fontSize="xs" color="fg.muted" mt={1}>
-                  Service: {aiServiceBase()} · Model:                   {status.model} · Lịch sử{" "}
+                  Service: {aiServiceBase()} · Model: {status.model} · Lịch sử{" "}
                   {limit} tin ({messageCount}/{limit})
                   {" · Debounce "}
-                  {SIMULATOR_INACTIVITY_MS / 1000}s
+                  {SIMULATOR_INACTIVITY_MS === 0
+                    ? "0s"
+                    : `${SIMULATOR_INACTIVITY_MS / 1000}s`}
                 </Text>
               ) : null}
             </Box>
@@ -261,9 +264,8 @@ export function MessengerChatSimulator() {
           >
             {turns.length === 0 && queuedMessages.length === 0 && !flushing ? (
               <Text fontSize="sm" color="fg.muted" textAlign="center" py={12}>
-                Gõ vài tin liên tiếp (vd. &quot;a oi&quot; rồi &quot;mai còn r50
-                không&quot;) — bot trả lời sau {SIMULATOR_INACTIVITY_MS / 1000}s
-                không nhắn thêm.
+                Gõ tin (vd. &quot;mai còn r50 không&quot;) — bot trả lời ngay
+                (debounce {SIMULATOR_INACTIVITY_MS === 0 ? "0" : SIMULATOR_INACTIVITY_MS / 1000}s).
               </Text>
             ) : null}
 
@@ -339,8 +341,7 @@ export function MessengerChatSimulator() {
 
               {queuedMessages.length > 0 && !flushing ? (
                 <Text fontSize="xs" color="fg.muted" textAlign="right" pr={1}>
-                  Gộp {queuedMessages.length} tin — gọi bot sau{" "}
-                  {SIMULATOR_INACTIVITY_MS / 1000}s không nhắn thêm…
+                  Gộp {queuedMessages.length} tin — đang gọi bot…
                 </Text>
               ) : null}
 
