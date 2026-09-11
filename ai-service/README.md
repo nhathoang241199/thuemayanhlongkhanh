@@ -1,13 +1,13 @@
 # AI Service — FastAPI + LangGraph
 
-Chatbot khách hàng độc lập với NestJS. Nest chỉ forward webhook Facebook; admin simulator gọi trực tiếp service này.
+Customer chatbot, separate from NestJS. Nest only forwards Facebook webhooks; the admin simulator calls this service directly.
 
-## Yêu cầu
+## Requirements
 
 - Python 3.11+
-- Postgres (cùng `docker compose` với backend)
+- Postgres (same `docker compose` stack as the backend)
 
-## Cài đặt
+## Setup
 
 ```bash
 cd ai-service
@@ -15,31 +15,31 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Chỉnh DATABASE_URL, MINIMAX_API_KEY
+# Set DATABASE_URL, MINIMAX_API_KEY, USE_LLM_AGENT=true
 ```
 
-## Chạy
+## Run
 
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-## LangGraph — các node
+## LangGraph nodes
 
-1. **route** — phân loại intent (regex)
-2. **greeting_node / booking_node / policy_fees_node / shop_contact_node** — canned
-3. **price_node / availability_node** — DB, không gọi LLM
+1. **route** — intent classification (regex)
+2. **greeting_node / booking_node / policy_fees_node / shop_contact_node / shop_promotion_node** — canned replies
+3. **price_node / availability_node** — DB lookups, no LLM
 4. **agent_node** — LangChain ReAct agent + tools (MiniMax-M2.5)
 
-Xem trace trong response: `graph_trace`.
+Inspect the path in the response field `graph_trace`.
 
 ## API
 
 - `GET /health`
 - `GET /v1/status`
-- `POST /v1/chat` — header `X-Internal-Token` (nếu cấu hình)
+- `POST /v1/chat` — header `X-Internal-Token` (when configured)
 
-## Test
+## Tests
 
 ```bash
 pytest
