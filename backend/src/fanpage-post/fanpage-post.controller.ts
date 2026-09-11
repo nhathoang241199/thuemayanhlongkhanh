@@ -13,7 +13,6 @@ import {
   RejectFanpagePostDraftDto,
   UpdateFanpagePostDraftDto,
 } from './dto/fanpage-post.dto';
-import { HermesApiAccess } from '../auth/hermes-api.decorator';
 import { FanpagePostService } from './fanpage-post.service';
 
 @ApiTags('fanpage-posts')
