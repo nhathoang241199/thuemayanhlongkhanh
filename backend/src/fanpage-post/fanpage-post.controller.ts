@@ -8,6 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { HermesApiAccess } from '../auth/hermes-api.decorator';
 import {
   RejectFanpagePostDraftDto,
   UpdateFanpagePostDraftDto,
@@ -21,6 +22,7 @@ export class FanpagePostController {
   constructor(private readonly posts: FanpagePostService) {}
 
   @Get()
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Danh sách bài fanpage (admin duyệt)' })
   @ApiQuery({
     name: 'status',
@@ -32,6 +34,7 @@ export class FanpagePostController {
   }
 
   @Patch(':id')
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Sửa bài chờ duyệt' })
   update(@Param('id') id: string, @Body() dto: UpdateFanpagePostDraftDto) {
     return this.posts.update(id, dto);
@@ -45,6 +48,7 @@ export class FanpagePostController {
   }
 
   @Post(':id/reject')
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Từ chối bài đăng' })
   reject(@Param('id') id: string, @Body() dto: RejectFanpagePostDraftDto) {
     return this.posts.reject(id, dto);

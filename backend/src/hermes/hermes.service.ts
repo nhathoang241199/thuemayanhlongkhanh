@@ -55,14 +55,28 @@ export class HermesService {
     });
   }
 
-  /** Agent gửi bài → chờ admin duyệt, không đăng thẳng. */
+  /** Agent gửi bài fanpage — published=true thì đăng Graph ngay. */
   async submitFanpagePost(dto: HermesPublishFanpageDto) {
     const bookUrl = `${getMessengerConfig().frontendUrl.replace(/\/$/, '')}/book`;
-    const draft = await this.fanpagePosts.createDraft({
+    const payload = {
       message: dto.message.trim(),
       link: dto.link?.trim() || bookUrl,
-      publishPublic: dto.published === true,
-      source: 'hermes',
+      publishPublic: true,
+      source: 'hermes' as const,
+    };
+
+    if (dto.published === true) {
+      const published = await this.fanpagePosts.createAndPublish(payload);
+      return {
+        draft: published,
+        postUrl: published.postUrl,
+        note: 'Bài fanpage đã đăng công khai.',
+      };
+    }
+
+    const draft = await this.fanpagePosts.createDraft({
+      ...payload,
+      publishPublic: true,
     });
     return {
       draft,
@@ -99,13 +113,26 @@ export class HermesService {
       endDate: dto.endDate,
     });
 
-    const draft = await this.fanpagePosts.createDraft({
+    const payload = {
       message: preview,
       link: bookUrl,
-      publishPublic: dto.published === true,
-      source: 'hermes',
+      publishPublic: true,
+      source: 'hermes' as const,
       promotionNote,
-    });
+    };
+
+    if (dto.published === true) {
+      const published = await this.fanpagePosts.createAndPublish(payload);
+      return {
+        promotion,
+        draft: published,
+        previewMessage: preview,
+        postUrl: published.postUrl,
+        note: 'KM đã áp dụng web; bài fanpage đã đăng công khai.',
+      };
+    }
+
+    const draft = await this.fanpagePosts.createDraft(payload);
 
     return {
       promotion,
