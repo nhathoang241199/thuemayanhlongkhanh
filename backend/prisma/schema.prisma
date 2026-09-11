@@ -27,6 +27,7 @@ model Camera {
   createdAt        DateTime     @default(now())
   bookings         Booking[]
   compatibleLenses CameraLens[]
+  targetedPromotions ShopPromotion[]
 }
 
 model Lens {
@@ -199,6 +200,8 @@ model ShopPromotion {
   discountPercent Int       @default(0)
   startDate       DateTime? @db.Date
   endDate         DateTime? @db.Date
+  targetCameraId  String?
+  targetCamera    Camera?   @relation(fields: [targetCameraId], references: [id], onDelete: SetNull)
   updatedAt       DateTime  @updatedAt
 }
 

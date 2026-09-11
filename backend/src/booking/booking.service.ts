@@ -442,6 +442,7 @@ export class BookingService {
       promo,
       startDate,
       endDate,
+      camera.id,
     );
     const dayCount = dayCountInclusive(startDate, endDate);
     const cameraRental = rentalAmountWithOptionsVnd(
@@ -464,6 +465,7 @@ export class BookingService {
         promo,
         startDate,
         endDate,
+        lens.id,
       );
       const lensRental = rentalAmountWithOptionsVnd(
         dayCount,

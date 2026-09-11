@@ -52,7 +52,7 @@ describe('isShopPromotionActiveForRental', () => {
   it('active for any rental when no dates set', () => {
     expect(
       isShopPromotionActiveForRental(
-        { discountPercent: 15, startDate: null, endDate: null },
+        { discountPercent: 15, startDate: null, endDate: null, targetCameraId: null },
         '2026-12-01',
         '2026-12-02',
       ),
@@ -62,7 +62,7 @@ describe('isShopPromotionActiveForRental', () => {
   it('inactive when percent is zero', () => {
     expect(
       isShopPromotionActiveForRental(
-        { discountPercent: 0, startDate: '2026-06-01', endDate: '2026-06-30' },
+        { discountPercent: 0, startDate: '2026-06-01', endDate: '2026-06-30', targetCameraId: null },
         '2026-06-15',
         '2026-06-16',
       ),
@@ -81,6 +81,31 @@ describe('resolveEffectiveDiscountPercent', () => {
     expect(
       resolveEffectiveDiscountPercent(5, promo, '2026-06-28', '2026-06-29'),
     ).toBe(20);
+  });
+
+  it('uses a targeted promo only for the matching camera', () => {
+    const targetedPromo = {
+      ...promo,
+      targetCameraId: 'camera-xs10',
+    };
+    expect(
+      resolveEffectiveDiscountPercent(
+        5,
+        targetedPromo,
+        '2026-06-28',
+        '2026-06-29',
+        'camera-xs10',
+      ),
+    ).toBe(20);
+    expect(
+      resolveEffectiveDiscountPercent(
+        5,
+        targetedPromo,
+        '2026-06-28',
+        '2026-06-29',
+        'camera-other',
+      ),
+    ).toBe(5);
   });
 
   it('uses equipment percent when rental does not overlap', () => {

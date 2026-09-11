@@ -25,11 +25,13 @@ function toPromotionView(row: {
   discountPercent: number;
   startDate: Date | null;
   endDate: Date | null;
+  targetCameraId: string | null;
 }): ShopPromotionView {
   return {
     discountPercent: row.discountPercent,
     startDate: row.startDate ? toCalendarDayVN(row.startDate) : null,
     endDate: row.endDate ? toCalendarDayVN(row.endDate) : null,
+    targetCameraId: row.targetCameraId ?? null,
   };
 }
 
@@ -206,6 +208,7 @@ export class StatsService {
     discountPercent: number;
     startDate: string | null;
     endDate: string | null;
+    targetCameraId: string | null;
     updatedAt: string;
   }> {
     const row = await this.findOrDefaultShopPromotion();
@@ -236,10 +239,12 @@ export class StatsService {
     discountPercent: number;
     startDate: string | null;
     endDate: string | null;
+    targetCameraId: string | null;
     cameraCount: number;
     lensCount: number;
   }> {
     const pct = clampDiscountPercent(dto.discountPercent);
+    const targetCameraId = dto.targetCameraId?.trim() || null;
     const startRaw = dto.startDate?.trim() ?? '';
     const endRaw = dto.endDate?.trim() ?? '';
     const hasStart = startRaw.length > 0;
@@ -249,6 +254,14 @@ export class StatsService {
       throw new BadRequestException(
         'Cần nhập cả Từ ngày và Đến ngày, hoặc để trống cả hai',
       );
+    }
+
+    if (targetCameraId) {
+      const target = await this.prisma.camera.findUnique({
+        where: { id: targetCameraId },
+        select: { id: true },
+      });
+      if (!target) throw new BadRequestException('Máy ảnh khuyến mãi không tồn tại');
     }
 
     let startDate: Date | null = null;
@@ -274,15 +287,23 @@ export class StatsService {
             discountPercent: pct,
             startDate,
             endDate,
+            targetCameraId,
           },
           update: {
             discountPercent: pct,
             startDate,
             endDate,
+            targetCameraId,
           },
         }),
-        this.prisma.camera.updateMany({ data: { discountPercent: pct } }),
-        this.prisma.lens.updateMany({ data: { discountPercent: pct } }),
+        this.prisma.camera.updateMany({
+          where: targetCameraId ? { id: targetCameraId } : undefined,
+          data: targetCameraId ? {} : { discountPercent: pct },
+        }),
+        this.prisma.lens.updateMany({
+          where: targetCameraId ? { id: '__targeted_promotion_no_lens__' } : undefined,
+          data: targetCameraId ? {} : { discountPercent: pct },
+        }),
       ]);
 
     const view = toPromotionView(promoRow);

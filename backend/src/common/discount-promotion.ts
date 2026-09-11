@@ -4,6 +4,7 @@ export type ShopPromotionView = {
   discountPercent: number;
   startDate: string | null;
   endDate: string | null;
+  targetCameraId: string | null;
 };
 
 export function dateRangesOverlap(
@@ -19,8 +20,10 @@ export function isShopPromotionActiveForRental(
   promo: ShopPromotionView,
   rentalStart: string,
   rentalEnd: string,
+  equipmentId?: string,
 ): boolean {
   if (promo.discountPercent <= 0) return false;
+  if (promo.targetCameraId && promo.targetCameraId !== equipmentId) return false;
   if (!promo.startDate || !promo.endDate) return true;
   return dateRangesOverlap(
     rentalStart,
@@ -35,10 +38,11 @@ export function resolveEffectiveDiscountPercent(
   promo: ShopPromotionView | null,
   rentalStart: string,
   rentalEnd: string,
+  equipmentId?: string,
 ): number {
   if (
     promo &&
-    isShopPromotionActiveForRental(promo, rentalStart, rentalEnd)
+    isShopPromotionActiveForRental(promo, rentalStart, rentalEnd, equipmentId)
   ) {
     return clampDiscountPercent(promo.discountPercent);
   }

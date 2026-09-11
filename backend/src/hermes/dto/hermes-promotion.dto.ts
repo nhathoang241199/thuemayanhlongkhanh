@@ -28,6 +28,11 @@ export class HermesSetupPromotionDto {
     message: 'endDate phải dạng YYYY-MM-DD',
   })
   endDate: string;
+
+  @ApiPropertyOptional({ description: 'ID máy ảnh; bỏ trống để áp dụng toàn shop' })
+  @IsOptional()
+  @IsString()
+  targetCameraId?: string;
 }
 
 export class HermesPreviewPromotionPostDto extends HermesSetupPromotionDto {}

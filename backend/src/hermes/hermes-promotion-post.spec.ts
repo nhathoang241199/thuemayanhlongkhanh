@@ -7,6 +7,7 @@ describe('buildPromotionFanpagePost', () => {
         discountPercent: 20,
         startDate: '2026-10-01',
         endDate: '2026-10-31',
+        targetCameraId: null,
       },
       'https://thuemayanhlongkhanh.com/book',
     );
@@ -18,7 +19,7 @@ describe('buildPromotionFanpagePost', () => {
   it('uses custom message when provided', () => {
     expect(
       buildPromotionFanpagePost(
-        { discountPercent: 10, startDate: null, endDate: null },
+        { discountPercent: 10, startDate: null, endDate: null, targetCameraId: null },
         'https://example.com/book',
         'Tháng sau giảm 20% nhé',
       ),
