@@ -12,6 +12,7 @@ import {
   RejectFanpagePostDraftDto,
   UpdateFanpagePostDraftDto,
 } from './dto/fanpage-post.dto';
+import { HermesApiAccess } from '../auth/hermes-api.decorator';
 import { FanpagePostService } from './fanpage-post.service';
 
 @ApiTags('fanpage-posts')
@@ -37,6 +38,7 @@ export class FanpagePostController {
   }
 
   @Post(':id/approve')
+  @HermesApiAccess()
   @ApiOperation({ summary: 'Duyệt và đăng lên fanpage' })
   approve(@Param('id') id: string) {
     return this.posts.approve(id);
