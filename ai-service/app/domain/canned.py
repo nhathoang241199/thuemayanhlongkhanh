@@ -93,6 +93,56 @@ def booking_redirect_reply(site_url: str, text: str) -> str:
     )
 
 
+def is_shop_promotion_question(text: str) -> bool:
+    """Khách hỏi chương trình KM / giảm giá shop — không phải hỏi giá một máy."""
+    norm = _normalize_booking(text)
+    if not norm.strip():
+        return False
+    return bool(
+        re.search(
+            r"khuyen\s*mai|uu\s*dai|"
+            r"chuong\s*trinh.*(giam|sale|km|uu\s*dai)|"
+            r"co\s+(chuong\s*trinh\s+)?(giam\s*gia|khuyen\s*mai|uu\s*dai|sale)|"
+            r"dang\s+(giam\s*gia|khuyen\s*mai|sale)|"
+            r"giam\s*gia\s*(gi|j|gi\s*do|khong|ko|k\b|toan|shop|may)|"
+            r"\bsale\b|"
+            r"promo(tion)?",
+            norm,
+        )
+    )
+
+
+def format_shop_promotion_customer_reply(
+    promo: dict,
+    text: str,
+    history: list | None = None,
+) -> str:
+    """Short Messenger reply for shop-wide promotion questions."""
+    p = resolve_messenger_pronouns(text, history or [])
+    shop = p["shop"]
+    from app.domain.formatters import (
+        _as_date,
+        _format_vn_date,
+        is_shop_promotion_visible,
+    )
+
+    if not is_shop_promotion_visible(promo):
+        return f"Hiện {shop} chưa có chương trình giảm giá toàn shop ạ."
+    pct = int(promo.get("discount_percent") or 0)
+    start = _as_date(promo.get("start_date"))
+    end = _as_date(promo.get("end_date"))
+    if start and end:
+        return (
+            f"Hiện {shop} đang giảm {pct}% từ {_format_vn_date(start)} "
+            f"đến {_format_vn_date(end)} ạ."
+        )
+    if end:
+        return f"Hiện {shop} đang giảm {pct}% đến hết {_format_vn_date(end)} ạ."
+    if start:
+        return f"Hiện {shop} đang giảm {pct}% từ {_format_vn_date(start)} ạ."
+    return f"Hiện {shop} đang giảm {pct}% toàn đơn thuê ạ."
+
+
 def is_booking_done_acknowledgment(text: str) -> bool:
     """Khách báo đã đặt lịch xong — trả lời canned, tránh agent bịa quy trình."""
     t = text.strip()

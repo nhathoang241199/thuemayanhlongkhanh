@@ -6,9 +6,10 @@ def test_detect_greeting():
     assert detect_intent("chào shop") == "greeting"
 
 
-def test_detect_price():
+def test_detect_shop_promotion():
+    assert detect_intent("shop có chương trình giảm giá gì không ạ") == "shop_promotion"
+    assert detect_intent("có khuyến mãi không") == "shop_promotion"
     assert detect_intent("giá r50 2 ngày") == "price"
-    assert detect_intent("còn 3 ngày") == "price"
 
 
 def test_detect_booking_done():

@@ -12,6 +12,7 @@ from app.domain.formatters import (
     format_camera_list,
     format_lens_list,
     format_price_quote_customer_reply,
+    format_shop_promotion_tool_result,
     parse_slot,
 )
 
@@ -56,6 +57,12 @@ def build_tools(pool: asyncpg.Pool):
     async def get_booking_terms() -> str:
         """Toàn bộ điều khoản đặt lịch (cọc, giao nhận, đền bù, thời gian thuê…)."""
         return await cam_repo.get_booking_terms(pool)
+
+    @tool
+    async def get_shop_promotion() -> str:
+        """Chương trình giảm giá toàn shop (%, ngày bắt đầu/kết thúc). Dùng khi khách hỏi khuyến mãi, giảm giá, ưu đãi."""
+        promo = await cam_repo.get_shop_promotion(pool)
+        return format_shop_promotion_tool_result(promo)
 
     @tool
     async def check_availability(
@@ -103,6 +110,7 @@ def build_tools(pool: asyncpg.Pool):
         quote_camera_price,
         list_lenses,
         get_booking_terms,
+        get_shop_promotion,
         check_availability,
         list_available_cameras,
         closed_days,
