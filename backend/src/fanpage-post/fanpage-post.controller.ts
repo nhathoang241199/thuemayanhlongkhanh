@@ -46,6 +46,13 @@ export class FanpagePostController {
     return this.posts.approve(id);
   }
 
+  @Post(':id/delete-published')
+  @HermesApiAccess()
+  @ApiOperation({ summary: 'Xoá bài đã đăng trên fanpage' })
+  deletePublished(@Param('id') id: string) {
+    return this.posts.deletePublished(id);
+  }
+
   @Post(':id/reject')
   @HermesApiAccess()
   @ApiOperation({ summary: 'Từ chối bài đăng' })

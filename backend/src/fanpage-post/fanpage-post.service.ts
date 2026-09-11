@@ -113,6 +113,20 @@ export class FanpagePostService {
     return this.toResponse(row);
   }
 
+  async deletePublished(id: string) {
+    const row = await this.prisma.fanpagePostDraft.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('Không tìm thấy bài đăng');
+    if (row.status !== 'published' || !row.facebookPostId) {
+      throw new BadRequestException('Bài đăng chưa có bài công khai để xoá');
+    }
+    await this.graph.deletePageFeedPost(row.facebookPostId);
+    const updated = await this.prisma.fanpagePostDraft.update({
+      where: { id },
+      data: { status: 'rejected', rejectNote: 'Đã xoá bài công khai trên Facebook' },
+    });
+    return this.toResponse(updated);
+  }
+
   private async findPending(id: string) {
     const row = await this.prisma.fanpagePostDraft.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Không tìm thấy bài đăng');

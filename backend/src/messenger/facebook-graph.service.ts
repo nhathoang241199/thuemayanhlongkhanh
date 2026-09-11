@@ -183,4 +183,15 @@ export class FacebookGraphService {
       : '';
     return { id: postId, postUrl, published };
   }
+
+  async deletePageFeedPost(postId: string): Promise<void> {
+    const url = new URL(`${GRAPH}/${postId}`);
+    url.searchParams.set('access_token', this.token);
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) {
+      const text = await res.text();
+      this.logger.error(`Graph feed delete ${res.status}: ${text}`);
+      throw new Error(`Không xoá được bài fanpage (${res.status})`);
+    }
+  }
 }
