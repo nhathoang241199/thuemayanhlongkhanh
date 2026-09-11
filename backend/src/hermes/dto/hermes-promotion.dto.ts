@@ -49,7 +49,7 @@ export class HermesPublishFanpageDto {
 
   @ApiPropertyOptional({
     description:
-      'true = đăng công khai fanpage; mặc định false (private, chỉ admin Page thấy trên Meta)',
+      'true = đăng lên fanpage ngay (Graph API); false/omit = chỉ tạo bản nháp chờ admin',
     default: false,
   })
   @IsOptional()
@@ -67,7 +67,8 @@ export class HermesLaunchPromotionDto extends HermesSetupPromotionDto {
   message?: string;
 
   @ApiPropertyOptional({
-    description: 'true = đăng công khai fanpage; mặc định false (private)',
+    description:
+      'true = đăng fanpage ngay sau khi setup KM; false/omit = chỉ tạo bản nháp chờ admin',
     default: false,
   })
   @IsOptional()
@@ -75,7 +76,7 @@ export class HermesLaunchPromotionDto extends HermesSetupPromotionDto {
   published?: boolean;
 
   @ApiPropertyOptional({
-    description: 'false = chỉ setup KM trên web, không đăng fanpage',
+    description: 'false = chỉ setup KM trên web, không tạo/đăng bài fanpage',
     default: true,
   })
   @IsOptional()

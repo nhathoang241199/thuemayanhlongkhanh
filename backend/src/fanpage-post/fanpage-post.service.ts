@@ -36,6 +36,15 @@ export class FanpagePostService {
     return this.toResponse(row);
   }
 
+  /** Tạo draft rồi đăng Graph ngay (Hermes / automation). */
+  async createAndPublish(dto: CreateFanpagePostDraftDto) {
+    const draft = await this.createDraft({
+      ...dto,
+      publishPublic: dto.publishPublic !== false,
+    });
+    return this.approve(draft.id);
+  }
+
   async list(status?: FanpagePostStatus) {
     const rows = await this.prisma.fanpagePostDraft.findMany({
       where: status ? { status } : undefined,

@@ -11,9 +11,11 @@ Base URL production: `https://thuemayanhlongkhanh.com/api`
 1. Bạn chat Hermes: *"Tháng sau giảm 20%"*
 2. Agent **tính ngày** (vd. `2026-10-01` → `2026-10-31`) và **xác nhận** với bạn
 3. Agent gọi `POST /hermes/promotion/preview-post` → show nội dung bài
-4. Bạn ok → `POST /hermes/promotion/launch` (setup web + đăng fanpage)
+4. Bạn ok → `POST /hermes/promotion/launch` với `"published": true` (setup web + **đăng fanpage ngay**)
 
-Hoặc gọi từng bước: `setup` → `publish`.
+Hoặc gọi từng bước: `setup` → `facebook/publish` với `"published": true`.
+
+`published: false` / bỏ trống = chỉ tạo bản nháp chờ admin (nếu còn dùng).
 
 ## Luồng agent đề xuất (blog SEO)
 
@@ -47,7 +49,7 @@ Xem trước bài fanpage **chưa** thay đổi hệ thống.
 
 ### `POST /hermes/promotion/launch` *(tool chính)*
 
-Setup KM trên web + **gửi bài fanpage chờ duyệt** (không đăng ngay).
+Setup KM trên web + đăng fanpage.
 
 ```json
 {
@@ -55,15 +57,20 @@ Setup KM trên web + **gửi bài fanpage chờ duyệt** (không đăng ngay).
   "startDate": "2026-10-01",
   "endDate": "2026-10-31",
   "publishToFanpage": true,
-  "published": false
+  "published": true
 }
 ```
 
-Admin duyệt tại **`/admin/fanpage-posts`** → **Duyệt & đăng**.
+- `published: true` → Nest gọi Facebook Graph ngay, trả `postUrl`
+- `published: false` → chỉ tạo draft (admin duyệt nếu còn UI)
 
 ### `POST /hermes/facebook/publish`
 
-Gửi bài lẻ chờ duyệt (không đăng thẳng).
+Đăng bài lẻ. Cùng quy ước `published: true` = Graph ngay.
+
+### `POST /api/fanpage-posts/:id/approve`
+
+Duyệt draft cũ (admin cookie **hoặc** `X-Hermes-API-Key`).
 
 ## Endpoints blog SEO
 
@@ -107,7 +114,8 @@ curl -s -X POST "$API/hermes/promotion/launch" \
   -d '{
     "discountPercent": 20,
     "startDate": "2026-10-01",
-    "endDate": "2026-10-31"
+    "endDate": "2026-10-31",
+    "published": true
   }' | jq
 ```
 
@@ -147,9 +155,10 @@ Header mọi request: `X-Hermes-API-Key: {HERMES_API_KEY}`
 
 Prompt gợi ý cho agent:
 
-- Luôn **hỏi xác nhận** trước khi gọi `launch`
+- Luôn **hỏi xác nhận** trước khi gọi `launch` / `facebook/publish`
 - Parse "tháng sau" → ngày đầu/cuối tháng theo lịch VN
-- Bài fanpage **luôn chờ admin duyệt** — báo user kiểm tra `/admin/fanpage-posts`
+- Khi user ok đăng → gọi với `"published": true` (đăng Graph ngay, đọc lại `postUrl` / `facebookPostId`)
+- Chỉ dùng `published: false` khi user muốn giữ bản nháp
 - Bài blog mặc định chờ duyệt `/admin/blog-posts`; chỉ `publish: true` khi user yêu cầu đăng ngay
 - Viết blog bằng **Markdown**, có link nội bộ `/book` khi phù hợp
 - Mỗi bài blog **bắt buộc có banner** (`bannerUrl`) trước khi xuất bản

@@ -45,7 +45,10 @@ export class HermesController {
   @Post('facebook/publish')
   @HermesApiAccess()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Gửi bài fanpage chờ admin duyệt (không đăng ngay)' })
+  @ApiOperation({
+    summary:
+      'Đăng bài fanpage (published: true = Graph ngay; false = chờ admin)',
+  })
   publishFanpage(@Body() dto: HermesPublishFanpageDto) {
     return this.hermes.submitFanpagePost(dto);
   }
@@ -54,7 +57,8 @@ export class HermesController {
   @HermesApiAccess()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Setup KM web + gửi bài fanpage chờ duyệt',
+    summary:
+      'Setup KM web + fanpage (published: true = đăng Graph ngay)',
   })
   launchPromotion(@Body() dto: HermesLaunchPromotionDto) {
     return this.hermes.launchPromotion(dto);
