@@ -118,8 +118,6 @@ def format_shop_promotion_customer_reply(
     history: list | None = None,
 ) -> str:
     """Short Messenger reply for shop-wide promotion questions."""
-    p = resolve_messenger_pronouns(text, history or [])
-    shop = p["shop"]
     from app.domain.formatters import (
         _as_date,
         _format_vn_date,
@@ -127,20 +125,20 @@ def format_shop_promotion_customer_reply(
     )
 
     if not is_shop_promotion_visible(promo):
-        return f"Hiện {shop} chưa có chương trình giảm giá toàn shop ạ."
+        return "Hiện shop chưa có chương trình giảm giá toàn shop ạ."
     pct = int(promo.get("discount_percent") or 0)
     start = _as_date(promo.get("start_date"))
     end = _as_date(promo.get("end_date"))
     if start and end:
         return (
-            f"Hiện {shop} đang giảm {pct}% từ {_format_vn_date(start)} "
+            f"Hiện shop đang giảm {pct}% từ {_format_vn_date(start)} "
             f"đến {_format_vn_date(end)} ạ."
         )
     if end:
-        return f"Hiện {shop} đang giảm {pct}% đến hết {_format_vn_date(end)} ạ."
+        return f"Hiện shop đang giảm {pct}% đến hết {_format_vn_date(end)} ạ."
     if start:
-        return f"Hiện {shop} đang giảm {pct}% từ {_format_vn_date(start)} ạ."
-    return f"Hiện {shop} đang giảm {pct}% toàn đơn thuê ạ."
+        return f"Hiện shop đang giảm {pct}% từ {_format_vn_date(start)} ạ."
+    return f"Hiện shop đang giảm {pct}% toàn đơn thuê ạ."
 
 
 def is_booking_done_acknowledgment(text: str) -> bool:

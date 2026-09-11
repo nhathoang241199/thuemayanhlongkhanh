@@ -51,6 +51,24 @@ def test_format_customer_reply_no_promo():
         "có giảm giá không",
     )
     assert "chưa có chương trình giảm giá" in reply
+    assert reply.startswith("Hiện shop")
+
+
+def test_format_customer_reply_active():
+    from app.domain.canned import format_shop_promotion_customer_reply
+    from datetime import date
+
+    reply = format_shop_promotion_customer_reply(
+        {
+            "discount_percent": 15,
+            "start_date": date(2026, 9, 1),
+            "end_date": date(2026, 9, 30),
+        },
+        "shop có khuyến mãi không",
+    )
+    assert "shop đang giảm 15%" in reply
+    assert "01/09/2026" in reply
+    assert "30/09/2026" in reply
 
 
 def test_format_inactive():
