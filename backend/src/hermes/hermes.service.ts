@@ -33,7 +33,6 @@ export class HermesService {
         discountPercent: dto.discountPercent,
         startDate: dto.startDate,
         endDate: dto.endDate,
-        targetCameraId: dto.targetCameraId ?? null,
       },
       bookUrl,
     );
@@ -44,7 +43,6 @@ export class HermesService {
         discountPercent: dto.discountPercent,
         startDate: dto.startDate,
         endDate: dto.endDate,
-        targetCameraId: dto.targetCameraId ?? null,
       },
     };
   }
@@ -54,7 +52,6 @@ export class HermesService {
       discountPercent: dto.discountPercent,
       startDate: dto.startDate,
       endDate: dto.endDate,
-      targetCameraId: dto.targetCameraId,
     });
   }
 
@@ -80,7 +77,6 @@ export class HermesService {
         discountPercent: dto.discountPercent,
         startDate: dto.startDate,
         endDate: dto.endDate,
-        targetCameraId: dto.targetCameraId ?? null,
       },
       bookUrl,
       dto.message,
