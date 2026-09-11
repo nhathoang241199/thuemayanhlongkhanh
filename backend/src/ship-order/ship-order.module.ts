@@ -3,6 +3,7 @@ import { CustomerModule } from '../customer/customer.module';
 import { MessengerModule } from '../messenger/messenger.module';
 import { PaymentModule } from '../payment/payment.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ShipperModule } from '../shipper/shipper.module';
 import { ShipOrderController } from './ship-order.controller';
 import { ShipOrderService } from './ship-order.service';
 
@@ -12,6 +13,7 @@ import { ShipOrderService } from './ship-order.service';
     CustomerModule,
     forwardRef(() => PaymentModule),
     MessengerModule,
+    ShipperModule,
   ],
   controllers: [ShipOrderController],
   providers: [ShipOrderService],

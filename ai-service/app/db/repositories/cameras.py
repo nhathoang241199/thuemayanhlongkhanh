@@ -98,3 +98,26 @@ async def get_booking_terms(pool: asyncpg.Pool) -> str:
     if not row or not row["content"]:
         return "Chưa có điều khoản — nhờ admin xác nhận."
     return row["content"].strip()
+
+
+async def get_shop_promotion(pool: asyncpg.Pool) -> dict:
+    """Shop-wide promotion (singleton). Dates are calendar dates (no time)."""
+    row = await pool.fetchrow(
+        '''
+        SELECT "discountPercent", "startDate", "endDate"
+        FROM "ShopPromotion"
+        WHERE id = $1
+        ''',
+        "singleton",
+    )
+    if not row:
+        return {
+            "discount_percent": 0,
+            "start_date": None,
+            "end_date": None,
+        }
+    return {
+        "discount_percent": int(row["discountPercent"] or 0),
+        "start_date": row["startDate"],
+        "end_date": row["endDate"],
+    }

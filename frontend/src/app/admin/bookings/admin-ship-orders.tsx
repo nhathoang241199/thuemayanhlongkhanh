@@ -1,27 +1,8 @@
 "use client";
 
-import { Badge, HStack, Stack, Text } from "@chakra-ui/react";
+import { Stack, Text } from "@chakra-ui/react";
 
 import type { ShipOrder } from "@/lib/api";
-
-function legLabel(leg: string): string {
-  return leg === "OUTBOUND" ? "Giao máy" : "Trả máy";
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case "PENDING":
-      return "Chờ nhận";
-    case "CLAIMED":
-      return "Đang giao";
-    case "COMPLETED":
-      return "Hoàn thành";
-    case "CANCELLED":
-      return "Hủy";
-    default:
-      return status;
-  }
-}
 
 type AdminShipOrdersProps = {
   orders?: ShipOrder[];
@@ -30,18 +11,21 @@ type AdminShipOrdersProps = {
 export function AdminShipOrders({ orders }: AdminShipOrdersProps) {
   if (!orders?.length) return null;
 
+  const names = [
+    ...new Set(
+      orders
+        .map((s) => s.shipper?.name?.trim())
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ];
+  if (!names.length) return null;
+
   return (
-    <Stack gap={1} mt={1}>
-      {orders.map((s) => (
-        <HStack key={s.id} gap={2} flexWrap="wrap" fontSize="xs">
-          <Text color="fg.muted">{legLabel(s.leg)}:</Text>
-          <Badge size="sm" variant="subtle">
-            {statusLabel(s.status)}
-          </Badge>
-          {s.shipper?.name ? (
-            <Text color="fg.muted">Shipper: {s.shipper.name}</Text>
-          ) : null}
-        </HStack>
+    <Stack gap={0} mt={1}>
+      {names.map((name) => (
+        <Text key={name} fontSize="xs" color="fg.muted">
+          {name}
+        </Text>
       ))}
     </Stack>
   );

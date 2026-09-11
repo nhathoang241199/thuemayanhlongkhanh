@@ -493,11 +493,17 @@ export class BookingService {
     return camera.discountPercent ?? 0;
   }
 
-  private assertDeliveryAllowed(
+  private async assertDeliveryAllowed(
     _customer: { isVerified: boolean },
-    _shippingAddress?: string | null,
+    shippingAddress?: string | null,
   ) {
-    // Tạm cho mọi khách chọn giao tận nơi (không yêu cầu xác minh).
+    if (!shippingAddress?.trim()) return;
+    const { shipEnabled } = await this.shopFeaturesService.get();
+    if (!shipEnabled) {
+      throw new BadRequestException(
+        'Shop hiện không hỗ trợ giao tận nơi.',
+      );
+    }
   }
 
   async requestChangeCustomerBooking(
@@ -540,7 +546,7 @@ export class BookingService {
       booking.id,
     );
 
-    this.assertDeliveryAllowed(booking.customer, dto.shippingAddress);
+    await this.assertDeliveryAllowed(booking.customer, dto.shippingAddress);
 
     const changeCamera = await this.prisma.camera.findUnique({
       where: { id: dto.cameraId },
@@ -647,7 +653,7 @@ export class BookingService {
         ? booking.shippingAddress
         : dto.shippingAddress?.trim() || null;
 
-    this.assertDeliveryAllowed(booking.customer, shippingAddress);
+    await this.assertDeliveryAllowed(booking.customer, shippingAddress);
 
     const pendingCamera = await this.prisma.camera.findUnique({
       where: { id: dto.cameraId },
@@ -731,7 +737,7 @@ export class BookingService {
       returnNextMorning,
     );
 
-    this.assertDeliveryAllowed(customer, dto.shippingAddress);
+    await this.assertDeliveryAllowed(customer, dto.shippingAddress);
 
     const resolvedLensId = await this.resolveLensId(dto.lensId, dto.cameraId);
 

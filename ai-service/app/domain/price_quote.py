@@ -5,7 +5,13 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from app.domain.canned import is_how_to_rent_question, is_late_return_fee_question, is_shift_duration_question, is_full_day_duration_question
+from app.domain.canned import (
+    is_how_to_rent_question,
+    is_late_return_fee_question,
+    is_shift_duration_question,
+    is_full_day_duration_question,
+    is_shop_promotion_question,
+)
 from app.domain.formatters import (
     compute_camera_rental_total,
     format_price_quote_customer_reply,
@@ -89,6 +95,8 @@ def is_price_quote_question(text: str) -> bool:
     if is_how_to_rent_question(text) or is_late_return_fee_question(text):
         return False
     if is_shift_duration_question(text) or is_full_day_duration_question(text):
+        return False
+    if is_shop_promotion_question(text):
         return False
     return bool(PRICE_HINT.search(lower))
 

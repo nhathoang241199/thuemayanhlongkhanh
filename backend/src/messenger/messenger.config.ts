@@ -22,7 +22,7 @@ export function getHandoffDurationMs(): number {
 export function getMessengerConfig(): MessengerConfig {
   const inactivityRaw = Number(process.env.MESSENGER_INACTIVITY_MS);
   const inactivityMs =
-    Number.isFinite(inactivityRaw) && inactivityRaw > 0
+    Number.isFinite(inactivityRaw) && inactivityRaw >= 0
       ? inactivityRaw
       : DEFAULT_INACTIVITY_MS;
 

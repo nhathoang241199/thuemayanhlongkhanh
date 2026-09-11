@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 from app.domain.pricing import (
@@ -126,6 +127,66 @@ def compute_camera_rental_total(camera: dict, day_count: int, slot: BookingSlot 
 def format_price_quote_customer_reply(camera: dict, day_count: int, total_vnd: int) -> str:
     label = camera_model_short_label(camera["brand"], camera["name"])
     return f"{label} {day_count} ngày {format_vnd_short(total_vnd)} nhé ạ."
+
+
+_VN_TZ = timezone(timedelta(hours=7))
+
+
+def today_vn() -> date:
+    return datetime.now(_VN_TZ).date()
+
+
+def _as_date(value) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return None
+
+
+def _format_vn_date(value: date) -> str:
+    return f"{value.day:02d}/{value.month:02d}/{value.year}"
+
+
+def is_shop_promotion_visible(promo: dict, today: date | None = None) -> bool:
+    """Match backend isShopPromotionVisible — % > 0 and not past endDate."""
+    pct = int(promo.get("discount_percent") or 0)
+    if pct <= 0:
+        return False
+    end = _as_date(promo.get("end_date"))
+    if end is None:
+        return True
+    return (today or today_vn()) <= end
+
+
+def format_shop_promotion_tool_result(promo: dict, today: date | None = None) -> str:
+    """Text for the LLM tool — do not invent dates/% beyond DB."""
+    pct = int(promo.get("discount_percent") or 0)
+    start = _as_date(promo.get("start_date"))
+    end = _as_date(promo.get("end_date"))
+    if not is_shop_promotion_visible(promo, today):
+        return (
+            "Hiện shop không có chương trình giảm giá toàn shop đang áp dụng "
+            f"(discountPercent={pct})."
+        )
+    if start and end:
+        return (
+            f"Shop đang giảm {pct}% toàn đơn thuê máy/lens "
+            f"từ {_format_vn_date(start)} đến {_format_vn_date(end)}."
+        )
+    if end:
+        return (
+            f"Shop đang giảm {pct}% toàn đơn thuê máy/lens "
+            f"đến hết {_format_vn_date(end)}."
+        )
+    if start:
+        return (
+            f"Shop đang giảm {pct}% toàn đơn thuê máy/lens "
+            f"từ {_format_vn_date(start)} (không ghi ngày kết thúc)."
+        )
+    return f"Shop đang giảm {pct}% toàn đơn thuê máy/lens (không giới hạn ngày)."
 
 
 def _is_localhost_url(url: str) -> bool:

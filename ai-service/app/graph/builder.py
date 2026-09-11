@@ -16,9 +16,10 @@ from app.graph.nodes.canned import (
     greeting_node,
     policy_fees_node,
     shop_contact_node,
+    shop_promotion_node,
 )
 from app.graph.nodes.handoff import handoff_node
-from app.graph.nodes.price import price_node
+from app.graph.nodes.price import price_decision, price_node
 from app.graph.nodes.route import route_decision, route_node
 from app.graph.state import ChatState
 
@@ -38,6 +39,7 @@ def build_chat_graph():
   g.add_node("delivery_arrange_node", delivery_arrange_node)
   g.add_node("policy_fees_node", policy_fees_node)
   g.add_node("shop_contact_node", shop_contact_node)
+  g.add_node("shop_promotion_node", shop_promotion_node)
   g.add_node("comparison_node", comparison_node)
   g.add_node("price_node", price_node)
   g.add_node("availability_node", availability_node)
@@ -57,6 +59,7 @@ def build_chat_graph():
       "delivery_arrange": "delivery_arrange_node",
       "policy_fees": "policy_fees_node",
       "address_or_phone": "shop_contact_node",
+      "shop_promotion": "shop_promotion_node",
       "camera_compare": "comparison_node",
       "price": "price_node",
       "availability": "availability_node",
@@ -71,12 +74,17 @@ def build_chat_graph():
     "delivery_arrange_node",
     "policy_fees_node",
     "shop_contact_node",
+    "shop_promotion_node",
     "comparison_node",
-    "price_node",
     "handoff_node",
   ):
     g.add_edge(node, END)
 
+  g.add_conditional_edges(
+    "price_node",
+    price_decision,
+    {"end": END, "agent": "agent_node", "handoff": "handoff_node"},
+  )
   g.add_conditional_edges(
     "availability_node",
     availability_decision,

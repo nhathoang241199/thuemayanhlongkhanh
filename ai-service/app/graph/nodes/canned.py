@@ -10,12 +10,13 @@ from app.domain.canned import (
     format_camera_comparison_reply,
     format_shop_address_reply,
     format_shop_phone_reply,
+    format_shop_promotion_customer_reply,
     greeting_reply,
     is_shop_address_question,
     is_shop_phone_question,
 )
 from app.domain.pronouns import resolve_messenger_pronouns
-from app.db.repositories.cameras import get_shop_info, list_public_cameras
+from app.db.repositories.cameras import get_shop_info, get_shop_promotion, list_public_cameras
 from app.db.pool import get_pool
 from app.graph.state import ChatState
 
@@ -101,6 +102,23 @@ async def shop_contact_node(state: ChatState) -> dict:
         "reply_raw": reply,
         "canned": True,
         "graph_trace": ["shop_contact_node"],
+    }
+
+
+async def shop_promotion_node(state: ChatState) -> dict:
+    pool = await get_pool()
+    promo = await get_shop_promotion(pool)
+    reply = format_shop_promotion_customer_reply(
+        promo,
+        state["user_message"],
+        state.get("history") or [],
+    )
+    return {
+        "reply": reply,
+        "reply_raw": reply,
+        "canned": True,
+        "intent": "shop_promotion",
+        "graph_trace": ["shop_promotion_node"],
     }
 
 

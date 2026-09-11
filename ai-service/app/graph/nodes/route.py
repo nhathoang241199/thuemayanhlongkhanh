@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from app.domain.availability import is_availability_question
 from app.domain.canned import (
-    detect_policy_canned,
     is_booking_done_acknowledgment,
     is_booking_redirect_question,
     is_camera_comparison_question,
@@ -12,6 +11,8 @@ from app.domain.canned import (
     is_greeting_only,
     is_shop_address_question,
     is_shop_phone_question,
+    is_shop_promotion_question,
+    detect_policy_canned,
 )
 from app.domain.price_quote import is_duration_follow_up, is_price_quote_question, parse_day_count
 from app.graph.state import ChatState
@@ -35,6 +36,8 @@ def detect_intent(text: str, history: list | None = None) -> str:
         return "booking_redirect"
     if is_delivery_arrangement_request(text):
         return "delivery_arrange"
+    if is_shop_promotion_question(text):
+        return "shop_promotion"
     if detect_policy_canned(text):
         return "policy_fees"
     if is_shop_address_question(text) or is_shop_phone_question(text):
