@@ -42,7 +42,7 @@ export class FacebookGraphService {
   }
 
   /**
-   * Gửi tin chủ động (thông báo đơn ship). Thử HUMAN_AGENT trước,
+   * Gửi tin chủ động (vd. yêu cầu trả máy tới shipper). Thử HUMAN_AGENT trước,
    * nếu fail thì thử RESPONSE (trong cửa sổ 24h).
    */
   async sendProactiveText(recipientId: string, text: string): Promise<void> {

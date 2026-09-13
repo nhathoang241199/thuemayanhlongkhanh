@@ -103,20 +103,12 @@ export class ShipOrderService {
     address: string;
     pickupAt: Date;
   }): Promise<void> {
-    await Promise.all([
-      this.shipperMessenger.notifyShipOrderCreated(event).catch((err) => {
-        console.warn(
-          '[ship-order] Messenger notify shippers failed',
-          err instanceof Error ? err.message : err,
-        );
-      }),
-      this.shipperPush.notifyShipOrderCreated(event).catch((err) => {
-        console.warn(
-          '[ship-order] Web Push notify shippers failed',
-          err instanceof Error ? err.message : err,
-        );
-      }),
-    ]);
+    await this.shipperPush.notifyShipOrderCreated(event).catch((err) => {
+      console.warn(
+        '[ship-order] Web Push notify shippers failed',
+        err instanceof Error ? err.message : err,
+      );
+    });
   }
 
   toView(row: {

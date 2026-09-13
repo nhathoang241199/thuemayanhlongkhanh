@@ -58,18 +58,18 @@ Shipper nhấn ▶ để hoàn thành **giao** và **trả**. Đơn vừa giao x
 
 Khi có đơn ship mới (giao hoặc trả), shop nhận tin qua `TELEGRAM_BOT_TOKEN` + `TELEGRAM_NEW_BOOKING_CHAT_ID` (cùng kênh đơn cọc).
 
-## Messenger — báo shipper
+## Messenger — gắn shipper (trả máy)
 
-Shipper gắn inbox fanpage để nhận tin đơn mới:
+Shipper gắn inbox fanpage để nhận tin **yêu cầu trả máy** (không nhận tin đơn giao mới trên Messenger):
 
 1. Admin tạo shipper (SĐT) trên `/admin/shippers`
 2. Shipper nhắn fanpage đúng cú pháp:
    - Đăng ký: `SHIP 0900111222` (SĐT trùng tài khoản ship)
    - Huỷ: `HUY SHIP`
 3. Admin thấy cột **FB = Đã gắn**
-4. Khi có đơn OUTBOUND/RETURN mới, fanpage gửi Messenger tới mọi shipper active đã gắn
+4. Đơn giao/trả mới hiện trên `/ship`. Shipper bật **thông báo đẩy** trên `/ship` nếu muốn được báo khi có đơn mới. Fanpage chỉ nhắn shipper đã gắn khi khách gọi trả máy.
 
-Lưu ý Meta: ngoài cửa sổ ~24h sau tin cuối của shipper, gửi có thể bị từ chối (hệ thống thử tag `HUMAN_AGENT`). Shipper nên nhắn fanpage thỉnh thoảng để giữ cửa sổ.
+Lưu ý Meta: ngoài cửa sổ ~24h sau tin cuối của shipper, gửi tin trả máy có thể bị từ chối (hệ thống thử tag `HUMAN_AGENT`). Shipper nên nhắn fanpage thỉnh thoảng để giữ cửa sổ.
 
 ## Số dư shipper
 

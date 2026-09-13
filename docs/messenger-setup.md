@@ -133,14 +133,14 @@ Bot chạy **NestJS + ai-service** qua PM2 (`thue-may-api`, `thue-may-ai`, `thue
 2. Graph API Explorer → `me/messages` hoặc xem webhook log `sender.id`
 3. Copy PSID → `ADMIN_MESSENGER_PSID`
 
-## Shipper nhận tin đơn mới
+## Shipper gắn Messenger
 
 Shipper không cần dán PSID tay. Họ nhắn fanpage:
 
 - `SHIP 0900111222` — gắn SĐT shipper với Messenger hiện tại
 - `HUY SHIP` — huỷ gắn
 
-Khi hệ thống tạo đơn ship (giao/trả), page gửi tin tới mọi shipper active đã gắn. Chi tiết: `docs/local-ship-setup.md`.
+Messenger **không** gửi tin khi có đơn giao mới (tránh lẫn với cảnh báo cọc/giao của shop). Đơn mới hiện trên `/ship`; shipper có thể bật Web Push trên trang đó. Page chỉ nhắn shipper đã gắn khi khách **yêu cầu trả máy**. Chi tiết: `docs/local-ship-setup.md`.
 
 ## Test admin
 

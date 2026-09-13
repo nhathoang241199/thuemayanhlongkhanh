@@ -191,7 +191,7 @@ export class ShipperService {
 
     return {
       ok: true,
-      message: 'Liên kết thông báo đơn thành công!',
+      message: 'Đã gắn Messenger. Bạn sẽ nhận tin khi khách yêu cầu trả máy.',
     };
   }
 
@@ -214,7 +214,7 @@ export class ShipperService {
     }
     return {
       ok: true,
-      message: 'Đã huỷ gắn Messenger. Bạn sẽ không nhận tin đơn ship nữa.',
+      message: 'Đã huỷ gắn Messenger. Bạn sẽ không nhận tin yêu cầu trả máy trên Messenger nữa.',
     };
   }
 
