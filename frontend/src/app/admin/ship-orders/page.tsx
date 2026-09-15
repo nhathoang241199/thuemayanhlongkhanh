@@ -227,7 +227,7 @@ function CreateOrderDialog({
                   <Text fontSize="sm" mb={1}>Thời gian shipper cần tới</Text>
                   <Input {...fieldInputProps} type="datetime-local" value={form.scheduleAt} onChange={(event) => setForm((current) => ({ ...current, scheduleAt: event.target.value }))} required />
                 </Box>
-                <Text fontSize="sm" color="fg.muted">Sau khi tạo, hệ thống sẽ thông báo tới tất cả shipper đã liên kết Messenger.</Text>
+                <Text fontSize="sm" color="fg.muted">Sau khi tạo, đơn hiện trên /ship. Shipper đã bật thông báo đẩy trên trình duyệt sẽ nhận Web Push.</Text>
                 {error ? <Text color="red.fg" fontSize="sm">{error}</Text> : null}
               </Stack>
             </DialogBody>
