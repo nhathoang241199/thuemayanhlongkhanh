@@ -6,6 +6,7 @@ import {
   HermesLaunchPromotionDto,
   HermesPreviewPromotionPostDto,
   HermesPublishFanpageDto,
+  HermesPublishFanpagePhotoDto,
   HermesSetupPromotionDto,
 } from './dto/hermes-promotion.dto';
 import { HermesService } from './hermes.service';
@@ -51,6 +52,14 @@ export class HermesController {
   })
   publishFanpage(@Body() dto: HermesPublishFanpageDto) {
     return this.hermes.submitFanpagePost(dto);
+  }
+
+  @Post('facebook/publish-photo')
+  @HermesApiAccess()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đăng bài ảnh fanpage công khai qua Graph API' })
+  publishFanpagePhoto(@Body() dto: HermesPublishFanpagePhotoDto) {
+    return this.hermes.submitFanpagePhoto(dto);
   }
 
   @Post('promotion/launch')

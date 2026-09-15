@@ -10,6 +10,7 @@ import type {
   HermesLaunchPromotionDto,
   HermesPreviewPromotionPostDto,
   HermesPublishFanpageDto,
+  HermesPublishFanpagePhotoDto,
   HermesSetupPromotionDto,
 } from './dto/hermes-promotion.dto';
 import type { HermesPublishBlogDto } from './dto/hermes-blog.dto';
@@ -81,6 +82,27 @@ export class HermesService {
     return {
       draft,
       note: 'Bài đã gửi chờ duyệt trên admin → Bài fanpage.',
+    };
+  }
+
+  async submitFanpagePhoto(dto: HermesPublishFanpagePhotoDto) {
+    const bookUrl = `${getMessengerConfig().frontendUrl.replace(/\/$/, '')}/book`;
+    if (dto.published !== true) {
+      throw new Error('Đăng ảnh fanpage phải có published: true');
+    }
+    const published = await this.fanpagePosts.createAndPublishPhoto(
+      {
+        message: dto.message.trim(),
+        link: dto.link?.trim() || bookUrl,
+        publishPublic: true,
+        source: 'hermes',
+      },
+      dto.imageUrl.trim(),
+    );
+    return {
+      draft: published,
+      postUrl: published.postUrl,
+      note: 'Bài ảnh fanpage đã đăng công khai.',
     };
   }
 

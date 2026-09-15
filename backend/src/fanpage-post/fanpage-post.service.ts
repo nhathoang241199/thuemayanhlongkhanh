@@ -45,6 +45,37 @@ export class FanpagePostService {
     return this.approve(draft.id);
   }
 
+  async createAndPublishPhoto(dto: CreateFanpagePostDraftDto, imageUrl: string) {
+    this.assertPublishEnabled();
+    const draft = await this.createDraft({
+      ...dto,
+      publishPublic: dto.publishPublic !== false,
+    });
+    const pageId = this.requirePageId();
+    try {
+      const result = await this.graph.publishPagePhoto(
+        pageId,
+        draft.message,
+        imageUrl,
+        draft.publishPublic,
+      );
+      const row = await this.prisma.fanpagePostDraft.update({
+        where: { id: draft.id },
+        data: {
+          status: 'published',
+          facebookPostId: result.id,
+          publishedAt: new Date(),
+        },
+      });
+      return { ...this.toResponse(row), postUrl: result.postUrl };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new BadRequestException(
+        `${msg}. Kiểm tra quyền pages_manage_posts trên Meta.`,
+      );
+    }
+  }
+
   async list(status?: FanpagePostStatus) {
     const rows = await this.prisma.fanpagePostDraft.findMany({
       where: status ? { status } : undefined,

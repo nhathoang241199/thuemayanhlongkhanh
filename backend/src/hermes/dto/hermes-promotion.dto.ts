@@ -57,6 +57,13 @@ export class HermesPublishFanpageDto {
   published?: boolean;
 }
 
+export class HermesPublishFanpagePhotoDto extends HermesPublishFanpageDto {
+  @ApiProperty({ example: 'https://thuemayanhlongkhanh.com/promotions/camera-promotion-15.jpg' })
+  @IsString()
+  @MaxLength(1000)
+  imageUrl: string;
+}
+
 export class HermesLaunchPromotionDto extends HermesSetupPromotionDto {
   @ApiPropertyOptional({
     description: 'Nội dung bài fanpage; bỏ trống để dùng mẫu tự động',

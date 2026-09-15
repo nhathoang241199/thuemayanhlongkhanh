@@ -184,6 +184,35 @@ export class FacebookGraphService {
     return { id: postId, postUrl, published };
   }
 
+  async publishPagePhoto(
+    pageId: string,
+    message: string,
+    imageUrl: string,
+    published = true,
+  ): Promise<{ id: string; postUrl: string; published: boolean }> {
+    const url = new URL(`${GRAPH}/${pageId}/photos`);
+    url.searchParams.set('caption', message);
+    url.searchParams.set('url', imageUrl);
+    url.searchParams.set('access_token', this.token);
+    url.searchParams.set('published', published ? 'true' : 'false');
+
+    const res = await fetch(url, { method: 'POST' });
+    if (!res.ok) {
+      const text = await res.text();
+      this.logger.error(`Graph photo post ${res.status}: ${text}`);
+      throw new Error(`Không đăng được ảnh fanpage (${res.status})`);
+    }
+
+    const json = (await res.json()) as { id?: string; post_id?: string };
+    const postId = json.post_id ?? json.id ?? '';
+    const postUrl = postId
+      ? published
+        ? `https://www.facebook.com/${postId.replace('_', '/posts/')}`
+        : ''
+      : '';
+    return { id: postId, postUrl, published };
+  }
+
   async deletePageFeedPost(postId: string): Promise<void> {
     const url = new URL(`${GRAPH}/${postId}`);
     url.searchParams.set('access_token', this.token);
