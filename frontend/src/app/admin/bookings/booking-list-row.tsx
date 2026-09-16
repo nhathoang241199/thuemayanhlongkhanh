@@ -18,7 +18,6 @@ import { APP_COLOR_PALETTE } from "@/lib/app-theme";
 import { slotLabelVi, slotTimeRangeLabel } from "@/lib/booking-status";
 import { FREE_KIT_LABEL } from "@/lib/lens-step";
 
-import { AdminBookingShipCell } from "./admin-booking-ship-cell";
 import {
   BookingPaymentMenuCell,
   BookingStatusMenuCell,
@@ -161,9 +160,6 @@ function BookingListRowInner({
         <Text fontSize="xs" color="fg.muted">
           {b.lens?.name ?? FREE_KIT_LABEL}
         </Text>
-      </TableCell>
-      <TableCell {...tableCellPad}>
-        <AdminBookingShipCell orders={b.shipOrders} />
       </TableCell>
       <TableCell {...tableCellPad} textAlign="end">
         <Text fontSize="sm">{vnd.format(b.amount)}</Text>
