@@ -13,7 +13,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ShipBottomTabs } from "@/components/ship/ship-bottom-tabs";
 import {
@@ -293,6 +293,7 @@ export default function ShipBoardPage() {
   );
   const [requestingPayout, setRequestingPayout] = useState(false);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const advancingRef = useRef(false);
 
   const reloadSession = useCallback(async () => {
     const s = await fetchShipperSession();
@@ -337,6 +338,8 @@ export default function ShipBoardPage() {
   }, [reload, reloadSession]);
 
   const advance = async (order: ShipOrder) => {
+    if (advancingRef.current || loadingId) return;
+    advancingRef.current = true;
     setLoadingId(order.id);
     setError(null);
     try {
@@ -354,6 +357,7 @@ export default function ShipBoardPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không cập nhật được đơn");
     } finally {
+      advancingRef.current = false;
       setLoadingId(null);
     }
   };

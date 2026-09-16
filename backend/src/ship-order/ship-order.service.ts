@@ -288,11 +288,15 @@ export class ShipOrderService {
     });
     if (!shipper) throw new NotFoundException('Không tìm thấy shipper đang hoạt động');
 
-    const conflict = await this.prisma.shipOrder.findUnique({
-      where: { bookingId_leg: { bookingId: existing.bookingId, leg } },
-    });
-    if (conflict && conflict.id !== id) {
-      throw new ConflictException('Booking đã có đơn cùng loại đang xử lý');
+    if (leg !== existing.leg) {
+      const conflict = await this.prisma.shipOrder.findUnique({
+        where: { bookingId_leg: { bookingId: existing.bookingId, leg } },
+      });
+      if (conflict && conflict.id !== id) {
+        throw new ConflictException(
+          `Booking đã có đơn ${leg === 'OUTBOUND' ? 'cần giao' : 'cần trả'} — không đổi loại được.`,
+        );
+      }
     }
 
     const row = await this.prisma.shipOrder.update({
@@ -358,8 +362,8 @@ export class ShipOrderService {
         status: 'COMPLETED',
         booking: {
           // Giữ cả PENDING_PAYMENT: shipper có thể giao trước khi cọc kịp confirm.
+          // Không bắt shippingAddress trên booking — đơn admin có thể chỉ có address trên ShipOrder.
           status: { not: BookingStatus.CANCELLED },
-          shippingAddress: { not: null },
         },
       },
       orderBy: { completedAt: 'desc' },
@@ -444,13 +448,15 @@ export class ShipOrderService {
     });
 
     if (existing) {
-      if (
-        existing.status === 'CANCELLED' ||
+      const metaChanged =
         existing.customerName !== booking.customer.name ||
         existing.customerPhone !== booking.customer.phone ||
         existing.address !== address ||
-        existing.bookingCode !== booking.bookingCode
-      ) {
+        existing.bookingCode !== booking.bookingCode;
+
+      // Chỉ reset về PENDING khi đơn đã huỷ. Không được đụng CLAIMED/READY/COMPLETED
+      // — sync sau khi bấm ▶ (cần giao → cần trả) từng kéo đơn đã giao về lại "nhận đơn".
+      if (existing.status === 'CANCELLED') {
         const row = await this.prisma.shipOrder.update({
           where: { id: existing.id },
           data: {
@@ -467,6 +473,21 @@ export class ShipOrderService {
         });
         return this.toView(row);
       }
+
+      if (metaChanged) {
+        const row = await this.prisma.shipOrder.update({
+          where: { id: existing.id },
+          data: {
+            customerName: booking.customer.name,
+            customerPhone: booking.customer.phone,
+            address,
+            bookingCode: booking.bookingCode,
+          },
+          include: { shipper: { select: { name: true } } },
+        });
+        return this.toView(row);
+      }
+
       if (options?.forceNotify && existing.status === 'PENDING') {
         await this.notifyNewShipOrder({
           bookingCode: booking.bookingCode,
