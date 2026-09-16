@@ -40,6 +40,24 @@ def test_camera_with_effective_discount_applies_promo():
     assert compute_camera_rental_total(enriched, 1) == 450_000
 
 
+def test_price_quote_mentions_discount_percent():
+    from app.domain.formatters import format_price_quote_customer_reply
+
+    cam = {
+        "id": "1",
+        "name": "r50",
+        "brand": "CANON",
+        "day_price": 250_000,
+        "shift_price": 180_000,
+        "discount_percent": 15,
+    }
+    total = compute_camera_rental_total(cam, 1)
+    assert total == 212_500
+    reply = format_price_quote_customer_reply(cam, 1, total)
+    assert "212k" in reply
+    assert "giảm 15%" in reply
+
+
 def test_redact_price_amounts_from_history():
     assert "[giá cũ" in _redact_price_amounts("XT3 1 ngày 450k nhé ạ.")
     history = [

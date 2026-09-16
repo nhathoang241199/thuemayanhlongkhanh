@@ -147,6 +147,9 @@ def compute_camera_rental_total(camera: dict, day_count: int, slot: BookingSlot 
 
 def format_price_quote_customer_reply(camera: dict, day_count: int, total_vnd: int) -> str:
     label = camera_model_short_label(camera["brand"], camera["name"])
+    pct = int(camera.get("discount_percent") or 0)
+    if pct > 0:
+        return f"{label} {day_count} ngày {format_vnd_short(total_vnd)} (đã giảm {pct}%) nhé ạ."
     return f"{label} {day_count} ngày {format_vnd_short(total_vnd)} nhé ạ."
 
 
