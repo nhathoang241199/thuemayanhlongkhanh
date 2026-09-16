@@ -5,9 +5,13 @@ from __future__ import annotations
 from app.config import get_settings
 from app.db.pool import get_pool
 from app.db.repositories import availability as avail_repo
-from app.db.repositories.cameras import list_public_cameras
+from app.db.repositories.cameras import get_camera, get_shop_promotion, list_public_cameras
 from app.domain.availability import parse_availability_date
-from app.domain.formatters import camera_model_short_label, parse_slot
+from app.domain.formatters import (
+    camera_model_short_label,
+    camera_with_effective_discount,
+    parse_slot,
+)
 from app.domain.price_quote import (
     build_price_quote_from_camera,
     is_price_quote_question,
@@ -27,12 +31,15 @@ async def price_node(state: ChatState) -> dict:
     history = state.get("history") or []
     cameras = await list_public_cameras(pool)
     pronouns = resolve_messenger_pronouns(text, history)
-    shop = pronouns["shop"]
     customer = pronouns["customer"]
 
     resolved = resolve_price_quote_request(text, cameras, history)
     if resolved:
-        camera, day_count = resolved
+        matched, day_count = resolved
+        # Re-fetch by id so dayPrice/discount always match latest DB.
+        camera = await get_camera(pool, matched["id"]) or matched
+        promo = await get_shop_promotion(pool)
+        camera = camera_with_effective_discount(camera, promo, day_count)
         reply = build_price_quote_from_camera(camera, day_count)
 
         date = parse_availability_date(text)

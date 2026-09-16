@@ -8,6 +8,7 @@ from langchain_core.tools import tool
 from app.db.repositories import availability as avail_repo
 from app.db.repositories import cameras as cam_repo
 from app.domain.formatters import (
+    camera_with_effective_discount,
     compute_camera_rental_total,
     format_camera_list,
     format_lens_list,
@@ -38,11 +39,14 @@ def build_tools(pool: asyncpg.Pool):
         dayCount: int = 1,
         slot: str = "FULL_DAY",
     ) -> str:
-        """Tính giá thuê một máy theo số ngày và buổi (FULL_DAY/MORNING/AFTERNOON/EVENING). Trả về câu báo giá cho khách."""
+        """Tính giá thuê MỚI NHẤT từ DB (không dùng giá trong lịch sử chat). Luôn gọi lại mỗi lần khách hỏi giá. cameraId + số ngày + buổi (FULL_DAY/MORNING/AFTERNOON/EVENING)."""
+        # Always re-read camera + shop promo from DB — never trust prior tool/chat memory.
         cam = await cam_repo.get_camera(pool, cameraId)
         if not cam:
             return f"Không tìm thấy máy id={cameraId}"
         days = max(1, int(dayCount or 1))
+        promo = await cam_repo.get_shop_promotion(pool)
+        cam = camera_with_effective_discount(cam, promo, days)
         parsed_slot = parse_slot(slot)
         total = compute_camera_rental_total(cam, days, parsed_slot)
         return format_price_quote_customer_reply(cam, days, total)

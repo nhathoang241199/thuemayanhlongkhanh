@@ -52,6 +52,40 @@ def discounted_rental_vnd(rental: int, discount_percent: int) -> int:
     return round(rental * (100 - pct) / 100)
 
 
+def date_ranges_overlap(a_start: str, a_end: str, b_start: str, b_end: str) -> bool:
+    return a_start <= b_end and a_end >= b_start
+
+
+def is_shop_promotion_active_for_rental(
+    promo: dict,
+    rental_start: str,
+    rental_end: str,
+) -> bool:
+    """Match backend isShopPromotionActiveForRental."""
+    pct = clamp_discount_percent(promo.get("discount_percent", 0))
+    if pct <= 0:
+        return False
+    start = promo.get("start_date")
+    end = promo.get("end_date")
+    if not start or not end:
+        return True
+    start_s = start.isoformat() if hasattr(start, "isoformat") else str(start)[:10]
+    end_s = end.isoformat() if hasattr(end, "isoformat") else str(end)[:10]
+    return date_ranges_overlap(rental_start, rental_end, start_s, end_s)
+
+
+def resolve_effective_discount_percent(
+    equipment_percent: int,
+    promo: dict | None,
+    rental_start: str,
+    rental_end: str,
+) -> int:
+    """Match backend resolveEffectiveDiscountPercent — shop promo overrides equipment %."""
+    if promo and is_shop_promotion_active_for_rental(promo, rental_start, rental_end):
+        return clamp_discount_percent(promo.get("discount_percent", 0))
+    return clamp_discount_percent(equipment_percent)
+
+
 def rental_amount_with_options_vnd(
     day_count: int,
     day_price: int,

@@ -50,6 +50,20 @@ def test_price_node_quotes_known_camera():
                 new_callable=AsyncMock,
                 return_value=cameras,
             ),
+            patch(
+                "app.graph.nodes.price.get_camera",
+                new_callable=AsyncMock,
+                return_value=cameras[0],
+            ),
+            patch(
+                "app.graph.nodes.price.get_shop_promotion",
+                new_callable=AsyncMock,
+                return_value={
+                    "discount_percent": 0,
+                    "start_date": None,
+                    "end_date": None,
+                },
+            ),
         ):
             return await price_node(
                 {
@@ -65,6 +79,55 @@ def test_price_node_quotes_known_camera():
     assert "/book" not in result["reply"]
     assert "2 ngày" in result["reply"]
 
+
+def test_price_node_uses_fresh_db_price_after_update():
+    matched = {
+        "id": "1",
+        "name": "xt3",
+        "brand": "FUJIFILM",
+        "day_price": 400_000,
+        "shift_price": 220_000,
+        "discount_percent": 0,
+    }
+    updated = {**matched, "day_price": 500_000}
+
+    async def run():
+        with (
+            patch("app.graph.nodes.price.get_pool", new_callable=AsyncMock),
+            patch(
+                "app.graph.nodes.price.list_public_cameras",
+                new_callable=AsyncMock,
+                return_value=[matched],
+            ),
+            patch(
+                "app.graph.nodes.price.get_camera",
+                new_callable=AsyncMock,
+                return_value=updated,
+            ),
+            patch(
+                "app.graph.nodes.price.get_shop_promotion",
+                new_callable=AsyncMock,
+                return_value={
+                    "discount_percent": 0,
+                    "start_date": None,
+                    "end_date": None,
+                },
+            ),
+        ):
+            return await price_node(
+                {
+                    "user_message": "giá xt3 1 ngày",
+                    "history": [
+                        {"role": "user", "content": "giá xt3 1 ngày"},
+                        {"role": "assistant", "content": "XT3 1 ngày 400k nhé ạ."},
+                    ],
+                    "frontend_url": "http://localhost:3001",
+                }
+            )
+
+    result = asyncio.run(run())
+    assert "500k" in result["reply"]
+    assert "400k" not in result["reply"]
 
 def test_price_node_asks_model_when_vague():
     async def run():

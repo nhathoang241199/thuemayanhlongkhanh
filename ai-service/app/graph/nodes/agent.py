@@ -16,6 +16,8 @@ from app.domain.canned import format_camera_comparison_reply, is_camera_comparis
 from app.domain.formatters import camera_model_short_label
 from app.domain.price_quote import (
     build_price_quote_context,
+    is_duration_follow_up,
+    is_price_quote_question,
     match_camera_in_text,
     parse_day_count,
 )
@@ -51,6 +53,42 @@ def _current_date_section() -> str:
     )
 
 
+_PRICE_AMOUNT_RE = re.compile(
+    r"\b\d+(?:[.,]\d+)?\s*(?:k|tr)\b"
+    r"|\b\d{1,3}(?:[.\s]\d{3})+(?:\s*đ)?\b"
+    r"|\b\d+\s*đ\b",
+    re.IGNORECASE,
+)
+
+
+def _redact_price_amounts(text: str) -> str:
+    """Strip money figures so the model cannot copy a stale quote from history."""
+    return _PRICE_AMOUNT_RE.sub("[giá cũ — gọi quote_camera_price]", text)
+
+
+def _needs_fresh_price_tools(user_message: str) -> bool:
+    if is_price_quote_question(user_message):
+        return True
+    return bool(parse_day_count(user_message) and is_duration_follow_up(user_message))
+
+
+def _history_for_llm(history: list[dict], user_message: str) -> list[dict]:
+    if not _needs_fresh_price_tools(user_message):
+        return history
+    out: list[dict] = []
+    for turn in history:
+        if turn.get("role") == "assistant":
+            out.append(
+                {
+                    **turn,
+                    "content": _redact_price_amounts(str(turn.get("content") or "")),
+                }
+            )
+        else:
+            out.append(turn)
+    return out
+
+
 def _conversation_context_section(
     user_message: str,
     history: list[dict],
@@ -58,18 +96,34 @@ def _conversation_context_section(
 ) -> str:
     context = build_price_quote_context(user_message, history)
     camera = match_camera_in_text(context, cameras)
+    lines: list[str] = []
+    if _needs_fresh_price_tools(user_message):
+        lines.extend(
+            [
+                "## Giá thuê (bắt buộc lượt này)",
+                "- Giá trong lịch sử chat có thể đã cũ sau khi admin cập nhật DB.",
+                "- **Bắt buộc** gọi `quote_camera_price` trong lượt này trước khi trả lời số tiền.",
+                "- Cấm đoán hoặc nhắc lại số tiền đã bị che bằng `[giá cũ — gọi quote_camera_price]`.",
+            ]
+        )
     if not camera:
-        return ""
+        return "\n".join(lines)
     label = camera_model_short_label(camera["brand"], camera["name"])
     day_count = parse_day_count(user_message)
-    lines = [
-        "## Ngữ cảnh hội thoại (bắt buộc)",
-        f"- Khách đang nhắc máy: **{label}** (id `{camera['id']}`)",
-        "- Không hỏi lại hãng/model nếu đã rõ trong hội thoại.",
-    ]
+    lines.extend(
+        [
+            "## Ngữ cảnh hội thoại (bắt buộc)",
+            f"- Khách đang nhắc máy: **{label}** (id `{camera['id']}`)",
+            "- Không hỏi lại hãng/model nếu đã rõ trong hội thoại.",
+        ]
+    )
     if day_count:
         lines.append(
-            f"- Số ngày trong tin hiện tại: **{day_count}** — nếu hỏi giá thì gọi `quote_camera_price` rồi báo số tiền."
+            f"- Số ngày trong tin hiện tại: **{day_count}** — gọi `quote_camera_price(cameraId=\"{camera['id']}\", dayCount={day_count})` rồi báo số tiền tool trả về."
+        )
+    elif _needs_fresh_price_tools(user_message):
+        lines.append(
+            f"- Chưa rõ số ngày — hỏi lại, hoặc nếu mặc định 1 ngày thì gọi `quote_camera_price(cameraId=\"{camera['id']}\", dayCount=1)`."
         )
     return "\n".join(lines)
 
@@ -199,6 +253,7 @@ async def agent_node(state: ChatState) -> dict:
     pool = await get_pool()
     cameras = await list_public_cameras(pool)
     history = state.get("history") or []
+    llm_history = _history_for_llm(history, state["user_message"])
     system = _load_system_prompt(
         state.get("frontend_url", settings.frontend_url),
         state["user_message"],
@@ -207,14 +262,28 @@ async def agent_node(state: ChatState) -> dict:
     )
 
     lc_messages: list = [SystemMessage(content=system)]
-    for turn in history:
+    for turn in llm_history:
         if turn["role"] == "user":
             lc_messages.append(HumanMessage(content=turn["content"]))
         else:
             lc_messages.append(AIMessage(content=turn["content"]))
     lc_messages.append(HumanMessage(content=state["user_message"]))
 
-    result = await agent.ainvoke({"messages": lc_messages})
+    force_price_tools = _needs_fresh_price_tools(state["user_message"])
+    if force_price_tools:
+        # Fresh agent with tool_choice=any so the model must call a tool (quote_camera_price).
+        pool_tools = build_tools(pool)
+        forced_model = ChatOpenAI(
+            model=settings.minimax_model,
+            api_key=settings.minimax_api_key,
+            base_url=settings.minimax_base_url,
+            max_tokens=1024,
+            temperature=0,
+        ).bind_tools(pool_tools, tool_choice="any")
+        forced_agent = create_react_agent(forced_model, pool_tools)
+        result = await forced_agent.ainvoke({"messages": lc_messages})
+    else:
+        result = await agent.ainvoke({"messages": lc_messages})
 
     messages = result.get("messages", [])
     raw = _pick_final_ai_text(messages)

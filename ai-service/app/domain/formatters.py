@@ -8,8 +8,11 @@ from urllib.parse import urlparse
 
 from app.domain.pricing import (
     BookingSlot,
+    add_days_date_str,
     discounted_rental_vnd,
     rental_amount_with_options_vnd,
+    resolve_effective_discount_percent,
+    today_calendar_day_vn,
 )
 
 
@@ -112,6 +115,24 @@ def parse_slot(value: str | None) -> BookingSlot:
     if slot in ("FULL_DAY", "MORNING", "AFTERNOON", "EVENING"):
         return slot  # type: ignore[return-value]
     return "FULL_DAY"
+
+
+def camera_with_effective_discount(
+    camera: dict,
+    promo: dict | None,
+    day_count: int = 1,
+) -> dict:
+    """Apply shop-wide promotion over per-camera discount (same rules as booking)."""
+    days = max(1, int(day_count or 1))
+    start = today_calendar_day_vn()
+    end = add_days_date_str(start, days - 1)
+    effective = resolve_effective_discount_percent(
+        int(camera.get("discount_percent") or 0),
+        promo,
+        start,
+        end,
+    )
+    return {**camera, "discount_percent": effective}
 
 
 def compute_camera_rental_total(camera: dict, day_count: int, slot: BookingSlot = "FULL_DAY") -> int:
