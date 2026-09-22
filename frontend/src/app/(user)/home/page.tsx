@@ -333,7 +333,7 @@ export default function UserHomePage() {
       </Box>
 
       <CardRoot {...userBookingCardProps}>
-        <CardBody py={3}>
+        <CardBody pt={3} pb={4}>
           <Stack gap={1} align="stretch" fontSize="sm">
             <Text fontWeight="semibold" color={titleColor}>
               Liên hệ shop
