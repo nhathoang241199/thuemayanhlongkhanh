@@ -332,8 +332,6 @@ export default function UserHomePage() {
         </Text>
       </Box>
 
-      <ShopMapSection shopInfo={shopInfo} />
-
       <CardRoot {...userBookingCardProps}>
         <CardBody py={3}>
           <Stack gap={1} align="stretch" fontSize="sm">
@@ -363,6 +361,7 @@ export default function UserHomePage() {
                 </Text>
               </Text>
             ) : null}
+            <ShopMapSection shopInfo={shopInfo} />
           </Stack>
         </CardBody>
       </CardRoot>
