@@ -62,18 +62,18 @@ function mapsEmbedFromAddress(address: string): string {
 function parseMapsLatLng(
   url: string,
 ): { latitude: number; longitude: number } | null {
-  const at = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-  if (at) {
-    const latitude = Number(at[1]);
-    const longitude = Number(at[2]);
-    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-      return { latitude, longitude };
-    }
-  }
   const marker = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
   if (marker) {
     const latitude = Number(marker[1]);
     const longitude = Number(marker[2]);
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      return { latitude, longitude };
+    }
+  }
+  const at = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (at) {
+    const latitude = Number(at[1]);
+    const longitude = Number(at[2]);
     if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
       return { latitude, longitude };
     }
