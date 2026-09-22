@@ -27,12 +27,9 @@ type ShopMapSectionProps = {
 export function ShopMapSection({ shopInfo }: ShopMapSectionProps) {
   const address = shopInfo?.address?.trim() ?? "";
   const mapUrl = resolveShopMapUrl(shopInfo);
-  const embedSrc = googleMapsEmbedSrc({
-    address,
-    mapUrl: shopInfo?.mapUrl,
-  });
+  const embedSrc = googleMapsEmbedSrc(shopInfo);
 
-  if (!address && !mapUrl) return null;
+  if (!embedSrc && !mapUrl && !address) return null;
 
   return (
     <CardRoot {...userBookingCardProps}>
