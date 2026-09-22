@@ -45,7 +45,7 @@ export function ShopMapSection({ shopInfo }: ShopMapSectionProps) {
           ) : null}
           {embedSrc ? (
             <AspectRatio
-              ratio={4 / 3}
+              ratio={16 / 9}
               w="full"
               borderRadius="md"
               overflow="hidden"

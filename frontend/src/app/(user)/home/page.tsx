@@ -332,6 +332,8 @@ export default function UserHomePage() {
         </Text>
       </Box>
 
+      <ShopMapSection shopInfo={shopInfo} />
+
       <CardRoot {...userBookingCardProps}>
         <CardBody py={3}>
           <Stack gap={1} align="stretch" fontSize="sm">
@@ -364,8 +366,6 @@ export default function UserHomePage() {
           </Stack>
         </CardBody>
       </CardRoot>
-
-      <ShopMapSection shopInfo={shopInfo} />
 
       <HStack justify="space-between" align="center" gap={2} w="full">
         <Text fontWeight="semibold" color={titleColor}>
