@@ -30,6 +30,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CameraTutorialDialog } from "@/components/camera/camera-tutorial-dialog";
 import { BookingDeliveryBlock } from "@/components/booking/booking-delivery-block";
 import { QrCodeCard } from "@/components/payment/qr-code-card";
+import { ShopMapSection } from "@/components/user/shop-map-section";
 import {
   cancelCustomerBooking,
   fetchMyBookings,
@@ -360,18 +361,11 @@ export default function UserHomePage() {
                 </Text>
               </Text>
             ) : null}
-            <Link
-              href={storeMapUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              w="fit-content"
-              {...inlineTextLinkProps}
-            >
-              Xem địa chỉ trên bản đồ
-            </Link>
           </Stack>
         </CardBody>
       </CardRoot>
+
+      <ShopMapSection shopInfo={shopInfo} />
 
       <HStack justify="space-between" align="center" gap={2} w="full">
         <Text fontWeight="semibold" color={titleColor}>

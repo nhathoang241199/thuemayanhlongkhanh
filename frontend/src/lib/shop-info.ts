@@ -34,3 +34,31 @@ export function resolveShopMapUrl(
   if (fromApi) return fromApi;
   return getStoreMapUrl();
 }
+
+/**
+ * URL iframe Google Maps (không cần API key).
+ * Ưu tiên link embed sẵn; không thì embed theo địa chỉ.
+ */
+export function googleMapsEmbedSrc(opts: {
+  address?: string | null;
+  mapUrl?: string | null;
+}): string | null {
+  const mapUrl = opts.mapUrl?.trim() ?? "";
+  if (
+    mapUrl.includes("/maps/embed") ||
+    /[?&]output=embed\b/i.test(mapUrl)
+  ) {
+    return mapUrl;
+  }
+
+  const address = opts.address?.trim() ?? "";
+  if (!address) return null;
+
+  const params = new URLSearchParams({
+    q: address,
+    hl: "vi",
+    z: "16",
+    output: "embed",
+  });
+  return `https://www.google.com/maps?${params.toString()}`;
+}
