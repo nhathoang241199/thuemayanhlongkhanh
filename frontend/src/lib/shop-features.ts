@@ -4,12 +4,14 @@ export type ShopFeatures = {
   printEnabled: boolean;
   depositEnabled: boolean;
   shipEnabled: boolean;
+  dayBookingEnabled: boolean;
   updatedAt?: string;
 };
 
 export type PublicShopFeatures = {
   depositEnabled: boolean;
   shipEnabled: boolean;
+  dayBookingEnabled: boolean;
 };
 
 async function parseJson<T>(res: Response): Promise<T> {
@@ -33,7 +35,10 @@ export async function fetchPublicShopFeatures(): Promise<PublicShopFeatures> {
 }
 
 export async function updateShopFeatures(
-  data: Pick<ShopFeatures, "printEnabled" | "depositEnabled" | "shipEnabled">,
+  data: Pick<
+    ShopFeatures,
+    "printEnabled" | "depositEnabled" | "shipEnabled" | "dayBookingEnabled"
+  >,
 ): Promise<ShopFeatures> {
   const res = await fetch(`${apiBase()}/api/shop-features`, {
     method: "PUT",

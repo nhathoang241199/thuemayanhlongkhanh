@@ -24,6 +24,7 @@ export class ShopFeaturesService {
       printEnabled: row.printEnabled,
       depositEnabled: row.depositEnabled,
       shipEnabled: row.shipEnabled,
+      dayBookingEnabled: row.dayBookingEnabled,
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -33,6 +34,7 @@ export class ShopFeaturesService {
     return {
       depositEnabled: row.depositEnabled,
       shipEnabled: row.shipEnabled,
+      dayBookingEnabled: row.dayBookingEnabled,
     };
   }
 
@@ -44,17 +46,20 @@ export class ShopFeaturesService {
         printEnabled: dto.printEnabled,
         depositEnabled: dto.depositEnabled,
         shipEnabled: dto.shipEnabled,
+        dayBookingEnabled: dto.dayBookingEnabled,
       },
       update: {
         printEnabled: dto.printEnabled,
         depositEnabled: dto.depositEnabled,
         shipEnabled: dto.shipEnabled,
+        dayBookingEnabled: dto.dayBookingEnabled,
       },
     });
     return {
       printEnabled: row.printEnabled,
       depositEnabled: row.depositEnabled,
       shipEnabled: row.shipEnabled,
+      dayBookingEnabled: row.dayBookingEnabled,
       updatedAt: row.updatedAt.toISOString(),
     };
   }

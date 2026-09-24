@@ -22,4 +22,11 @@ export class UpdateShopFeaturesDto {
   })
   @IsBoolean()
   shipEnabled: boolean;
+
+  @ApiProperty({
+    example: true,
+    description: 'Bật tùy chọn đặt lịch theo ngày trên trang đặt lịch khách',
+  })
+  @IsBoolean()
+  dayBookingEnabled: boolean;
 }

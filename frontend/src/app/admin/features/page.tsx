@@ -28,6 +28,7 @@ export default function AdminFeaturesPage() {
   const [printEnabled, setPrintEnabled] = useState(true);
   const [depositEnabled, setDepositEnabled] = useState(true);
   const [shipEnabled, setShipEnabled] = useState(true);
+  const [dayBookingEnabled, setDayBookingEnabled] = useState(true);
   const [saved, setSaved] = useState<ShopFeatures | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,6 +43,7 @@ export default function AdminFeaturesPage() {
       setPrintEnabled(json.printEnabled);
       setDepositEnabled(json.depositEnabled);
       setShipEnabled(json.shipEnabled);
+      setDayBookingEnabled(json.dayBookingEnabled);
       setSaved(json);
     } catch (e) {
       if (signal?.aborted) return;
@@ -62,7 +64,8 @@ export default function AdminFeaturesPage() {
     saved !== null &&
     (printEnabled !== saved.printEnabled ||
       depositEnabled !== saved.depositEnabled ||
-      shipEnabled !== saved.shipEnabled);
+      shipEnabled !== saved.shipEnabled ||
+      dayBookingEnabled !== saved.dayBookingEnabled);
 
   const save = () => {
     void (async () => {
@@ -73,10 +76,12 @@ export default function AdminFeaturesPage() {
           printEnabled,
           depositEnabled,
           shipEnabled,
+          dayBookingEnabled,
         });
         setPrintEnabled(json.printEnabled);
         setDepositEnabled(json.depositEnabled);
         setShipEnabled(json.shipEnabled);
+        setDayBookingEnabled(json.dayBookingEnabled);
         setSaved(json);
         toaster.success({ title: "Đã lưu cấu hình chức năng" });
       } catch (e) {
@@ -146,6 +151,22 @@ export default function AdminFeaturesPage() {
               </CheckboxRoot>
               <Text fontSize="xs" color="fg.muted" mt={1} pl={6}>
                 Khi tắt, ẩn tùy chọn giao hàng lúc khách đặt lịch.
+              </Text>
+            </Box>
+            <Box>
+              <CheckboxRoot
+                checked={dayBookingEnabled}
+                disabled={loading}
+                colorPalette={APP_COLOR_PALETTE}
+                onCheckedChange={(e) => setDayBookingEnabled(!!e.checked)}
+              >
+                <CheckboxHiddenInput />
+                <CheckboxControl />
+                <CheckboxLabel fontSize="sm">Đặt lịch theo ngày</CheckboxLabel>
+              </CheckboxRoot>
+              <Text fontSize="xs" color="fg.muted" mt={1} pl={6}>
+                Khi tắt, khách bỏ bước chọn kiểu đặt lịch và vào thẳng đặt theo
+                máy.
               </Text>
             </Box>
             <Button

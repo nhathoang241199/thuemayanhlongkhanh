@@ -213,11 +213,12 @@ model ShopInfo {
 }
 
 model ShopFeatures {
-  id             String   @id @default("singleton")
-  printEnabled   Boolean  @default(true)
-  depositEnabled Boolean  @default(true)
-  shipEnabled    Boolean  @default(true)
-  updatedAt      DateTime @updatedAt
+  id                String   @id @default("singleton")
+  printEnabled      Boolean  @default(true)
+  depositEnabled    Boolean  @default(true)
+  shipEnabled       Boolean  @default(true)
+  dayBookingEnabled Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
 }
 
 model MessengerConversation {

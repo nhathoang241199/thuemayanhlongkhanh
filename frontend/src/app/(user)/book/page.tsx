@@ -208,6 +208,9 @@ function BookPageContent() {
     null,
   );
   const [depositEnabled, setDepositEnabled] = useState(true);
+  const [dayBookingEnabled, setDayBookingEnabled] = useState<boolean | null>(
+    null,
+  );
 
   const [calendarYm, setCalendarYm] = useState(nowYm);
 
@@ -257,11 +260,13 @@ function BookPageContent() {
         if (ac.signal.aborted) return;
         setDepositEnabled(r.depositEnabled);
         setCanRequestDelivery(r.shipEnabled !== false);
+        setDayBookingEnabled(r.dayBookingEnabled !== false);
       })
       .catch(() => {
         if (ac.signal.aborted) return;
         setDepositEnabled(true);
         setCanRequestDelivery(true);
+        setDayBookingEnabled(true);
       });
     return () => ac.abort();
   }, []);
@@ -278,6 +283,14 @@ function BookPageContent() {
         setError("Không tải được thông tin máy đã chọn.");
       });
   }, [changeBookingId, editBookingId, preselectCameraId]);
+
+  useEffect(() => {
+    if (dayBookingEnabled !== false) return;
+    if (mode) return;
+    if (changeLoading) return;
+    if (preselectCameraId) return;
+    resetWizard("BY_CAMERA");
+  }, [dayBookingEnabled, mode, changeLoading, preselectCameraId]);
 
   useEffect(() => {
     if (!canRequestDelivery) {
@@ -1471,6 +1484,13 @@ function BookPageContent() {
   }
 
   if (!mode) {
+    if (dayBookingEnabled === null || dayBookingEnabled === false) {
+      return (
+        <Text color="fg.muted" textAlign="center" py={8}>
+          Đang tải…
+        </Text>
+      );
+    }
     return (
       <Stack gap={6} py={4}>
         <Text textStyle="xl" fontWeight="bold" color={titleColor}>
@@ -1531,6 +1551,10 @@ function BookPageContent() {
       return;
     }
     if (changeSource || editSource) {
+      router.push("/home");
+      return;
+    }
+    if (dayBookingEnabled === false) {
       router.push("/home");
       return;
     }
