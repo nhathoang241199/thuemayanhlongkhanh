@@ -7,7 +7,8 @@ from typing import Literal
 
 BookingSlot = Literal["FULL_DAY", "MORNING", "AFTERNOON", "EVENING"]
 
-OCCUPYING_STATUSES = ("PENDING_PAYMENT", "CONFIRMED", "RENTING")
+# Chỉ đơn đã cọc / đang thuê mới giữ slot. Chờ cọc không chiếm chỗ.
+OCCUPYING_STATUSES = ("CONFIRMED", "RENTING")
 MAX_BOOKING_RANGE_DAYS = 30
 VN_OFFSET = timedelta(hours=7)
 

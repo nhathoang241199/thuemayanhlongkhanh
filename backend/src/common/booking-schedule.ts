@@ -7,8 +7,8 @@ export type BookingSlotValue =
   | 'AFTERNOON'
   | 'EVENING';
 
+/** Chỉ đơn đã cọc / đang thuê mới giữ slot. Chờ cọc không chiếm chỗ. */
 export const OCCUPYING_STATUSES: BookingStatus[] = [
-  BookingStatus.PENDING_PAYMENT,
   BookingStatus.CONFIRMED,
   BookingStatus.RENTING,
 ];

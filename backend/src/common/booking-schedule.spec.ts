@@ -1,8 +1,10 @@
+import { BookingStatus } from '../../generated/prisma/enums';
 import {
   assertPickupAtValid,
   deliveryFeeVnd,
   effectiveReturnDeadline,
   isReturnNextMorningEligible,
+  OCCUPYING_STATUSES,
   rentalAmountWithOptionsVnd,
   returnNextMorningDate,
   returnNextMorningOccupancyDate,
@@ -10,6 +12,16 @@ import {
   shipReturnScheduleAt,
   vnDateTimeToUtc,
 } from './booking-schedule';
+
+describe('OCCUPYING_STATUSES', () => {
+  it('does not hold a slot until deposit is paid', () => {
+    expect(OCCUPYING_STATUSES).toEqual([
+      BookingStatus.CONFIRMED,
+      BookingStatus.RENTING,
+    ]);
+    expect(OCCUPYING_STATUSES).not.toContain(BookingStatus.PENDING_PAYMENT);
+  });
+});
 
 describe('delivery fee', () => {
   it('charges 40,000 VND when a delivery or return address is provided', () => {

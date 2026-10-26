@@ -61,7 +61,7 @@ Mỗi lần URL ngrok đổi, cập nhật lại URL trên SePay.
 
 ## Chuyển khoản muộn (chụp QR, CK sau)
 
-- Đơn **chờ cọc** (`PENDING_PAYMENT`) **giữ chỗ** trên lịch cho đến khi cọc hoặc hủy — tránh trùng slot khi khách CK sau 30–60 phút.
+- Đơn **chờ cọc** (`PENDING_PAYMENT`) **không giữ chỗ**. Slot chỉ bị chiếm khi cọc thành công (`CONFIRMED` / `RENTING`). Nếu hai khách cùng slot, người cọc trước được confirm; webhook của người sau giữ payment `PENDING` để retry / xử lý tay.
 - App poll trạng thái đơn tối đa **2 giờ**; màn timeout có nút **Đã chuyển khoản — kiểm tra lại**.
 - Webhook khớp mã đơn qua `code` / `content` / `referenceCode` (trích `DH-YYYYMMDD-XXXX`, không phụ thuộc 50 đơn pending gần nhất).
 - Trên SePay: bật nhận diện mã thanh toán tiền tố **DH** (khớp `bookingCode`).
