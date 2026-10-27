@@ -1,10 +1,15 @@
 "use client";
 
-import { Button, Text } from "@chakra-ui/react";
+import { Button, HStack, Text } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
 
+import { ShipBellIcon } from "@/components/ship/chevron-icons";
 import { enableShipperWebPush } from "@/lib/shipper-auth";
-import { mutedAccentColor, titleColor } from "@/lib/user-theme";
+import {
+  mutedAccentColor,
+  titleColor,
+  userOutlineButtonProps,
+} from "@/lib/user-theme";
 
 type PushState = "idle" | "on" | "unsupported" | "denied" | "loading";
 
@@ -82,12 +87,15 @@ export function ShipPushEnableButton() {
       <Button
         type="button"
         size="sm"
-        variant="outline"
-        colorPalette="blue"
+        w="full"
+        {...userOutlineButtonProps}
         loading={state === "loading"}
         onClick={() => void enable()}
       >
-        Bật thông báo đơn mới
+        <HStack gap={2}>
+          <ShipBellIcon boxSize="1.1rem" />
+          <span>Bật thông báo đơn mới</span>
+        </HStack>
       </Button>
       {error ? (
         <Text fontSize="xs" color="red.fg" mt={1}>

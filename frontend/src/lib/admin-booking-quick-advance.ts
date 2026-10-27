@@ -84,7 +84,13 @@ export function getQuickRevertPatch(booking: {
   }
 
   if (booking.status === "RENTING") {
-    return { status: "CONFIRMED" };
+    const patch: QuickAdvancePatch = { status: "CONFIRMED" };
+    // Nút tiến: Đã cọc + Chờ lấy máy → Đã thanh toán + Đang thuê.
+    // Lùi phải hoàn cả hai, không để lại PAID khi đã về chờ lấy máy.
+    if (booking.paymentStatus === "PAID") {
+      patch.paymentStatus = "DEPOSITED";
+    }
+    return patch;
   }
 
   if (booking.status === "CONFIRMED") {
@@ -125,7 +131,7 @@ export function quickRevertToastMessages(patch: QuickAdvancePatch): string[] {
     messages.push("Đã chuyển về đang thuê");
   }
   if (patch.status === "CONFIRMED") {
-    messages.push("Đã chuyển về đã xác nhận");
+    messages.push("Đã chuyển về chờ lấy máy");
   }
   if (patch.status === "PENDING_PAYMENT") {
     messages.push("Đã chuyển về chờ cọc");
