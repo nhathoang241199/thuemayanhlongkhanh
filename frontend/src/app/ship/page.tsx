@@ -133,7 +133,8 @@ function mergeBoardOrders(
   waitingReturn: ShipOrder[],
 ): ShipOrder[] {
   const byId = new Map<string, ShipOrder>();
-  for (const order of [...waitingReturn, ...mine, ...pending]) {
+  // pending trước, mine sau — tránh GET pending cũ ghi đè đơn vừa nhận (WAIT_CLAIM đè WAIT_DELIVER).
+  for (const order of [...pending, ...waitingReturn, ...mine]) {
     byId.set(order.id, order);
   }
   return [...byId.values()].sort(
@@ -344,7 +345,14 @@ export default function ShipBoardPage() {
     setError(null);
     try {
       if (order.displayStatus === "WAIT_CLAIM") {
-        await claimShipOrder(order.id);
+        const claimed = await claimShipOrder(order.id);
+        setOrders((prev) =>
+          mergeBoardOrders(
+            prev.filter((row) => row.id !== claimed.id),
+            [],
+            [claimed],
+          ),
+        );
         setActiveTab("WAIT_DELIVER");
       } else if (canMarkDelivered(order)) {
         await completeShipOrder(order.id);
@@ -353,7 +361,11 @@ export default function ShipBoardPage() {
         await completeShipOrder(order.id);
         setActiveTab("WAIT_RETURN");
       }
-      await refreshBoard();
+      try {
+        await refreshBoard();
+      } catch (reloadError) {
+        console.warn("[ship] refresh after status change failed", reloadError);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không cập nhật được đơn");
     } finally {

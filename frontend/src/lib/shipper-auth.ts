@@ -133,35 +133,50 @@ export type ShipOrder = {
   updatedAt: string;
 };
 
+const shipFetchInit: RequestInit = {
+  credentials: "include",
+  cache: "no-store",
+};
+
+async function throwIfShipApiError(res: Response, fallback: string): Promise<never> {
+  const text = await res.text().catch(() => "");
+  let message = text.trim() || fallback || res.statusText;
+  try {
+    const json = JSON.parse(text) as { message?: string | string[] };
+    if (typeof json.message === "string" && json.message.trim()) {
+      message = json.message.trim();
+    } else if (Array.isArray(json.message) && json.message.length > 0) {
+      message = json.message.map(String).join(", ");
+    }
+  } catch {
+    /* keep text */
+  }
+  throw new Error(message);
+}
+
 export async function fetchPendingShipOrders(): Promise<ShipOrder[]> {
-  const res = await fetch(`${apiBase()}/api/ship-orders/pending`, {
-    credentials: "include",
-  });
+  const res = await fetch(`${apiBase()}/api/ship-orders/pending`, shipFetchInit);
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || res.statusText);
+    await throwIfShipApiError(res, res.statusText);
   }
   return (await res.json()) as ShipOrder[];
 }
 
 export async function fetchMyShipOrders(): Promise<ShipOrder[]> {
-  const res = await fetch(`${apiBase()}/api/ship-orders/mine`, {
-    credentials: "include",
-  });
+  const res = await fetch(`${apiBase()}/api/ship-orders/mine`, shipFetchInit);
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || res.statusText);
+    await throwIfShipApiError(res, res.statusText);
   }
   return (await res.json()) as ShipOrder[];
 }
 
 export async function fetchWaitingReturnShipOrders(): Promise<ShipOrder[]> {
-  const res = await fetch(`${apiBase()}/api/ship-orders/waiting-return`, {
-    credentials: "include",
-  });
+  const res = await fetch(
+    `${apiBase()}/api/ship-orders/waiting-return`,
+    shipFetchInit,
+  );
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || res.statusText);
+    await throwIfShipApiError(res, res.statusText);
   }
   return (await res.json()) as ShipOrder[];
 }
@@ -169,11 +184,10 @@ export async function fetchWaitingReturnShipOrders(): Promise<ShipOrder[]> {
 export async function claimShipOrder(id: string): Promise<ShipOrder> {
   const res = await fetch(`${apiBase()}/api/ship-orders/${id}/claim`, {
     method: "POST",
-    credentials: "include",
+    ...shipFetchInit,
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || res.statusText);
+    await throwIfShipApiError(res, "Không nhận được đơn");
   }
   return (await res.json()) as ShipOrder;
 }
