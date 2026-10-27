@@ -8,6 +8,7 @@ import {
 import {
   BookingStatus,
 } from '../../generated/prisma/enums';
+import { Prisma } from '../../generated/prisma/client';
 import { normalizePhone } from '../common/normalize-phone';
 import { CustomerService } from '../customer/customer.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -147,6 +148,10 @@ export class ShipOrderService {
     const scheduleAt =
       row.scheduleAt ??
       scheduleAtForDisplayStatus(displayStatus, row.booking, row.requestedAt);
+    const scheduleInstant =
+      scheduleAt instanceof Date && !Number.isNaN(scheduleAt.getTime())
+        ? scheduleAt
+        : row.requestedAt;
     return {
       id: row.id,
       bookingId: row.bookingId,
@@ -167,7 +172,7 @@ export class ShipOrderService {
       shipperName: row.shipper?.name ?? null,
       claimedAt: row.claimedAt?.toISOString() ?? null,
       completedAt: row.completedAt?.toISOString() ?? null,
-      scheduleAt: scheduleAt.toISOString(),
+      scheduleAt: scheduleInstant.toISOString(),
       requestedAt: row.requestedAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
@@ -326,7 +331,14 @@ export class ShipOrderService {
   }
 
   async listPending(): Promise<ShipOrderView[]> {
-    await this.syncMissingOutboundOrders();
+    try {
+      await this.syncMissingOutboundOrders();
+    } catch (err) {
+      console.warn(
+        '[ship-order] syncMissingOutboundOrders failed',
+        err instanceof Error ? err.message : err,
+      );
+    }
 
     const rows = await this.prisma.shipOrder.findMany({
       where: {
@@ -501,18 +513,31 @@ export class ShipOrderService {
       return this.toView(existing);
     }
 
-    const row = await this.prisma.shipOrder.create({
-      data: {
-        bookingId: booking.id,
-        bookingCode: booking.bookingCode,
-        leg: 'OUTBOUND',
-        status: 'PENDING',
-        customerName: booking.customer.name,
-        customerPhone: booking.customer.phone,
-        address,
-      },
-      include: { shipper: { select: { name: true } } },
-    });
+    let row;
+    try {
+      row = await this.prisma.shipOrder.create({
+        data: {
+          bookingId: booking.id,
+          bookingCode: booking.bookingCode,
+          leg: 'OUTBOUND',
+          status: 'PENDING',
+          customerName: booking.customer.name,
+          customerPhone: booking.customer.phone,
+          address,
+        },
+        include: { shipper: { select: { name: true } } },
+      });
+    } catch (e) {
+      const duplicate =
+        e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
+      if (!duplicate) throw e;
+      const existingAfterCreate = await this.prisma.shipOrder.findUnique({
+        where: { bookingId_leg: { bookingId: booking.id, leg: 'OUTBOUND' } },
+        include: { shipper: { select: { name: true } } },
+      });
+      if (!existingAfterCreate) throw e;
+      return this.toView(existingAfterCreate);
+    }
 
     if (options?.notify === true) {
       await this.notifyNewShipOrder({
@@ -703,6 +728,13 @@ export class ShipOrderService {
       },
     });
     if (result.count === 0) {
+      const existing = await this.prisma.shipOrder.findUnique({
+        where: { id: orderId },
+        select: { status: true, shipperId: true },
+      });
+      if (existing?.status === 'CLAIMED' && existing.shipperId === shipperId) {
+        return this.loadView(orderId);
+      }
       throw new ConflictException('Đơn đã có người nhận hoặc không còn khả dụng.');
     }
 
