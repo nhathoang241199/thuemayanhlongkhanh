@@ -3,7 +3,6 @@
 import { Box, Container } from "@chakra-ui/react";
 import { usePathname } from "next/navigation";
 
-import { MessengerFloatingButton } from "@/components/user/messenger-contact-button";
 import { UserBottomNav } from "@/components/user/user-bottom-nav";
 import { USER_COLOR_PALETTE, userPageBg } from "@/lib/user-theme";
 
@@ -26,7 +25,7 @@ export default function UserLayout({
         {children}
       </Container>
       <UserBottomNav />
-      <MessengerFloatingButton bottom={showBottomNav ? "5.5rem" : "1rem"} />
+
     </Box>
   );
 }
