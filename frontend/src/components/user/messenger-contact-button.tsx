@@ -1,10 +1,14 @@
 "use client";
 
 import { Box, IconButton, Link, createIcon } from "@chakra-ui/react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useState, type MouseEvent } from "react";
 
+import { useHomeChrome } from "@/components/user/home-chrome";
 import { getMessengerUrl } from "@/lib/site-config";
 import { APP_COLOR_PALETTE } from "@/lib/user-theme";
+
+const easeOut = [0.22, 1, 0.36, 1] as const;
 
 const MessengerIcon = createIcon({
   displayName: "MessengerIcon",
@@ -34,15 +38,20 @@ const CloseIcon = createIcon({
 type MessengerFloatingButtonProps = {
   /** Khoảng cách từ đáy màn hình — tránh đè lên bottom nav. */
   bottom?: string;
+  /** Trên /home: chờ lời chào gõ xong rồi trượt từ bên phải vào. */
+  waitForHomeIntro?: boolean;
 };
 
 export function MessengerFloatingButton({
   bottom = "1rem",
+  waitForHomeIntro = false,
 }: MessengerFloatingButtonProps) {
   const href = getMessengerUrl();
   const [dismissed, setDismissed] = useState(false);
+  const { revealed } = useHomeChrome();
+  const reduceMotion = useReducedMotion();
 
-  if (!href || dismissed) {
+  if (!href || dismissed || (waitForHomeIntro && !revealed)) {
     return null;
   }
 
@@ -53,11 +62,18 @@ export function MessengerFloatingButton({
   };
 
   return (
-    <Box
-      position="fixed"
-      right={4}
-      bottom={`calc(${bottom} + env(safe-area-inset-bottom))`}
-      zIndex={20}
+    <motion.div
+      initial={
+        waitForHomeIntro && !reduceMotion ? { x: 88, opacity: 0 } : false
+      }
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ duration: 0.75, ease: easeOut }}
+      style={{
+        position: "fixed",
+        right: "1rem",
+        bottom: `calc(${bottom} + env(safe-area-inset-bottom))`,
+        zIndex: 20,
+      }}
     >
       <Box position="relative" w="56px" h="56px">
         <IconButton
@@ -98,6 +114,6 @@ export function MessengerFloatingButton({
           <MessengerIcon boxSize={8} />
         </Link>
       </Box>
-    </Box>
+    </motion.div>
   );
 }

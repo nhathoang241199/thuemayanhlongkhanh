@@ -25,10 +25,21 @@ import {
   Text,
   Textarea,
 } from "@chakra-ui/react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { BookStepFooter } from "@/components/user/book-step-footer";
+import {
+  BookStepFooter,
+  StepEdgeFade,
+} from "@/components/user/book-step-footer";
 import { BrandPickerButton } from "@/components/camera/brand-picker-button";
 import { CameraPickerCard } from "@/components/camera/camera-picker-card";
 import { CameraDiscountBadge } from "@/components/camera/camera-discount-badge";
@@ -140,6 +151,14 @@ const vnd = new Intl.NumberFormat("vi-VN", {
 /** Khoảng cách phía trên nút Tiếp tục ở mỗi step. */
 const STEP_CONTINUE_BUTTON_PROPS = { mt: 8 } as const;
 
+const stepEase = [0.22, 1, 0.36, 1] as const;
+
+const stepSlideVariants = {
+  enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 36 : -36 }),
+  center: { opacity: 1, x: 0 },
+  exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -36 : 36 }),
+};
+
 function nowYm(): { year: number; month: number } {
   const t = new Date();
   const vn = new Date(t.getTime() + 7 * 60 * 60 * 1000);
@@ -164,6 +183,13 @@ function BookPageContent() {
   const modifyBookingId = changeSource?.id ?? editSource?.id;
   const [mode, setMode] = useState<Mode>(null);
   const [step, setStep] = useState(0);
+  const reduceMotion = useReducedMotion();
+  const stepDirection = useRef(1);
+  const prevStepRef = useRef(step);
+  if (prevStepRef.current !== step) {
+    stepDirection.current = step > prevStepRef.current ? 1 : -1;
+    prevStepRef.current = step;
+  }
   const [brand, setBrand] = useState<CameraBrand | null>(null);
   const [camera, setCamera] = useState<PublicCamera | null>(null);
   const [lens, setLens] = useState<PublicLens | null>(null);
@@ -1564,16 +1590,20 @@ function BookPageContent() {
   return (
     <Stack gap={4} pb={8}>
       <HStack justify="space-between">
-        <Text textStyle="lg" fontWeight="bold" color={titleColor}>
-          {changeSource
-            ? "Thay đổi đặt lịch"
-            : editSource
-              ? "Chỉnh sửa đơn"
-              : mode === "BY_CAMERA"
-                ? "Theo máy"
-                : "Theo ngày"}
-        </Text>
-        <Badge variant="subtle">{steps}</Badge>
+        <StepEdgeFade side="left" stepKey={step}>
+          <Text textStyle="lg" fontWeight="bold" color={titleColor}>
+            {changeSource
+              ? "Thay đổi đặt lịch"
+              : editSource
+                ? "Chỉnh sửa đơn"
+                : mode === "BY_CAMERA"
+                  ? "Theo máy"
+                  : "Theo ngày"}
+          </Text>
+        </StepEdgeFade>
+        <StepEdgeFade side="right" stepKey={step}>
+          <Badge variant="subtle">{steps}</Badge>
+        </StepEdgeFade>
       </HStack>
 
       {error ? (
@@ -1582,6 +1612,17 @@ function BookPageContent() {
         </Text>
       ) : null}
 
+      <Box overflow="hidden">
+      <AnimatePresence mode="wait" initial={false} custom={stepDirection.current}>
+      <motion.div
+        key={step}
+        custom={stepDirection.current}
+        variants={reduceMotion ? undefined : stepSlideVariants}
+        initial={reduceMotion ? false : "enter"}
+        animate="center"
+        exit="exit"
+        transition={{ duration: 0.45, ease: stepEase }}
+      >
       {isBrandStep ? (
         <>
           <Text fontSize="sm" color="fg.muted">
@@ -1890,6 +1931,9 @@ function BookPageContent() {
           </CardBody>
         </CardRoot>
       ) : null}
+      </motion.div>
+      </AnimatePresence>
+      </Box>
 
       <DialogRoot
         open={termsDialogOpen}
@@ -1923,7 +1967,7 @@ function BookPageContent() {
         </DialogPositioner>
       </DialogRoot>
 
-      <BookStepFooter onBack={handleWizardBack} />
+      <BookStepFooter onBack={handleWizardBack} stepKey={step} />
     </Stack>
   );
 }

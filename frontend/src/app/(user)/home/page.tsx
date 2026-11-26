@@ -6,6 +6,7 @@ import {
   Button,
   CardBody,
   CardRoot,
+  Skeleton,
   createIcon,
   DialogBackdrop,
   DialogBody,
@@ -23,9 +24,10 @@ import {
   Text,
   Textarea,
 } from "@chakra-ui/react";
+import { motion, MotionConfig, useReducedMotion } from "framer-motion";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CameraTutorialDialog } from "@/components/camera/camera-tutorial-dialog";
 import { BookingDeliveryBlock } from "@/components/booking/booking-delivery-block";
@@ -60,7 +62,12 @@ import {
 } from "@/lib/booking-payment";
 import { BRAND_LABEL } from "@/lib/camera-brands";
 import { lensDisplayLabel } from "@/lib/lens-step";
-import { getSession, type CustomerSession } from "@/lib/customer-session";
+import { useHomeChrome } from "@/components/user/home-chrome";
+import {
+  consumeHomeIntro,
+  getSession,
+  type CustomerSession,
+} from "@/lib/customer-session";
 import {
   APP_COLOR_PALETTE,
   mutedAccentColor,
@@ -77,6 +84,123 @@ import {
   shopPhoneTelHref,
   type PublicShopInfo,
 } from "@/lib/shop-info";
+
+const easeOut = [0.22, 1, 0.36, 1] as const;
+
+const appleGreetingProps = {
+  color: titleColor,
+  fontWeight: "semibold",
+  fontSize: "2.125rem",
+  letterSpacing: "-0.022em",
+  lineHeight: "1.15",
+  style: {
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+  },
+} as const;
+
+function TypewriterText({
+  text,
+  onDone,
+}: {
+  text: string;
+  onDone: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const [shown, setShown] = useState("");
+  const shownRef = useRef("");
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  useEffect(() => {
+    if (reduceMotion) {
+      shownRef.current = text;
+      setShown(text);
+      onDoneRef.current();
+      return;
+    }
+
+    let cancelled = false;
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, ms);
+      });
+
+    async function run() {
+      let current = shownRef.current;
+      while (!text.startsWith(current) && current.length > 0) {
+        current = current.slice(0, -1);
+        if (cancelled) return;
+        shownRef.current = current;
+        setShown(current);
+        await wait(70);
+      }
+      while (current.length < text.length) {
+        current = text.slice(0, current.length + 1);
+        if (cancelled) return;
+        shownRef.current = current;
+        setShown(current);
+        await wait(current.endsWith(" ") ? 48 : 110);
+      }
+      if (!cancelled) onDoneRef.current();
+    }
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [reduceMotion, text]);
+
+  return (
+    <Text {...appleGreetingProps} w="full" textAlign="left" aria-label={text}>
+      <span aria-hidden>{shown}</span>
+      <motion.span
+        aria-hidden
+        animate={reduceMotion ? undefined : { opacity: [1, 0, 1] }}
+        transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
+        style={{
+          display: "inline-block",
+          width: "2px",
+          height: "1.05em",
+          marginLeft: "2px",
+          background: "currentColor",
+          verticalAlign: "-0.12em",
+        }}
+      />
+    </Text>
+  );
+}
+
+function givenName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts[parts.length - 1] ?? "";
+}
+
+function BookingCardSkeleton() {
+  return (
+    <CardRoot {...userBookingCardProps}>
+      <CardBody>
+        <Stack gap={3}>
+          <HStack justify="space-between">
+            <Skeleton h="4" w="28%" borderRadius="md" />
+            <Skeleton h="5" w="20%" borderRadius="full" />
+          </HStack>
+          <Skeleton h="4" w="64%" borderRadius="md" />
+          <Skeleton h="3.5" w="46%" borderRadius="md" />
+        </Stack>
+      </CardBody>
+    </CardRoot>
+  );
+}
+
+function BookingListSkeleton() {
+  return (
+    <>
+      <BookingCardSkeleton />
+      <BookingCardSkeleton />
+    </>
+  );
+}
 
 const inlineTextLinkProps = {
   fontSize: "sm",
@@ -143,6 +267,12 @@ const PencilIcon = createIcon({
 
 export default function UserHomePage() {
   const router = useRouter();
+  const { revealed, reveal, reset } = useHomeChrome();
+  const reduceMotion = useReducedMotion();
+  const [greetingFading, setGreetingFading] = useState(false);
+  const [greetingGone, setGreetingGone] = useState(false);
+  const [playIntro, setPlayIntro] = useState(false);
+  const fadeTimerRef = useRef<number | null>(null);
   const [session, setSessionState] = useState<CustomerSession | null>(null);
   const [bookings, setBookings] = useState<MyBooking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -219,15 +349,37 @@ export default function UserHomePage() {
     }
   }, []);
 
+  useEffect(
+    () => () => {
+      if (fadeTimerRef.current != null) {
+        window.clearTimeout(fadeTimerRef.current);
+      }
+      reset();
+    },
+    [reset],
+  );
+
+  useEffect(() => {
+    if (!greetingFading) return;
+    const id = window.setTimeout(() => setGreetingGone(true), 1050);
+    return () => window.clearTimeout(id);
+  }, [greetingFading]);
+
   useEffect(() => {
     const s = getSession();
     if (!s) {
       router.replace("/");
       return;
     }
+    if (consumeHomeIntro()) {
+      setPlayIntro(true);
+    } else {
+      setGreetingGone(true);
+      reveal();
+    }
     setSessionState(s);
     void loadBookings(s.phone);
-  }, [router, loadBookings]);
+  }, [router, loadBookings, reveal]);
 
   useEffect(() => {
     const phone = session?.phone;
@@ -313,23 +465,39 @@ export default function UserHomePage() {
   };
 
   if (!session) {
-    return (
-      <Text color="fg.muted" textAlign="center" py={8}>
-        Đang tải…
-      </Text>
-    );
+    return null;
   }
 
+  const hello = `Xin chào ${givenName(session.name)}!`;
+  const finishGreeting = () => {
+    if (reduceMotion) {
+      setGreetingGone(true);
+      reveal();
+      return;
+    }
+    fadeTimerRef.current = window.setTimeout(() => {
+      setGreetingFading(true);
+      reveal();
+    }, 500);
+  };
+
   return (
+    <MotionConfig reducedMotion="user">
+    {revealed ? (
+    <motion.div
+      initial={reduceMotion || !playIntro ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1.55, ease: easeOut }}
+    >
     <Stack gap={4} pb={24}>
-      <Box>
-        <Text textStyle="xl" fontWeight="bold" color={titleColor}>
-          Xin chào, {session.name}
-        </Text>
-        <Text fontSize="sm" color={mutedAccentColor}>
-          {session.phone}
-        </Text>
-      </Box>
+      <Text {...appleGreetingProps} fontSize="1.5rem">
+        {session.name}
+      </Text>
+
+      <Stack gap={4}>
+      <Text fontSize="sm" color={mutedAccentColor}>
+        {session.phone}
+      </Text>
 
       <CardRoot {...userBookingCardProps}>
         <CardBody py={3}>
@@ -385,11 +553,7 @@ export default function UserHomePage() {
         </Text>
       ) : null}
 
-      {bookings === null && !error ? (
-        <Text color="fg.muted" fontSize="sm">
-          Đang tải đơn…
-        </Text>
-      ) : null}
+      {bookings === null && !error ? <BookingListSkeleton /> : null}
 
       {bookings?.length === 0 ? (
         <CardRoot {...userBookingCardProps}>
@@ -634,6 +798,7 @@ export default function UserHomePage() {
           </CardRoot>
         );
       })}
+      </Stack>
 
       <CameraTutorialDialog
         cameraId={guideCamera?.id ?? null}
@@ -774,5 +939,33 @@ export default function UserHomePage() {
         </DialogPositioner>
       </DialogRoot>
     </Stack>
+    </motion.div>
+    ) : null}
+    {greetingGone ? null : (
+      <Box
+        position="fixed"
+        inset={0}
+        zIndex={5}
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        px={4}
+        pointerEvents={greetingFading ? "none" : "auto"}
+      >
+        <Box w="full" maxW="md">
+          <motion.div
+            initial={false}
+            animate={{ opacity: greetingFading ? 0 : 1 }}
+            transition={{
+              duration: greetingFading ? 1.05 : 0,
+              ease: easeOut,
+            }}
+          >
+            <TypewriterText text={hello} onDone={finishGreeting} />
+          </motion.div>
+        </Box>
+      </Box>
+    )}
+    </MotionConfig>
   );
 }
