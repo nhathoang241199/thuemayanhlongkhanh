@@ -66,6 +66,7 @@ import { useHomeChrome } from "@/components/user/home-chrome";
 import {
   consumeHomeIntro,
   getSession,
+  peekHomeIntro,
   type CustomerSession,
 } from "@/lib/customer-session";
 import {
@@ -271,9 +272,11 @@ export default function UserHomePage() {
   const reduceMotion = useReducedMotion();
   const [greetingFading, setGreetingFading] = useState(false);
   const [greetingGone, setGreetingGone] = useState(false);
-  const [playIntro, setPlayIntro] = useState(false);
+  const [playIntro, setPlayIntro] = useState(() => peekHomeIntro());
   const fadeTimerRef = useRef<number | null>(null);
-  const [session, setSessionState] = useState<CustomerSession | null>(null);
+  const [session, setSessionState] = useState<CustomerSession | null>(() =>
+    getSession(),
+  );
   const [bookings, setBookings] = useState<MyBooking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<MyBooking | null>(null);
@@ -483,7 +486,7 @@ export default function UserHomePage() {
 
   return (
     <MotionConfig reducedMotion="user">
-    {revealed ? (
+    {revealed || !playIntro ? (
     <motion.div
       initial={reduceMotion || !playIntro ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -941,7 +944,7 @@ export default function UserHomePage() {
     </Stack>
     </motion.div>
     ) : null}
-    {greetingGone ? null : (
+    {playIntro && !greetingGone ? (
       <Box
         position="fixed"
         inset={0}
@@ -965,7 +968,7 @@ export default function UserHomePage() {
           </motion.div>
         </Box>
       </Box>
-    )}
+    ) : null}
     </MotionConfig>
   );
 }

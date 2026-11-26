@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Button, HStack } from "@chakra-ui/react";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -14,15 +14,17 @@ export function UserBottomNav() {
   const pathname = usePathname();
   const { revealed } = useHomeChrome();
   const reduceMotion = useReducedMotion();
-  if (pathname !== "/home" || !revealed) {
-    return null;
-  }
+  const visible = pathname === "/home" && revealed;
 
   return (
+    <AnimatePresence>
+      {visible ? (
     <motion.div
-      initial={reduceMotion ? false : { y: "100%" }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.75, ease: easeOut }}
+      key="user-bottom-nav"
+      initial={reduceMotion ? false : { y: "100%", opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={reduceMotion ? undefined : { y: "100%", opacity: 0 }}
+      transition={{ duration: 0.6, ease: easeOut }}
       style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 10 }}
     >
     <Box
@@ -45,5 +47,7 @@ export function UserBottomNav() {
       </HStack>
     </Box>
     </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }

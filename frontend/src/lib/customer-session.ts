@@ -17,6 +17,12 @@ export function markHomeIntro(): void {
   sessionStorage.setItem(HOME_INTRO_KEY, "1");
 }
 
+/** Còn lời chào chờ chạy, chưa xóa cờ. */
+export function peekHomeIntro(): boolean {
+  if (typeof window === "undefined") return false;
+  return sessionStorage.getItem(HOME_INTRO_KEY) === "1" || homeIntroPending;
+}
+
 /** Đọc rồi xóa cờ, để lần vào /home sau không chạy lại lời chào. */
 export function consumeHomeIntro(): boolean {
   if (typeof window === "undefined") return false;
